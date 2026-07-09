@@ -161,6 +161,7 @@
     nautilus
     evince
     kdePackages.plasma-systemmonitor
+    kdePackages.breeze
     bluez
   ];
 }
