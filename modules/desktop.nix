@@ -18,7 +18,21 @@
     pulse.enable = true;
   };
 
-  # 3. Hyprland & Portal core desktop
+  # 3. X server + SDDM display manager (login screen)
+  services.xserver.enable = true;
+  services.displayManager.sddm = {
+    enable = true;
+    wayland.enable = true;
+  };
+  # Default to the plain Hyprland session (start-hyprland, no uwsm) —
+  # the uwsm-managed session fails to start its bindpid unit here.
+  services.displayManager.defaultSession = "hyprland";
+  services.xserver.xkb = {
+    layout = "us";
+    variant = "";
+  };
+
+  # 4. Hyprland & Portal core desktop
   programs.hyprland = {
     enable = true;
     xwayland.enable = true;
@@ -32,13 +46,13 @@
     ];
   };
 
-  # 4. Polkit and security services
+  # 5. Polkit and security services
   security.polkit.enable = true;
   services.gnome.gnome-keyring.enable = true;
   services.power-profiles-daemon.enable = true;
   programs.dconf.enable = true;
 
-  # 5. Core fonts pack
+  # 6. Core fonts pack
   fonts.packages = with pkgs; [
     cantarell-fonts
     noto-fonts
@@ -50,7 +64,7 @@
     font-awesome
   ];
 
-  # 6. Oh-My-Desktop desktop session definition (for SDDM / GDM login manager)
+  # 7. Oh-My-Desktop desktop session definition (for SDDM / GDM login manager)
   services.displayManager.sessionPackages = [
     (pkgs.stdenvNoCC.mkDerivation {
       pname = "oh-my-desktop-session";
@@ -95,7 +109,7 @@
     })
   ];
 
-  # 7. Desktop-specific applications and tool packages
+  # 8. Desktop-specific applications and tool packages
   environment.systemPackages = with pkgs; [
     # OMD / Hyprland Core Packages
     hyprpicker
