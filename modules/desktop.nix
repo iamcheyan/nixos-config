@@ -24,6 +24,7 @@
     enable = true;
     wayland.enable = true;
   };
+  services.desktopManager.plasma6.enable = true;
   # Default to the plain Hyprland session (start-hyprland, no uwsm) —
   # the uwsm-managed session fails to start its bindpid unit here.
   services.displayManager.defaultSession = "hyprland";
@@ -31,7 +32,7 @@
   # Use KDE Breeze as the SDDM login theme (provided by plasma-desktop below)
   services.displayManager.sddm.theme = "breeze";
   services.xserver.xkb = {
-    layout = "us";
+    layout = "jp";
     variant = "";
   };
 
