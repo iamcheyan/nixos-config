@@ -27,6 +27,9 @@
   # Default to the plain Hyprland session (start-hyprland, no uwsm) —
   # the uwsm-managed session fails to start its bindpid unit here.
   services.displayManager.defaultSession = "hyprland";
+
+  # Use KDE Breeze as the SDDM login theme (provided by plasma-desktop below)
+  services.displayManager.sddm.theme = "breeze";
   services.xserver.xkb = {
     layout = "us";
     variant = "";
@@ -111,6 +114,9 @@
 
   # 8. Desktop-specific applications and tool packages
   environment.systemPackages = with pkgs; [
+    # Provides the KDE Breeze SDDM login theme (services.displayManager.sddm.theme)
+    kdePackages.plasma-desktop
+
     # OMD / Hyprland Core Packages
     hyprpicker
     xdg-desktop-portal-hyprland
