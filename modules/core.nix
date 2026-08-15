@@ -29,6 +29,12 @@
   i18n.inputMethod = {
     enable = true;
     type = "fcitx5";
+    # Use the Wayland input-method protocol instead of the legacy
+    # GTK_IM_MODULE path. The module then stops exporting
+    # GTK_IM_MODULE="fcitx", which is exactly what fcitx5's startup
+    # "Wayland 诊断" notification nags about. GTK apps reach fcitx5 via
+    # text-input; Qt/SDL still get their explicit IM module below.
+    fcitx5.waylandFrontend = true;
     fcitx5.addons = with pkgs; [
       fcitx5-rime
       fcitx5-gtk
@@ -38,10 +44,22 @@
 
   environment.sessionVariables = {
     XMODIFIERS = "@im=fcitx";
-    GTK_IM_MODULE = "fcitx";
+    # GTK_IM_MODULE intentionally unset: on Wayland the text-input-v2/v3
+    # protocol is the preferred input path and fcitx5's own startup
+    # diagnostic nags about the legacy GTK IM module. GTK3/GTK4 apps still
+    # reach fcitx5 through the portal/protocol; X11/XWayland GTK apps are
+    # covered by XMODIFIERS above.
     QT_IM_MODULE = "fcitx";
     SDL_IM_MODULE = "fcitx";
   };
+
+  # Passwordless sudo for the primary user (single-user workstation).
+  security.sudo.extraRules = [
+    {
+      users = [ "tetsuya" ];
+      commands = [ { command = "ALL"; options = [ "NOPASSWD" "SETENV" ]; } ];
+    }
+  ];
 
   # 6. Basic utilities and settings
   services.printing.enable = true;
@@ -69,4 +87,19 @@
     python3Packages.pip
     fnm
   ];
+
+  # 8. zram: compress cold pages in RAM instead of hitting the NVMe swap
+  # partition. Without it the system swaps 3+ GB to disk on a 14G machine and
+  # refaulting those pages causes half-second stalls when switching back to
+  # idle windows. Disk swap stays as spill (zram wins on priority).
+  zramSwap = {
+    enable = true;
+    algorithm = "zstd";
+    memoryPercent = 50; # ~7G of compressible cold pages
+    priority = 100; # above the NVMe partition's -1
+  };
+
+  # zram tuning: prefer swapping to compressed RAM over dropping file cache.
+  # (vm.page_cluster does not exist on this kernel — 7.x dropped it.)
+  boot.kernel.sysctl."vm.swappiness" = 180;
 }
