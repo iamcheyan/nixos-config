@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 {
   # 1. Bluetooth support
@@ -128,7 +128,10 @@
     walker
     cliphist
     wl-clipboard
-    mako
+    # mako intentionally NOT installed: Sumika Shell's bar ships its own
+    # notification daemon (quickshell Notifications service). A second
+    # daemon wins the org.freedesktop.Notifications DBus name by race and
+    # renders foreign blue popups.
 
     # Audio, display, screenshot, power and session tools
     pamixer
@@ -149,13 +152,18 @@
     gnome-keyring
     polkit_gnome
 
+    # Sumika Shell runtime deps: cosmic-icons is the OSD indicator icon theme
+    # (Directories.cosmicIcons), glib provides gdbus for PowerProfiles and the
+    # input-method Rime schema switching.
+    cosmic-icons
+    glib
+
     # Terminals
     foot
     kitty
 
     # Qt/GTK integration and file/media tools
-    kdePackages.qtwayland
-    kdePackages.qt5compat      # Qt5Compat.GraphicalEffects QML module for Quickshell
+    kdePackages.kirigami      # org.kde.kirigami QML module (see sessionVariables below)
     kdePackages.qt6ct
     kdePackages.qtstyleplugin-kvantum
     adwaita-qt
@@ -167,4 +175,45 @@
     kdePackages.plasma-systemmonitor
     bluez
   ];
+
+  # Unwrapped QML consumers (Quickshell: bar, polkit agent) resolve
+  # org.kde.kirigami and Qt5Compat.GraphicalEffects through QML2_IMPORT_PATH.
+  # The KDE platform theme (QT_QPA_PLATFORMTHEME=kde from plasma6) activates
+  # the Breeze Quick style whose Button.qml imports kirigami — but the
+  # profile join's org/kde/kirigami is a styles-only stub from libplasma and
+  # kdePackages.kirigami itself is a wrapper stub, so point at .unwrapped.
+  # Without this the sumika-polkit agent crash-loops and every pkexec GUI
+  # prompt is unreachable.
+  environment.sessionVariables.QML2_IMPORT_PATH = lib.concatStringsSep ":" [
+    "${pkgs.kdePackages.kirigami.unwrapped}/${pkgs.qt6.qtbase.qtQmlPrefix}"
+    "${pkgs.kdePackages.qt5compat}/${pkgs.qt6.qtbase.qtQmlPrefix}"
+  ];
+
+  # amdgpu clock policy: the Cezanne iGPU exposes only 200/400/1750 MHz sclk
+  # steps; on `auto` the driver oscillates between 400 and 1750 every second
+  # while compositing 3840x2160@scale2, which shows up as frame-time jitter.
+  # Pin `high` on AC power, fall back to `auto` on battery.
+  systemd.services.amdgpu-dpm = {
+    description = "Pin amdgpu DPM performance level (AC=high, battery=auto)";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    path = [ pkgs.bash ];
+    script = ''
+      level=auto
+      if grep -q 1 /sys/class/power_supply/A*/online 2>/dev/null; then
+        level=high
+      fi
+      for f in /sys/class/drm/card*/device/power_dpm_force_performance_level; do
+        printf '%s' "$level" > "$f" 2>/dev/null || true
+      done
+    '';
+  };
+  services.udev.extraRules = ''
+    ACTION=="change", SUBSYSTEM=="power_supply", ATTR{type}=="Mains", \
+      TAG+="systemd", ENV{SYSTEMD_WANTS}+="amdgpu-dpm.service"
+  '';
 }
