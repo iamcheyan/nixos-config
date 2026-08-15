@@ -43,16 +43,6 @@
     SDL_IM_MODULE = "fcitx";
   };
 
-  # 5. Security & Sudo (Passwordless sudo rules for user tetsuya)
-  security.sudo.extraRules = [
-    {
-      users = [ "tetsuya" ];
-      commands = [
-        { command = "ALL"; options = [ "NOPASSWD" "SETENV" ]; }
-      ];
-    }
-  ];
-
   # 6. Basic utilities and settings
   services.printing.enable = true;
   services.openssh.enable = true;

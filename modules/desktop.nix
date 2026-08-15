@@ -26,7 +26,7 @@
   };
   # Default to the plain Hyprland session (start-hyprland, no uwsm) —
   # the uwsm-managed session fails to start its bindpid unit here.
-  services.displayManager.defaultSession = "hyprland";
+  services.displayManager.defaultSession = "sumika-shell";
 
   # Use KDE Breeze as the SDDM login theme.
   # Requires the Plasma desktop environment to be enabled so its KDE QML
@@ -74,24 +74,24 @@
   # 7. Oh-My-Desktop desktop session definition (for SDDM / GDM login manager)
   services.displayManager.sessionPackages = [
     (pkgs.stdenvNoCC.mkDerivation {
-      pname = "oh-my-desktop-session";
+      pname = "sumika-shell-session";
       version = "1";
       dontUnpack = true;
-      passthru.providedSessions = [ "oh-my-desktop" ];
+      passthru.providedSessions = [ "sumika-shell" ];
       installPhase = ''
         mkdir -p $out/bin $out/share/wayland-sessions
         cp ${pkgs.writeShellScript "omd-hyprland-session" ''
-          export OMD_ROOT="''${HOME}/.config/omd"
-          export OMD_FORCE_NO_UWSM=1
+          export SUMIKA_SHELL_ROOT="''${HOME}/development/OMD"
+          export SUMIKA_FORCE_NO_UWSM=1
           export XDG_CURRENT_DESKTOP=Hyprland
-          export XDG_SESSION_DESKTOP=oh-my-desktop
+          export XDG_SESSION_DESKTOP=sumika-shell
           export XDG_SESSION_TYPE=wayland
           export QT_QPA_PLATFORM=wayland
           export GDK_BACKEND=wayland,x11
           export MOZ_ENABLE_WAYLAND=1
-          export PATH="''${HOME}/.local/bin:''${OMD_ROOT}/bin:${pkgs.hyprland}/bin:${pkgs.quickshell}/bin:${pkgs.coreutils}/bin:${pkgs.bash}/bin:/run/current-system/sw/bin:''${PATH}"
+          export PATH="''${HOME}/.local/bin:''${SUMIKA_SHELL_ROOT}/bin:${pkgs.hyprland}/bin:${pkgs.quickshell}/bin:${pkgs.coreutils}/bin:${pkgs.bash}/bin:/run/current-system/sw/bin:''${PATH}"
 
-          config="''${OMD_ROOT}/hypr/hyprland.lua"
+          config="''${SUMIKA_SHELL_ROOT}/hypr/hyprland.lua"
           if [[ ! -f "$config" ]]; then
             echo "OMD Hyprland config not found: $config" >&2
             exit 1
@@ -105,13 +105,13 @@
         ''} $out/bin/omd-hyprland-session
         printf '%s\n' \
           '[Desktop Entry]' \
-          'Name=Oh My Desktop' \
-          'Comment=OMD Hyprland session with Quickshell' \
+          'Name=Sumika Shell' \
+          'Comment=Sumika Shell Hyprland session with Quickshell' \
           "Exec=$out/bin/omd-hyprland-session" \
           'Type=Application' \
           'DesktopNames=Hyprland' \
           'Keywords=tiling;wayland;compositor;' \
-          > $out/share/wayland-sessions/oh-my-desktop.desktop
+          > $out/share/wayland-sessions/sumika-shell.desktop
       '';
     })
   ];

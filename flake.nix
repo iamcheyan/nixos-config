@@ -2,8 +2,9 @@
   description = "Tetsuya's Multi-device NixOS Flake Configuration";
 
   inputs = {
-    # NixOS official unstable channel branch
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    # Pin the migration baseline to the installed NixOS release. Upgrade this
+    # deliberately after the new machine is stable.
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
   };
 
   outputs = { self, nixpkgs, ... }@inputs: {
@@ -23,6 +24,14 @@
         system = "x86_64-linux";
         modules = [
           ./hosts/desktop/configuration.nix
+        ];
+      };
+
+      # New x86_64 NixOS host created from the machine's own hardware scan.
+      nixos-new = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          ./hosts/nixos-new/configuration.nix
         ];
       };
     };
