@@ -138,6 +138,7 @@
     networkmanagerapplet
     brightnessctl
     swaybg
+    wlr-randr
     grim
     slurp
     swappy
