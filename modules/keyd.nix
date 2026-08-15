@@ -11,20 +11,28 @@
     enable = true;
   };
 
-  # 3. Secure and robust systemd configuration for keyd
-  systemd.services.keyd = {
-    # Auto-initialize the configuration directory and files if they are missing
-    # This prevents keyd from crashing with status 255 and locking system rebuilds
-    preStart = ''
-      mkdir -p /etc/keyd
-      if [ ! -f /etc/keyd/omd.conf ]; then
-        echo "# Generated placeholder config" > /etc/keyd/omd.conf
-      fi
-    '';
-
-    serviceConfig = {
-      # NixOS sandbox overrides (allows keyd to demote its user/group status on startup)
-      CapabilityBoundingSet = [ "CAP_SYS_NICE" "CAP_IPC_LOCK" "CAP_SETGID" "CAP_SETUID" ];
-    };
+  # 2b. keyd demotes itself to the "keyd" user/group at startup (upstream
+  # behavior; Arch's package creates these, the NixOS module does not).
+  # Without them keyd logs a warning on every start and stays root.
+  users.users.keyd = {
+    isSystemUser = true;
+    group = "keyd";
+    description = "keyd keyboard remapping daemon";
   };
+  users.groups.keyd = { };
+
+  # 3. /etc/keyd must exist as a REAL writable directory: the keyboard-remap
+  # extension installs /etc/keyd/sumika.conf imperatively via pkexec. Create
+  # it with tmpfiles (runs as root outside the unit sandbox) — the keyd unit
+  # has ProtectSystem=strict, so a preStart mkdir inside it fails with EROFS.
+  # The placeholder keeps keyd from exiting when no real config exists yet.
+  systemd.tmpfiles.rules = [
+    "d /etc/keyd 0755 root root -"
+    "f /etc/keyd/omd.conf 0644 root root - # Generated placeholder config"
+  ];
+
+  # 4. Sandbox overrides: keyd demotes itself to the keyd runtime user at
+  # startup, which needs SETGID/SETUID beyond the module default bounding set.
+  systemd.services.keyd.serviceConfig.CapabilityBoundingSet =
+    [ "CAP_SYS_NICE" "CAP_IPC_LOCK" "CAP_SETGID" "CAP_SETUID" ];
 }
