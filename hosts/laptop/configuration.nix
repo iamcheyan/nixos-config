@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, inputs, ... }:
 
 {
   imports = [
@@ -9,7 +9,14 @@
     ../../modules/desktop.nix
     ../../modules/keyd.nix
     ../../modules/zsh.nix
+    inputs.home-manager.nixosModules.home-manager
   ];
+
+  home-manager.users.tetsuya = {
+    imports = [ inputs.nixarchy.homeManagerModules.nixarchy ];
+    home.stateVersion = "26.05";
+    programs.nixarchy.enable = true;
+  };
 
   # Host-specific settings
   networking.hostName = "laptop";  # Set host name to laptop

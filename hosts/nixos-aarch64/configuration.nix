@@ -1,32 +1,22 @@
-{ config, pkgs, ... }:
+{ config, pkgs, inputs, ... }:
 
 {
   imports = [
     ./hardware-configuration.nix
     ../../modules/core.nix
+    ../../modules/desktop.nix
     ../../modules/zsh.nix
+    inputs.home-manager.nixosModules.home-manager
   ];
 
   networking.hostName = "nixos-aarch64";
   time.timeZone = "Asia/Tokyo";
 
-  # This machine currently runs the stock GNOME desktop. Keep the ARM host
-  # independent from the legacy OMD/Sumika session module.
-  services.xserver.enable = true;
-  services.displayManager.gdm.enable = true;
-  services.desktopManager.gnome.enable = true;
-  services.xserver.xkb = {
-    layout = "jp";
-    variant = "";
+  home-manager.users.tetsuya = {
+    imports = [ inputs.nixarchy.homeManagerModules.nixarchy ];
+    home.stateVersion = "26.05";
+    programs.nixarchy.enable = true;
   };
-
-  services.pipewire = {
-    enable = true;
-    alsa.enable = true;
-    alsa.support32Bit = true;
-    pulse.enable = true;
-  };
-  security.rtkit.enable = true;
 
   services.spice-vdagentd.enable = true;
   services.qemuGuest.enable = true;
