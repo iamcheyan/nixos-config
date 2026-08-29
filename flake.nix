@@ -34,6 +34,15 @@
           ./hosts/nixos-new/configuration.nix
         ];
       };
+
+      # ARM64 QEMU/NixOS host. This host intentionally uses the GNOME
+      # configuration instead of the legacy OMD/Sumika desktop module.
+      nixos-aarch64 = nixpkgs.lib.nixosSystem {
+        system = "aarch64-linux";
+        modules = [
+          ./hosts/nixos-aarch64/configuration.nix
+        ];
+      };
     };
   };
 }

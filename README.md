@@ -21,13 +21,14 @@ nixos-config/
     └── nixos-new/             # 新机器（AMD，带休眠 + snapper 快照）
 ```
 
-## 三台主机现状
+## 四台主机现状
 
 | 主机 | flake 名 | 状态 | 说明 |
 |------|----------|------|------|
 | 笔记本 | `laptop` | 可用 | Intel (kvm-intel)，btrfs 子卷 root/home/nix |
 | 台式机 | `desktop` | **占位** | `hardware.nix` 是假的（`/dev/disk/by-label/nixos` ext4），上台式机前必须在本机重新生成 |
 | 新机器 | `nixos-new` | 可用 | AMD (kvm-amd)，休眠、snapper 快照、Docker、Windows VM 工具链 |
+| ARM64 虚拟机 | `nixos-aarch64` | 可用 | QEMU `aarch64-linux`，GNOME、PipeWire、SPICE；不加载旧 OMD/Sumika 桌面模块 |
 
 每台主机的 `configuration.nix` 只包含：主机名、时区（Asia/Tokyo）、用户
 `tetsuya`、以及该机特有的服务；其余全部 import 共享模块。
@@ -98,6 +99,7 @@ keyd 守护进程。因为 NixOS 的 keyd 模块不会创建上游所需的 `key
 # 应用配置（在本机上，<name> 换成当前机器的 flake 名）
 sudo nixos-rebuild switch --flake ~/nixos-config#laptop      # 笔记本
 sudo nixos-rebuild switch --flake ~/nixos-config#nixos-new   # 新机器
+sudo nixos-rebuild switch --flake ~/nixos-config#nixos-aarch64 # ARM64 虚拟机
 
 # 更新 nixpkgs 锁定（谨慎：当前刻意钉在 nixos-26.05 迁移基线）
 nix flake update
