@@ -14,7 +14,7 @@
 
 - 配置目录：`/home/tetsuya/nixos-config`
 - 锁文件：`/home/tetsuya/nixos-config/flake.lock`
-- 当前 ARM64 主机：`hosts/nixos-aarch64`
+- 当前 ARM64 主机：`hosts/aarch64`
 - 桌面模块：`modules/desktop.nix`
 
 ## 版本关系

@@ -8,8 +8,8 @@
 cd /home/tetsuya/nixos-config
 nix flake lock --update-input nixarchy
 nix flake check --no-build
-sudo nixos-rebuild build --flake .#nixos-aarch64
-sudo nixos-rebuild switch --flake .#nixos-aarch64
+sudo nixos-rebuild build --flake .#aarch64
+sudo nixos-rebuild switch --flake .#aarch64
 ```
 
 更新前后可查看：
@@ -26,8 +26,8 @@ git status --short
 ```bash
 nix flake update
 nix flake check --no-build
-sudo nixos-rebuild build --flake .#nixos-aarch64
-sudo nixos-rebuild switch --flake .#nixos-aarch64
+sudo nixos-rebuild build --flake .#aarch64
+sudo nixos-rebuild switch --flake .#aarch64
 ```
 
 ## 会话验证

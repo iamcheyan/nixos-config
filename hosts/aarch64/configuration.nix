@@ -9,7 +9,7 @@
     inputs.home-manager.nixosModules.home-manager
   ];
 
-  networking.hostName = "nixos-aarch64";
+  networking.hostName = "aarch64";
   time.timeZone = "Asia/Tokyo";
 
   home-manager.users.tetsuya = {

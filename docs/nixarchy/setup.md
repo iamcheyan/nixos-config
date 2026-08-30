@@ -5,8 +5,8 @@
 本机是 ARM64 QEMU/NixOS 主机，应使用：
 
 ```bash
-sudo nixos-rebuild build --flake /home/tetsuya/nixos-config#nixos-aarch64
-sudo nixos-rebuild switch --flake /home/tetsuya/nixos-config#nixos-aarch64
+sudo nixos-rebuild build --flake /home/tetsuya/nixos-config#aarch64
+sudo nixos-rebuild switch --flake /home/tetsuya/nixos-config#aarch64
 ```
 
 切换后注销，在 SDDM 中选择 `Omarchy` 会话。
@@ -34,7 +34,7 @@ Omarchy 菜单中的应用选择会写入 `~/.config/nixarchy/apps.nix`。应用
 
 ```bash
 nixarchy-apply
-sudo nixos-rebuild switch --flake /home/tetsuya/nixos-config#nixos-aarch64
+sudo nixos-rebuild switch --flake /home/tetsuya/nixos-config#aarch64
 ```
 
 如果生成了 `nixarchy-apps.nix`，必须确保它被主机配置导入，否则选择不会真正安装。

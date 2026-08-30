@@ -6,11 +6,10 @@
     ../../modules/core.nix
     ../../modules/desktop.nix
     ../../modules/zsh.nix
-    ../../modules/keyd.nix
     inputs.home-manager.nixosModules.home-manager
   ];
 
-  networking.hostName = "nixos";
+  networking.hostName = "hx90";
   time.timeZone = "Asia/Tokyo";
 
   # Disk hibernation: this host has a 68.4 GiB NVMe swap partition (UUID from

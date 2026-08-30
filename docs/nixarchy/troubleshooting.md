@@ -8,13 +8,13 @@ hostname
 nixos-version
 ```
 
-当前 ARM64 主机的 flake 名是 `nixos-aarch64`，不是 `nixos-new`。
+当前 ARM64 主机的 flake 名是 `aarch64`。
 
 ## 只检查配置
 
 ```bash
 nix flake check --no-build
-sudo nixos-rebuild build --flake /home/tetsuya/nixos-config#nixos-aarch64
+sudo nixos-rebuild build --flake /home/tetsuya/nixos-config#aarch64
 ```
 
 ## 登录界面没有 Omarchy

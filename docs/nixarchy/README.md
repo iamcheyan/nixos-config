@@ -4,11 +4,11 @@
 
 ## 当前状态
 
-- 当前机器：`nixos-aarch64`
+- 当前机器：`aarch64`
 - 架构：`aarch64-linux`
 - NixOS：`26.05`
 - 桌面：Nixarchy / Omarchy + Hyprland + SDDM
-- 配置入口：`hosts/nixos-aarch64/configuration.nix`
+- 配置入口：`hosts/aarch64/configuration.nix`
 - Nixarchy 版本：`v4.0.1-1`，具体 commit 见 `flake.lock`
 
 ## 文档
@@ -24,4 +24,4 @@
 - `flake.nix`：flake 输入和主机注册
 - `flake.lock`：可复现的依赖版本
 - `modules/desktop.nix`：Nixarchy 桌面基础配置
-- `hosts/nixos-aarch64/configuration.nix`：当前 ARM64 主机配置
+- `hosts/aarch64/configuration.nix`：当前 ARM64 主机配置

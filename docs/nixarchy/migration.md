@@ -34,7 +34,7 @@ cd ~/nixos-config
 ```bash
 mkdir -p ~/nixos-config/hosts/new-laptop
 cp /etc/nixos/hardware-configuration.nix ~/nixos-config/hosts/new-laptop/hardware-configuration.nix
-cp hosts/nixos-aarch64/configuration.nix hosts/new-laptop/configuration.nix
+cp hosts/aarch64/configuration.nix hosts/new-laptop/configuration.nix
 ```
 
 修改 `networking.hostName`，并删除不适用的 QEMU/SPICE、休眠、AMD/Intel、Docker 或 Snapper 配置。
