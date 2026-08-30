@@ -6,6 +6,9 @@
   programs.nixarchy = {
     enable = true;
     displayManager = false;
+    # Omarchy's update widget and CLI must update the user-owned source flake,
+    # not the root-owned compatibility files under /etc/nixos.
+    flake = "/home/tetsuya/nixos-config";
   };
 
   hardware.bluetooth = {

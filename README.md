@@ -4,6 +4,10 @@
 自己的硬件扫描文件和少量主机差异项。换机器时只需新增一个 `hosts/<名字>/`
 目录并在 `flake.nix` 里注册一行。
 
+本仓库只负责 **NixOS 系统层**：系统包和服务、硬件、内核、启动、用户组以及
+Nixarchy 的系统接线。用户级私人编排由 `~/chezmoi` 管理，可公开复用的通用
+配置由 `~/dotfiles` 管理；详细边界见 `AGENTS.md`。
+
 ## 目录结构
 
 ```
@@ -47,6 +51,9 @@ nixos-config/
 - **登录**：SDDM（Wayland 模式），Breeze 主题。主题依赖 KDE QML 模块，所以
   同时启用了 Plasma 6——这台机器上 Plasma 也作为备用会话存在。
 - **默认会话**：使用 Nixarchy 提供的 Wayland 桌面会话。
+- **Omarchy 更新入口**：`programs.nixarchy.flake` 指向用户拥有的
+  `~/nixos-config`。状态栏与 `omarchy update` 更新本仓库的 `flake.lock` 后执行
+  rebuild，不使用 root 拥有的 `/etc/nixos`。
 - **图形栈**：Hyprland（含 XWayland）、xdg portal、polkit、gnome-keyring、
   power-profiles-daemon。
 - **音频**：PipeWire（兼容 ALSA / 32 位 / PulseAudio 客户端）。
@@ -96,12 +103,13 @@ sudo nixos-rebuild switch --rollback
 
 ## 仓库地图
 
-换机时"配置回来"≠ 只部署本仓库。完整的机器 = 以下四件套：
+换机时“配置回来”不等于只部署本仓库。主要配置由以下三个仓库组成：
 
 | 仓库 | 地址 | 管什么 | 换机时的动作 |
 |---|---|---|---|
 | **nixos-config**（本仓库） | `iamcheyan/nixos-config` | 系统层和桌面组件 | clone + 生成 hardware 文件 + 注册主机 + rebuild |
-| **chezmoi** | `iamcheyan/chezmoi` | 用户层 dotfiles | clone 后 `chezmoi apply` |
+| **chezmoi**（PRIVATE） | `iamcheyan/chezmoi` | 用户级私人软件与自动化编排 | 认证 clone + `chezmoi apply` |
+| **dotfiles**（PUBLIC） | `iamcheyan/dotfiles` | 通用 Zsh、Neovim 与公开 CLI 配置 | clone + `dotlink link` |
 
 **不会自动回来的**（换机前自行处理）：
 
