@@ -14,10 +14,6 @@
   # Keep this workstation awake during long builds and remote sessions.
   services.logind.settings.Login = {
     IdleAction = "ignore";
-    HandleLidSwitch = "ignore";
-    HandlePowerKey = "ignore";
-    HandleSuspendKey = "ignore";
-    HandleHibernateKey = "ignore";
   };
 
   # 4. Select internationalisation properties
