@@ -70,26 +70,24 @@
   services.printing.enable = true;
   services.openssh.enable = true;
 
-  # Global keyboard remapping support. Chezmoi owns the machine-specific
-  # mapping files under /etc/keyd; NixOS owns the package and daemon on every
-  # configured host.
-  services.keyd.enable = true;
-  users.users.keyd = {
-    isSystemUser = true;
-    group = "keyd";
-    description = "keyd keyboard remapping daemon";
+  # NixOS owns the package, generated /etc/keyd configuration and daemon.
+  services.keyd = {
+    enable = true;
+    keyboards.minila-r-convertible = {
+      ids = [ "k:0c45:22b8" ];
+      settings.main = {
+        leftalt = "leftmeta";
+        leftmeta = "leftalt";
+        muhenkan = "f13";
+        katakanahiragana = "left";
+        delete = "right";
+        rightcontrol = "up";
+        rightalt = "down";
+        grave = "escape";
+        escape = "grave";
+      };
+    };
   };
-  users.groups.keyd = { };
-  systemd.tmpfiles.rules = [
-    "d /etc/keyd 0755 root root -"
-    "f /etc/keyd/omd.conf 0644 root root - # Generated placeholder config"
-  ];
-  systemd.services.keyd.serviceConfig.CapabilityBoundingSet = [
-    "CAP_SYS_NICE"
-    "CAP_IPC_LOCK"
-    "CAP_SETGID"
-    "CAP_SETUID"
-  ];
 
   # Nix-ld loader to run unpatched dynamic binaries
   programs.nix-ld.enable = true;
@@ -110,7 +108,8 @@
     unzip zip p7zip man-db
     kitty alacritty ghostty foot yazi zellij ranger firefox
     voxtype-onnx gh yq cmake ninja just rustup bun nodejs rclone podman atuin
-    fish fontconfig python3 python3Packages.pip fnm keyd
+    fish fontconfig python3 python3Packages.pip fnm
+    bitwarden-cli dotnet-sdk_9 yt-dlp node-gyp gcc gnumake tree-sitter sshfs
   ];
 
   # 8. zram: compress cold pages in RAM instead of hitting the NVMe swap

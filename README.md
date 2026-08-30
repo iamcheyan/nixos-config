@@ -46,6 +46,8 @@ HX90 的 `networking.hostName` 与 flake 输出名统一为 `hx90`，因此 Nixa
   （`waylandFrontend`），GTK 不设 `GTK_IM_MODULE`，Qt/SDL 仍走显式 IM module。
 - **sudo**：`tetsuya` 免密码（单用户工作站）。
 - **服务**：打印 (CUPS)、SSH、nix-ld（跑非 Nix 打包的二进制）、Firefox。
+- **键盘映射**：keyd 服务及 MINILA-R 映射，声明式生成 `/etc/keyd` 配置；详见
+  [`docs/keyd.md`](docs/keyd.md)。
 - **zram**：zstd 压缩、占内存 50%、优先级 100（高于磁盘 swap），配
   `vm.swappiness=180`。解决 14G 内存机器冷页换出到 NVMe 后切窗口卡半秒的问题。
 - **基础包**：git、curl、jq、ripgrep、python3、fnm 等。
