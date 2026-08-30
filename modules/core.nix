@@ -11,6 +11,15 @@
   # 3. Networking
   networking.networkmanager.enable = true;
 
+  # Keep this workstation awake during long builds and remote sessions.
+  services.logind.settings.Login = {
+    IdleAction = "ignore";
+    HandleLidSwitch = "ignore";
+    HandlePowerKey = "ignore";
+    HandleSuspendKey = "ignore";
+    HandleHibernateKey = "ignore";
+  };
+
   # 4. Select internationalisation properties
   i18n.defaultLocale = "zh_CN.UTF-8";
   i18n.extraLocaleSettings = {
