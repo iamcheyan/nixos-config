@@ -88,7 +88,7 @@
     ripgrep fd fzf jq bat eza starship age
     unzip zip p7zip man-db
     kitty alacritty ghostty foot yazi zellij ranger firefox
-    voxtype gh yq cmake ninja just rustup bun nodejs rclone podman atuin
+    voxtype-onnx gh yq cmake ninja just rustup bun nodejs rclone podman atuin
     fish fontconfig python3 python3Packages.pip fnm
   ];
 
