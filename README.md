@@ -30,6 +30,9 @@ nixos-config/
 | ARM64 虚拟机 | `aarch64` | 可用 | QEMU `aarch64-linux`，GNOME、PipeWire、SPICE |
 | HX90 工作站 | `hx90` | 可用 | x86_64，休眠和桌面环境 |
 
+`nixosConfigurations.nixos` 是 `hx90` 的同对象别名：当前 hostname 为 `nixos`，
+而 Nixarchy 的 `omarchy update` 调用 rebuild 时不附加 `#hx90`。
+
 每台主机的 `configuration.nix` 只包含：主机名、时区（Asia/Tokyo）、用户
 `tetsuya`、以及该机特有的服务；其余全部 import 共享模块。
 
@@ -100,6 +103,12 @@ nixos-rebuild build --flake ~/nixos-config#<name>
 # 回滚
 sudo nixos-rebuild switch --rollback
 ```
+
+在 NixOS 上，`omarchy update` 不是 Arch/pacman 更新。Nixarchy 会使用
+`NIXARCHY_FLAKE=~/nixos-config` 执行 `nix flake update`，然后运行
+`nixos-rebuild switch`。它更新 NixOS/Nixarchy/Omarchy/Home Manager 等 flake
+输入，但不会更新 chezmoi、dotfiles 或用户运行时数据。详细范围、验证和双层回滚
+方法见 [`docs/nixarchy/update-and-rollback.md`](docs/nixarchy/update-and-rollback.md)。
 
 ## 仓库地图
 

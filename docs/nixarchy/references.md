@@ -14,7 +14,8 @@
 
 - 配置目录：`/home/tetsuya/nixos-config`
 - 锁文件：`/home/tetsuya/nixos-config/flake.lock`
-- 当前 ARM64 主机：`hosts/aarch64`
+- 当前 HX90 主机：`hosts/nixos-hx90`（flake 名 `hx90`）
+- ARM64 QEMU 主机：`hosts/aarch64`（flake 名 `aarch64`）
 - 桌面模块：`modules/desktop.nix`
 
 ## 版本关系

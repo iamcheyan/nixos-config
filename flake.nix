@@ -17,7 +17,16 @@
     };
   };
 
-  outputs = { self, nixpkgs, ... }@inputs: {
+  outputs = { self, nixpkgs, ... }@inputs:
+    let
+      hx90System = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = { inherit inputs; };
+        modules = [
+          ./hosts/nixos-hx90/configuration.nix
+        ];
+      };
+    in {
     nixosConfigurations = {
       # ARM64 QEMU/NixOS host.
       aarch64 = nixpkgs.lib.nixosSystem {
@@ -29,13 +38,12 @@
       };
 
       # x86_64 ext4 workstation using the same nixarchy desktop baseline.
-      hx90 = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = { inherit inputs; };
-        modules = [
-          ./hosts/nixos-hx90/configuration.nix
-        ];
-      };
+      hx90 = hx90System;
+
+      # `omarchy update` calls nixos-rebuild without an explicit #host, so it
+      # resolves the current hostname (`nixos`). Keep the human-friendly hx90
+      # output as the canonical manual target and expose this as an alias.
+      nixos = hx90System;
     };
   };
 }

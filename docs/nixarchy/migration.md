@@ -1,6 +1,8 @@
 # 换电脑迁移
 
-这套配置由 NixOS flake、Nixarchy、Home Manager 和 chezmoi 共同组成。换电脑时不要直接复制旧机器的硬件配置。
+这套配置分成三个仓库：NixOS 系统层 `~/nixos-config`、私人用户编排
+`~/chezmoi`、公开通用配置 `~/dotfiles`。Nixarchy 和 Home Manager 由系统层
+flake 接入。换电脑时不要直接复制旧机器的硬件配置。
 
 ## 1. 安装 NixOS 并生成硬件配置
 
@@ -73,7 +75,18 @@ chezmoi --source=~/chezmoi apply
 
 不要让旧 chezmoi 文件覆盖 nixarchy 的核心 `~/.config/omarchy/shell.json` 或 Omarchy 会话配置。
 
-## 6. 恢复插件
+## 6. 恢复公开 dotfiles
+
+```bash
+git clone https://github.com/iamcheyan/dotfiles.git ~/dotfiles
+cd ~/dotfiles
+bash dotlink/dotlink link
+```
+
+通用 Zsh、Neovim、Ranger、Vifm 和 Starship 属于这个公开仓库，不复制到
+NixOS 模块或 chezmoi。
+
+## 7. 恢复插件
 
 插件记录在 `~/.config/omarchy/plugins.list`。如未自动恢复，在 Omarchy 会话中执行：
 
@@ -84,7 +97,7 @@ omarchy plugin add https://github.com/iamcheyan/omarchy-voxtype-enhance.git --en
 omarchy restart shell
 ```
 
-## 7. 最终验证
+## 8. 最终验证
 
 ```bash
 uname -m
@@ -99,4 +112,5 @@ nix run github:olafkfreund/nixarchy#verify
 - `flake.lock` 可以复用，用于保持依赖版本一致；
 - `hardware-configuration.nix` 必须重新生成；
 - 用户配置和插件由 chezmoi 恢复；
+- 通用公开配置由 dotfiles 和 dotlink 恢复；
 - NixOS generation 可以回滚系统配置，但不会完整回滚用户目录、浏览器数据、keyring 或 Docker volume。
