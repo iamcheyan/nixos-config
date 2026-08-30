@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-- 当前主力机器：`hx90`（hostname 为 `nixos`）
+- 当前主力机器：`hx90`（hostname 与 flake 名均为 `hx90`）
 - 架构：`x86_64-linux`
 - NixOS：`26.05`
 - 桌面：Nixarchy / Omarchy + Hyprland + SDDM

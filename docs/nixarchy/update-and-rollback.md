@@ -20,9 +20,8 @@ Nixarchy 替换了 Omarchy 原本面向 Arch/pacman 的更新器。本机执行
    sudo nixos-rebuild switch --flake /home/tetsuya/nixos-config
    ```
 
-   未写 `#主机名` 时，`nixos-rebuild` 按 hostname `nixos` 选择
-   `nixosConfigurations.nixos`。`flake.nix` 将它声明为与 `hx90` 相同的系统对象；
-   显式手动操作时仍推荐写 `#hx90`，更容易审计。
+   未写 `#主机名` 时，`nixos-rebuild` 按 hostname `hx90` 选择
+   `nixosConfigurations.hx90`；显式手动操作时仍推荐写 `#hx90`，更容易审计。
 5. 构建成功后创建并激活新的 NixOS generation。旧 generation 仍保留在启动
    菜单，可用于回滚。
 

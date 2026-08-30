@@ -30,8 +30,8 @@ nixos-config/
 | ARM64 虚拟机 | `aarch64` | 可用 | QEMU `aarch64-linux`，GNOME、PipeWire、SPICE |
 | HX90 工作站 | `hx90` | 可用 | x86_64，休眠和桌面环境 |
 
-`nixosConfigurations.nixos` 是 `hx90` 的同对象别名：当前 hostname 为 `nixos`，
-而 Nixarchy 的 `omarchy update` 调用 rebuild 时不附加 `#hx90`。
+HX90 的 `networking.hostName` 与 flake 输出名统一为 `hx90`，因此 Nixarchy 的
+`omarchy update` 即使不附加 `#hx90` 也能选中正确配置。
 
 每台主机的 `configuration.nix` 只包含：主机名、时区（Asia/Tokyo）、用户
 `tetsuya`、以及该机特有的服务；其余全部 import 共享模块。

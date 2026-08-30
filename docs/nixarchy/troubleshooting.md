@@ -9,8 +9,8 @@ nixos-version
 ```
 
 当前 HX90 主机的 flake 名是 `hx90`；ARM64 QEMU 主机是 `aarch64`。
-`flake.nix` 还提供 `nixos` 作为 HX90 的 hostname 别名，供不带 `#hx90` 的
-`omarchy update` 使用。
+HX90 的 hostname 也必须是 `hx90`，这样不带 `#hx90` 的 `omarchy update` 才能
+自动选择 `nixosConfigurations.hx90`。
 
 ## 只检查配置
 
