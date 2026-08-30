@@ -55,6 +55,24 @@
     font-awesome
   ];
 
+  # Desktop utilities used by the Hyprland/Omarchy session and user services.
+  # Keep these in the NixOS system layer so a fresh machine has the complete
+  # graphical baseline before chezmoi applies user-level orchestration.
+  environment.systemPackages = with pkgs; [
+    wlr-randr
+    grim
+    slurp
+    swappy
+    wl-clipboard
+    wtype
+    ydotool
+    brightnessctl
+    pamixer
+    nautilus
+    btop
+    htop
+  ];
+
   systemd.services.amdgpu-dpm = {
     description = "Pin amdgpu DPM performance level (AC=high, battery=auto)";
     wantedBy = [ "multi-user.target" ];
