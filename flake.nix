@@ -57,6 +57,15 @@
           ./hosts/nixos-aarch64/configuration.nix
         ];
       };
+
+      # x86_64 ext4 workstation using the same nixarchy desktop baseline.
+      nixos-ext4 = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = { inherit inputs; };
+        modules = [
+          ./hosts/nixos-ext4/configuration.nix
+        ];
+      };
     };
   };
 }
