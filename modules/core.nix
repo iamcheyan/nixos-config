@@ -70,6 +70,27 @@
   services.printing.enable = true;
   services.openssh.enable = true;
 
+  # Global keyboard remapping support. Chezmoi owns the machine-specific
+  # mapping files under /etc/keyd; NixOS owns the package and daemon on every
+  # configured host.
+  services.keyd.enable = true;
+  users.users.keyd = {
+    isSystemUser = true;
+    group = "keyd";
+    description = "keyd keyboard remapping daemon";
+  };
+  users.groups.keyd = { };
+  systemd.tmpfiles.rules = [
+    "d /etc/keyd 0755 root root -"
+    "f /etc/keyd/omd.conf 0644 root root - # Generated placeholder config"
+  ];
+  systemd.services.keyd.serviceConfig.CapabilityBoundingSet = [
+    "CAP_SYS_NICE"
+    "CAP_IPC_LOCK"
+    "CAP_SETGID"
+    "CAP_SETUID"
+  ];
+
   # Nix-ld loader to run unpatched dynamic binaries
   programs.nix-ld.enable = true;
 
@@ -89,7 +110,7 @@
     unzip zip p7zip man-db
     kitty alacritty ghostty foot yazi zellij ranger firefox
     voxtype-onnx gh yq cmake ninja just rustup bun nodejs rclone podman atuin
-    fish fontconfig python3 python3Packages.pip fnm
+    fish fontconfig python3 python3Packages.pip fnm keyd
   ];
 
   # 8. zram: compress cold pages in RAM instead of hitting the NVMe swap
