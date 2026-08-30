@@ -80,17 +80,16 @@
   nixpkgs.config.allowUnfree = true;
 
   # 7. Core packages needed everywhere
+  # Base tools mirrored from the chezmoi cross-platform installer.
+  # NixOS owns these packages; chezmoi keeps equivalent branches for
+  # macOS, Arch and Debian.
   environment.systemPackages = with pkgs; [
-    jq
-    curl
-    git
-    ripgrep
-    fish
-    fontconfig
-    unzip
-    python3
-    python3Packages.pip
-    fnm
+    zsh git curl wget openssh tmux neovim
+    ripgrep fd fzf jq bat eza starship age
+    unzip zip p7zip man-db
+    kitty alacritty ghostty foot yazi zellij ranger firefox
+    gh yq cmake ninja just rustup bun nodejs npm rclone podman atuin
+    fish fontconfig python3 python3Packages.pip fnm
   ];
 
   # 8. zram: compress cold pages in RAM instead of hitting the NVMe swap
