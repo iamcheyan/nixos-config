@@ -70,25 +70,6 @@
   services.printing.enable = true;
   services.openssh.enable = true;
 
-  # NixOS owns the package, generated /etc/keyd configuration and daemon.
-  services.keyd = {
-    enable = true;
-    keyboards.minila-r-convertible = {
-      ids = [ "k:0c45:22b8" ];
-      settings.main = {
-        leftalt = "leftmeta";
-        leftmeta = "leftalt";
-        muhenkan = "f13";
-        katakanahiragana = "left";
-        delete = "right";
-        rightcontrol = "up";
-        rightalt = "down";
-        grave = "escape";
-        escape = "grave";
-      };
-    };
-  };
-
   # Nix-ld loader to run unpatched dynamic binaries
   programs.nix-ld.enable = true;
 
@@ -103,7 +84,7 @@
   # NixOS owns these packages; chezmoi keeps equivalent branches for
   # macOS, Arch and Debian.
   environment.systemPackages = with pkgs; [
-    zsh git curl wget openssh tmux neovim
+    zsh git curl wget openssh tmux neovim bubblewrap
     ripgrep fd fzf jq bat eza starship age
     unzip zip p7zip man-db
     kitty alacritty ghostty foot yazi zellij ranger firefox

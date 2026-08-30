@@ -4,6 +4,7 @@
   imports = [
     ./hardware-configuration.nix
     ../../modules/core.nix
+    ../../modules/keyd.nix
     ../../modules/desktop.nix
     ../../modules/zsh.nix
     inputs.home-manager.nixosModules.home-manager
