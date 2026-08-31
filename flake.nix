@@ -15,6 +15,9 @@
       url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Minimal NixOS environment for WSL2 on Windows 11.
+    nixos-wsl.url = "github:nix-community/NixOS-WSL";
   };
 
   outputs = { self, nixpkgs, ... }@inputs: {
@@ -34,6 +37,16 @@
         specialArgs = { inherit inputs; };
         modules = [
           ./hosts/nixos-hx90/configuration.nix
+        ];
+      };
+
+      # x86_64 WSL2 environment for Windows 11 (no desktop stack).
+      wsl = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = { inherit inputs; };
+        modules = [
+          inputs.nixos-wsl.nixosModules.default
+          ./hosts/wsl/configuration.nix
         ];
       };
     };
