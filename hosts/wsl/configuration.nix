@@ -4,11 +4,12 @@
   imports = [
     ../../modules/core.nix
     ../../modules/zsh.nix
+    ../../modules/cli.nix
     ../../modules/dev.nix
   ];
 
   wsl.enable = true;
-  wsl.defaultUser = "tetsuya";
+  wsl.defaultUser = "hkaku";
 
   networking.hostName = "nixos-wsl";
   time.timeZone = "Asia/Tokyo";
@@ -16,9 +17,9 @@
   # No display manager, desktop, audio, Bluetooth, printing, or SSH daemon.
   # Windows Terminal/WSL provides the terminal and network integration.
 
-  users.users.tetsuya = {
+  users.users.hkaku = {
     isNormalUser = true;
-    description = "tetsuya";
+    description = "hkaku";
     extraGroups = [ "wheel" ];
     shell = pkgs.zsh;
   };

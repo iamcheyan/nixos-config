@@ -31,4 +31,4 @@ nixos-rebuild switch --flake .#wsl
 The first evaluation will fetch and lock the `nixos-wsl` input. Keep the resulting
 `flake.lock` update if it is generated on the target WSL machine.
 
-The configured default user is `tetsuya`.
+The configured default user is `hkaku`.

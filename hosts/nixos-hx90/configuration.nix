@@ -7,6 +7,7 @@
     ../../modules/keyd.nix
     ../../modules/desktop.nix
     ../../modules/zsh.nix
+    ../../modules/cli.nix
     ../../modules/dev.nix
     inputs.home-manager.nixosModules.home-manager
   ];

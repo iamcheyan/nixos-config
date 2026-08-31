@@ -1,23 +1,11 @@
 { config, pkgs, ... }:
 
 {
-  # Minimal cross-host development baseline.
-  # Desktop applications and WSL integration stay outside this module.
+  # Compiler, interpreter, and build-tool layer.
+  # Keep this separate from cli.nix so a shell-only host can omit it.
   programs.nix-ld.enable = true;
 
   environment.systemPackages = with pkgs; [
-    git
-    curl
-    wget
-    openssh
-    tmux
-    neovim
-    ripgrep
-    fd
-    fzf
-    jq
-    unzip
-    zip
     python3
     gcc
     gnumake
