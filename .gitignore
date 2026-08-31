@@ -1,2 +1,5 @@
 # nix build result symlink (nixos-rebuild / nix build artifact)
 /result
+
+# Local, machine-specific files such as WSL certificates.
+/local/

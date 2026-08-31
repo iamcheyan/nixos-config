@@ -32,3 +32,14 @@ The first evaluation will fetch and lock the `nixos-wsl` input. Keep the resulti
 `flake.lock` update if it is generated on the target WSL machine.
 
 The configured default user is `hkaku`.
+
+## Optional local certificate
+
+The WSL host optionally loads a user-managed Zscaler Root CA:
+
+```text
+local/zscaler-root-ca.crt
+```
+
+`local/` is Git-ignored. If the file is absent, the WSL configuration still builds
+without adding any custom certificate.

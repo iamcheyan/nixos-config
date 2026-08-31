@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 {
   imports = [
@@ -9,6 +9,12 @@
 
   wsl.enable = true;
   wsl.defaultUser = "hkaku";
+
+  # Optional local certificate: create local/zscaler-root-ca.crt after cloning.
+  # The ignored file is intentionally user-managed and is never committed.
+  security.pki.certificateFiles = lib.optional
+    (builtins.pathExists ../../local/zscaler-root-ca.crt)
+    ../../local/zscaler-root-ca.crt;
 
   networking.hostName = "nixos-wsl";
   time.timeZone = "Asia/Tokyo";

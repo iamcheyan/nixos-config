@@ -16,5 +16,6 @@
     jq
     unzip
     zip
+    tree
   ];
 }
