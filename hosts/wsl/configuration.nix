@@ -5,7 +5,6 @@
     ../../modules/core.nix
     ../../modules/zsh.nix
     ../../modules/cli.nix
-    ../../modules/dev.nix
   ];
 
   wsl.enable = true;
