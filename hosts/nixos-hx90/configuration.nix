@@ -1,7 +1,7 @@
-{ config, lib, pkgs, inputs, ... }:
+{ config, lib, pkgs, inputs, localRoot ? "", ... }:
 
 let
-  localHost = ../../local/hosts/nixos-hx90.nix;
+  localHost = if localRoot != "" then "${localRoot}/hosts/nixos-hx90.nix" else null;
 in
 {
   imports = [
@@ -13,7 +13,7 @@ in
     ../../modules/cli.nix
     ../../modules/dev.nix
     inputs.home-manager.nixosModules.home-manager
-  ] ++ lib.optional (builtins.pathExists localHost) localHost;
+  ] ++ lib.optional (localHost != null && builtins.pathExists localHost) localHost;
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;

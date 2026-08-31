@@ -28,8 +28,15 @@ cd ~/nixos-config
 nixos-rebuild switch --flake .#wsl
 ```
 
-The first evaluation will fetch and lock the `nixos-wsl` input. Keep the resulting
-`flake.lock` update if it is generated on the target WSL machine.
+To load the ignored local host extension, pass the working-tree local directory
+explicitly and enable impure evaluation:
+
+```bash
+NIXOS_CONFIG_LOCAL="$PWD/local" nixos-rebuild switch --flake .#wsl --impure
+```
+
+The repository configuration does not require a local extension; without
+`NIXOS_CONFIG_LOCAL`, `local/hosts/wsl.nix` is not loaded.
 
 The configured default user is `hkaku`.
 

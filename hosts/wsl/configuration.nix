@@ -1,14 +1,14 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, localRoot ? "", ... }:
 
 let
-  localHost = ../../local/hosts/wsl.nix;
+  localHost = if localRoot != "" then "${localRoot}/hosts/wsl.nix" else null;
 in
 {
   imports = [
     ../../modules/core.nix
     ../../modules/zsh.nix
     ../../modules/cli.nix
-  ] ++ lib.optional (builtins.pathExists localHost) localHost;
+  ] ++ lib.optional (localHost != null && builtins.pathExists localHost) localHost;
 
   wsl.enable = true;
   wsl.defaultUser = "hkaku";
