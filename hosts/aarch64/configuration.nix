@@ -1,5 +1,8 @@
 { config, lib, pkgs, inputs, ... }:
 
+let
+  localHost = ../../local/hosts/aarch64.nix;
+in
 {
   imports = [
     ./hardware-configuration.nix
@@ -10,7 +13,7 @@
     ../../modules/cli.nix
     ../../modules/dev.nix
     inputs.home-manager.nixosModules.home-manager
-  ];
+  ] ++ lib.optional (builtins.pathExists localHost) localHost;
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
