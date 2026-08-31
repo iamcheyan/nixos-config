@@ -7,8 +7,13 @@
     ../../modules/keyd.nix
     ../../modules/desktop.nix
     ../../modules/zsh.nix
+    ../../modules/dev.nix
     inputs.home-manager.nixosModules.home-manager
   ];
+
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
+  boot.kernelPackages = pkgs.linuxPackages_latest;
 
   networking.hostName = "hx90";
   time.timeZone = "Asia/Tokyo";

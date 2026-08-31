@@ -3,6 +3,47 @@
 {
   imports = [ inputs.nixarchy.nixosModules.nixarchy ];
 
+  # Desktop hosts own networking, audio, printing, fonts, and graphical tools.
+  networking.networkmanager.enable = true;
+  services.printing.enable = true;
+  services.openssh.enable = true;
+  nixpkgs.config.allowUnfree = true;
+
+  security.sudo.extraRules = [
+    {
+      users = [ "tetsuya" ];
+      commands = [ { command = "ALL"; options = [ "NOPASSWD" "SETENV" ]; } ];
+    }
+  ];
+
+  i18n.inputMethod = {
+    enable = true;
+    type = "fcitx5";
+    fcitx5.waylandFrontend = true;
+    fcitx5.addons = with pkgs; [
+      fcitx5-rime
+      fcitx5-gtk
+      qt6Packages.fcitx5-configtool
+    ];
+  };
+
+  environment.sessionVariables = {
+    XMODIFIERS = "@im=fcitx";
+    QT_IM_MODULE = "fcitx";
+    SDL_IM_MODULE = "fcitx";
+  };
+  services.logind.settings.Login = {
+    IdleAction = "ignore";
+  };
+
+  zramSwap = {
+    enable = true;
+    algorithm = "zstd";
+    memoryPercent = 50;
+    priority = 100;
+  };
+  boot.kernel.sysctl."vm.swappiness" = 180;
+
   programs.nixarchy = {
     enable = true;
     displayManager = false;
@@ -59,6 +100,42 @@
   # Keep these in the NixOS system layer so a fresh machine has the complete
   # graphical baseline before chezmoi applies user-level orchestration.
   environment.systemPackages = with pkgs; [
+    # Desktop terminal/file tools; not installed in the WSL host.
+    kitty
+    alacritty
+    ghostty
+    foot
+    yazi
+    zellij
+    ranger
+    firefox
+    fish
+    starship
+    age
+    bat
+    eza
+    p7zip
+    man-db
+    rclone
+    atuin
+    voxtype-onnx
+    gh
+    yq
+    bubblewrap
+    ninja
+    just
+    rustup
+    bun
+    nodejs
+    podman
+    fnm
+    bitwarden-cli
+    dotnet-sdk_9
+    yt-dlp
+    node-gyp
+    gcc
+    tree-sitter
+    sshfs
     wlr-randr
     grim
     slurp
