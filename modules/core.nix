@@ -7,6 +7,10 @@
   # Every NixOS host gets the dynamic loader for unpatched development binaries.
   programs.nix-ld.enable = true;
 
+  # Shared remote-access baseline for every host.
+  services.openssh.enable = true;
+  networking.firewall.allowedTCPPorts = [ 22 ];
+
   i18n.defaultLocale = "zh_CN.UTF-8";
   i18n.extraLocaleSettings = {
     LC_ADDRESS = "ja_JP.UTF-8";

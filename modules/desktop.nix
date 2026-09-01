@@ -6,7 +6,6 @@
   # Desktop hosts own networking, audio, printing, fonts, and graphical tools.
   networking.networkmanager.enable = true;
   services.printing.enable = true;
-  services.openssh.enable = true;
   nixpkgs.config.allowUnfree = true;
 
   security.sudo.extraRules = [

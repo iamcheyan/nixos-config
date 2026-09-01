@@ -16,8 +16,9 @@ in
   networking.hostName = "nixos-wsl";
   time.timeZone = "Asia/Tokyo";
 
-  # No display manager, desktop, audio, Bluetooth, printing, or SSH daemon.
-  # Windows Terminal/WSL provides the terminal and network integration.
+  # No display manager, desktop, audio, Bluetooth, or printing.
+  # Windows Terminal/WSL provides the terminal and network integration; SSH is
+  # enabled by the shared core module.
 
   users.users.hkaku = {
     isNormalUser = true;

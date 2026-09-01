@@ -16,8 +16,9 @@ contains only a command-line baseline:
 
 It does not import `dev.nix` or `desktop.nix`. It therefore does not install
 compilers, Python/CMake development packages, a display manager, X11/Wayland,
-Nixarchy, Fcitx5, Bluetooth, audio, printing, Firefox, or an SSH server.
-Windows Terminal and WSL provide the terminal and host integration.
+Nixarchy, Fcitx5, Bluetooth, audio, printing, or Firefox. The shared `core`
+module does enable the SSH server and allows TCP port 22. Windows Terminal and
+WSL provide the terminal and host integration.
 
 ## Initial setup
 
