@@ -17,6 +17,7 @@
     unzip
     zip
     tree
+    fastfetch
     ranger
     atuin
   ];
