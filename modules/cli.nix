@@ -17,5 +17,7 @@
     unzip
     zip
     tree
+    ranger
+    atuin
   ];
 }
