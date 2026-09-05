@@ -254,15 +254,61 @@ flake input 构建。锁定的实际 commit 保存在 `flake.lock` 的 `nixarchy
 nix flake update --flake ~/nixos-config
 ```
 
-时，Nix 会按照 `flake.nix` 中的 URL 更新 Nixarchy，并把新的 commit 和 hash 写入
-`flake.lock`。随后 `nixos-rebuild build` 和 `switch` 才会让新的 Nixarchy 版本进入
+时，Nix 会按照 `flake.nix` 中的 URL 尝试更新 Nixarchy，并把解析到的 commit 和
+hash 写入 `flake.lock`。如果 URL 固定在某个 release，结果仍然会停留在这个
+release；随后 `nixos-rebuild build` 和 `switch` 才会让锁定的 Nixarchy 版本进入
 当前系统。
+
+### Nixarchy 的 release/tag 与本机更新
+
+你看到的：
+
+```text
+v4.0.2-4
+```
+
+是 Nixarchy 发布的一个 release/tag，可以理解为 Nixarchy 的一个可追踪版本。它
+不是我们这台机器自动订阅的“最新版本”指针。当前本仓库明确固定的是：
+
+```nix
+nixarchy.url = "github:olafkfreund/nixarchy/v4.0.1-1";
+```
+
+因此，当前执行 `nixos-update` 时，`nix flake update` 会更新其他允许更新的
+flake input，但不会自动把 `v4.0.1-1` 改成 `v4.0.2-4`。这也是你上一次更新日志
+里只看到 `nixpkgs` 变化、没有看到 `nixarchy` 变化的原因。
+
+升级到 `v4.0.2-4` 需要先把 `flake.nix` 的版本引用改成：
+
+```nix
+nixarchy.url = "github:olafkfreund/nixarchy/v4.0.2-4";
+```
+
+然后再执行：
+
+```bash
+nixos-update
+```
+
+它会重新锁定 Nixarchy 的 commit，构建新版本，并在构建成功后切换系统。更精确地
+只更新这个 input，也可以使用：
+
+```bash
+nix flake lock --update-input nixarchy
+```
+
+但如果 `flake.nix` 仍然指向旧的 `v4.0.1-1`，这个命令也不会跨 release 自动跳到
+`v4.0.2-4`。
+
+固定 release 的优点是可复现和可回滚：以后任何时候都能明确知道系统使用哪个
+Nixarchy 版本。升级 release 属于一次需要检查、构建和测试的依赖升级，而不是每次
+日常更新都无条件追踪上游最新代码。
 
 这里有三个容易混淆的更新动作：
 
 ```text
 nix flake update
-└── 更新 Nixarchy 本身及其他 flake inputs
+└── 按 flake.nix 的引用更新 Nixarchy 及其他 flake inputs
 
 nixos-rebuild switch
 └── 让新的 Nixarchy 包、模块和配置进入系统
