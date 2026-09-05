@@ -25,6 +25,8 @@ keyd 不应该直接执行截图、启动程序或修改桌面状态。它只负
 | 左 Meta | 左 Alt | 左 Alt/左 Meta 互换 |
 | Muhenkan | 激活 `muhenkan` 层 | 独立的快捷键层 |
 | Muhenkan + `V` | `Ctrl + Super + V` | Omarchy 剪贴板 |
+| Muhenkan + `L` | `Ctrl + Super + L` | 自定义 Ctrl+Super+L 动作 |
+| Muhenkan + `3` | `Ctrl + Shift + F3` | 延迟 3 秒全屏截图并弹出 Omarchy 通知 |
 | Muhenkan + `S` | `Print` | Omarchy 原生智能/区域截图 |
 | Shift + Muhenkan + `S` | `Ctrl + Shift + Print` | 直接全屏截图并弹出 Omarchy 通知 |
 | 片假名/平假名 | 左方向键 | 光标向左 |
@@ -45,6 +47,8 @@ muhenkan = layer(muhenkan)
 
 [muhenkan]
 v = C-M-v
+l = C-M-l
+3 = C-S-f3
 s = print
 
 [muhenkan+shift]
@@ -68,6 +72,11 @@ o.bind(
 ```
 
 `fullscreen slurp` 会固定截取整个屏幕，但沿用 Omarchy 原生的保存、剪贴板、缩略图通知和截图编辑入口。普通 `Shift + Print` 仍保留原来的延迟截图功能。
+
+`Muhenkan + 3` 输出 `Ctrl + Shift + F3`，在 chezmoi 中调用
+`omarchy-delayed-screenshot 3 fullscreen`。脚本等待 3 秒后再调用
+`omarchy-capture-screenshot fullscreen slurp`，因此仍使用 Omarchy 原生的截图保存、剪贴板、缩略图通知和编辑入口。
+脚本使用运行时锁，同一时间只保留一个待执行的延迟截图；重复按键会提示已有截图正在等待，避免 Omarchy 截图辅助程序互相取消。
 
 ## 以后如何增加快捷键
 
@@ -159,6 +168,7 @@ sudo keyd monitor
 本配置应看到：
 
 - `Muhenkan + S`：`print down` / `print up`；
+- `Muhenkan + 3`：`leftcontrol`、`leftshift`、`f3` 组合事件；
 - `Shift + Muhenkan + S`：`leftshift`、`leftcontrol`、`print` 依次按下并释放；
 - `Muhenkan + V`：`leftcontrol`、`leftmeta`、`v` 组合事件。
 

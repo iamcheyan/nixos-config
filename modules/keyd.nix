@@ -26,6 +26,8 @@
     settings.muhenkan = {
       # Emit Ctrl+Super+V for the clipboard action.
       v = "C-M-v";
+      l = "C-M-l";
+      "3" = "C-S-f3";
       s = "print";
     };
       settings."muhenkan+shift" = {
