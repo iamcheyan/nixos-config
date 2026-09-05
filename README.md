@@ -90,6 +90,20 @@ HX90 的 `networking.hostName` 与 flake 输出名统一为 `hx90`，因此 Nixa
 
 ## 日常操作
 
+### 重装后的 SSH 接管
+
+新系统启动后，如果 Agent 要通过 SSH 接管，可以先把本仓库复制到新系统，并确认
+安装时已经为用户设置密码，然后执行：
+
+```bash
+cd ~/nixos-config
+./scripts/enable-ssh-bootstrap.sh
+```
+
+脚本会临时叠加 SSH、22 端口防火墙规则和密码登录配置，执行一次
+`nixos-rebuild switch`，最后打印本机 IP。它不会修改仓库或 `/etc/nixos/configuration.nix`。
+SSH 使用用户密码登录，禁止 root 直接登录；接管完成后建议改回密钥登录或关闭 SSH。
+
 ```bash
 # 应用配置（在本机上，<name> 换成当前机器的 flake 名）
 sudo nixos-rebuild switch --flake ~/nixos-config#hx90      # HX90
