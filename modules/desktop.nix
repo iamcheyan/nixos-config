@@ -6,6 +6,18 @@ let
   # shell indentation is not semantic, while Python indentation is.
   nixarchyPackage = (pkgs.extend inputs.nixarchy.overlays.default).omarchy.overrideAttrs (old: {
     installPhase = lib.replaceStrings [ "\n            " ] [ "\n" ] old.installPhase;
+    # The custom SystemSwitch indicator can remain active after a rebuild
+    # process exits because Quickshell's process poll is not synchronized with
+    # the terminal launcher.  A stale “Rebuilding the system...” spinner is
+    # worse than having no indicator; the update command still remains
+    # available from the menu and its terminal shows the real build output.
+    postInstall = (old.postInstall or "") + ''
+      substituteInPlace $out/share/omarchy/shell/plugins/bar/widgets/Indicators.qml \
+        --replace-fail \
+          '[ "SystemSwitch", "Dictation", "ScreenRecording", "Reminder", "NightLight", "Dnd", "StayAwake" ]' \
+          '[ "Dictation", "ScreenRecording", "Reminder", "NightLight", "Dnd", "StayAwake" ]'
+      rm -f $out/share/omarchy/shell/plugins/bar/indicators/SystemSwitch.qml
+    '';
   });
 in
 {
