@@ -12,7 +12,9 @@
       settings.main = {
         leftalt = "leftmeta";
         leftmeta = "leftalt";
-        muhenkan = "f13";
+        # Dedicated MINILA-R modifier layer.  Screenshot actions emit real
+        # Print-based key events; the desktop binding remains in chezmoi.
+        muhenkan = "layer(muhenkan)";
         katakanahiragana = "left";
         delete = "right";
         rightcontrol = "up";
@@ -20,6 +22,16 @@
         grave = "escape";
         escape = "grave";
         leftcontrol = "overload(control, f24)";
+      };
+    settings.muhenkan = {
+      # Emit Ctrl+Super+V for the clipboard action.
+      v = "C-M-v";
+      s = "print";
+    };
+      settings."muhenkan+shift" = {
+        # Keep physical Shift+Print's delayed screenshot untouched while
+        # providing a distinct chord for MINILA-R's direct full-screen shot.
+        s = "C-S-print";
       };
     };
   };

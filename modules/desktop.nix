@@ -49,6 +49,14 @@ in
     QT_IM_MODULE = "fcitx";
     SDL_IM_MODULE = "fcitx";
   };
+
+  # Nixarchy disables Fcitx5's notification-item addon by default because its
+  # stock shell does not rely on a traditional tray icon. This desktop keeps
+  # an actual tray (`omarchy.tray`), and the input-method indicator is useful
+  # to the user, so keep the addon enabled in the generated user service.
+  systemd.user.services.omarchy-fcitx5.serviceConfig.ExecStart =
+    lib.mkForce "${config.i18n.inputMethod.package}/bin/fcitx5";
+
   services.logind.settings.Login = {
     IdleAction = "ignore";
   };
