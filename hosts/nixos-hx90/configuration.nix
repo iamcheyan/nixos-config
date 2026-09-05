@@ -35,6 +35,15 @@ in
     HandleSuspendKey = "suspend";
   };
 
+  # This workstation must never enter suspend or hibernation automatically.
+  # Keep the policy declarative so a future nixos-rebuild cannot undo it.
+  systemd.sleep.settings.Sleep = {
+    AllowSuspend = "no";
+    AllowHibernation = "no";
+    AllowHybridSleep = "no";
+    AllowSuspendThenHibernate = "no";
+  };
+
   # ACPI S4 poweroff fails on this firmware: xhci 0000:04:00.4 returns EBUSY
   # (-16), USB resets count as a wakeup, and the kernel rolls the image back.
   # After the snapshot is on disk, do a normal poweroff instead of S4.
