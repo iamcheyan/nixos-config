@@ -1,8 +1,10 @@
-{ ... }:
+{ pkgs, ... }:
 
 {
   # One shared MINILA-R profile for every host. The USB ID identifies the
   # keyboard, not a machine-specific configuration variant.
+  environment.systemPackages = [ pkgs.keyd ];
+
   services.keyd = {
     enable = true;
     keyboards.minila-r = {
@@ -17,6 +19,7 @@
         rightalt = "down";
         grave = "escape";
         escape = "grave";
+        leftcontrol = "overload(control, f24)";
       };
     };
   };
