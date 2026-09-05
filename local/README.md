@@ -8,7 +8,7 @@ Add optional per-host Nix modules under `local/hosts/`:
 ```text
 local/hosts/wsl.nix
 local/hosts/aarch64.nix
-local/hosts/nixos-hx90.nix
+local/hosts/hx90.nix
 ```
 
 The matching host loads its file automatically when it exists. If the file is

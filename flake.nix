@@ -41,7 +41,7 @@
         system = "x86_64-linux";
         specialArgs = { inherit inputs localRoot; };
         modules = [
-          ./hosts/nixos-hx90/configuration.nix
+          ./hosts/hx90/configuration.nix
         ];
       };
 

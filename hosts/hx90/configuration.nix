@@ -1,29 +1,16 @@
-{ config, lib, pkgs, inputs, localRoot ? "", ... }:
+{ config, lib, pkgs, localRoot ? "", ... }:
 
 let
-  localHost = if localRoot != "" then "${localRoot}/hosts/nixos-hx90.nix" else null;
+  localHost = if localRoot != "" then "${localRoot}/hosts/hx90.nix" else null;
 in
 {
   imports = [
     ./hardware-configuration.nix
-    ../../modules/core.nix
-    ../../modules/keyd.nix
-    ../../modules/desktop.nix
-    ../../modules/zsh.nix
-    ../../modules/cli.nix
-    ../../modules/dev.nix
+    ../../modules/workstation.nix
     ../../modules/update-snapshots.nix
-    inputs.home-manager.nixosModules.home-manager
   ] ++ lib.optional (localHost != null && builtins.pathExists localHost) localHost;
 
-  home-manager.extraSpecialArgs = { inherit inputs; };
-
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.efi.canTouchEfiVariables = true;
-  boot.kernelPackages = pkgs.linuxPackages_latest;
-
   networking.hostName = "hx90";
-  time.timeZone = "Asia/Tokyo";
 
   # Disk hibernation: this host has a 68.4 GiB NVMe swap partition (UUID from
   # hardware-configuration.nix) and ~62 GiB RAM. NixOS does not wire resume=
@@ -102,57 +89,6 @@ in
       esac
     '';
   };
-
-  home-manager.users.tetsuya = { ... }: {
-    imports = [ ../../modules/home-manager/nixos-user.nix ];
-    home.sessionVariables.BROWSER = "firefox";
-    xdg.mimeApps = {
-      enable = true;
-      defaultApplications = {
-        "text/html" = [ "firefox.desktop" ];
-        "x-scheme-handler/http" = [ "firefox.desktop" ];
-        "x-scheme-handler/https" = [ "firefox.desktop" ];
-        "x-scheme-handler/about" = [ "firefox.desktop" ];
-        "x-scheme-handler/unknown" = [ "firefox.desktop" ];
-        "image/png" = [ "org.kde.gwenview.desktop" ];
-        "image/jpeg" = [ "org.kde.gwenview.desktop" ];
-        "image/webp" = [ "org.kde.gwenview.desktop" ];
-        "image/gif" = [ "org.kde.gwenview.desktop" ];
-        "image/svg+xml" = [ "org.kde.gwenview.desktop" ];
-        "image/tiff" = [ "org.kde.gwenview.desktop" ];
-        "application/pdf" = [ "okularApplication_pdf.desktop" ];
-        "inode/directory" = [ "org.kde.dolphin.desktop" ];
-      };
-      associations.added = {
-        "image/png" = [ "org.kde.gwenview.desktop" ];
-        "image/jpeg" = [ "org.kde.gwenview.desktop" ];
-        "image/webp" = [ "org.kde.gwenview.desktop" ];
-        "image/gif" = [ "org.kde.gwenview.desktop" ];
-        "image/svg+xml" = [ "org.kde.gwenview.desktop" ];
-        "image/tiff" = [ "org.kde.gwenview.desktop" ];
-        "application/pdf" = [ "okularApplication_pdf.desktop" ];
-        "inode/directory" = [ "org.kde.dolphin.desktop" ];
-      };
-    };
-  };
-
-  users.users.tetsuya = {
-    isNormalUser = true;
-    shell = pkgs.zsh;
-    description = "tetsuya";
-    extraGroups = [ "networkmanager" "wheel" "audio" "video" ];
-  };
-
-  environment.systemPackages = with pkgs; [
-    spice-vdagent
-  ];
-
-  # KDE/KIO's “Open With” dialog looks up this conventional menu name.  The
-  # Plasma package only installs plasma-applications.menu on this Hyprland
-  # session, so without this compatibility link the chooser can be empty
-  # even though the desktop entries and MIME defaults are present.
-  environment.etc."xdg/menus/applications.menu".source =
-    "${pkgs.kdePackages.plasma-workspace}/etc/xdg/menus/plasma-applications.menu";
 
   system.stateVersion = "26.05";
 }

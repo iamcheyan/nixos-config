@@ -21,7 +21,7 @@ nixos-config/
 │   └── zsh.nix                # 全局 Zsh
 └── hosts/                     # 每台机器一个目录
     ├── aarch64/               # ARM64 虚拟机
-    └── nixos-hx90/             # HX90 工作站
+    └── hx90/                   # HX90 工作站
 ```
 
 ## 四台主机现状
