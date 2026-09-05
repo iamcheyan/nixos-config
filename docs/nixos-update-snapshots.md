@@ -315,6 +315,15 @@ nix flake lock --update-input nixarchy
 Nixarchy 版本。升级 release 属于一次需要检查、构建和测试的依赖升级，而不是每次
 日常更新都无条件追踪上游最新代码。
 
+#### 当前 `v4.0.2-4` 的兼容说明
+
+本机升级到 `v4.0.2-4` 时，发现它依赖的
+`hyprland-preview-share-picker` 尚未进入当前锁定的 NixOS 26.05 nixpkgs；同时该
+版本的 Omarchy 打包检查中有一段 Python 缩进问题。为保留 NixOS 26.05 的稳定
+nixpkgs 锁定，本仓库在 `modules/desktop.nix` 和 Home Manager 用户模块中提供了
+本地兼容 overlay/package，并修正生成的安装阶段缩进。该兼容层不改变 Omarchy
+功能，待上游和 nixpkgs 的组合不再需要时可以移除。
+
 这里有三个容易混淆的更新动作：
 
 ```text

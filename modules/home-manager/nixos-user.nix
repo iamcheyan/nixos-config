@@ -1,5 +1,14 @@
 { config, lib, pkgs, inputs, ... }:
 
+let
+  # Keep the Home Manager package identical to the system package. Nixarchy
+  # v4.0.2-4's embedded Python check needs the same indentation compatibility
+  # fix on both module paths.
+  nixarchyPackage = (pkgs.extend inputs.nixarchy.overlays.default).omarchy.overrideAttrs (old: {
+    installPhase = lib.replaceStrings [ "\n            " ] [ "\n" ] old.installPhase;
+  });
+in
+
 # User configuration that is specific to the NixOS + Nixarchy environment.
 # Cross-platform application preferences remain managed by chezmoi.
 {
@@ -7,7 +16,10 @@
 
   home.stateVersion = "26.05";
 
-  programs.nixarchy.enable = true;
+  programs.nixarchy = {
+    enable = true;
+    package = nixarchyPackage;
+  };
 
   # Nixarchy owns the Omarchy/NixOS integration. Keep its generated user
   # service declarative and prevent the upstream cursor hook from overriding

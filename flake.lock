@@ -37,6 +37,28 @@
         "type": "github"
       }
     },
+    "disko": {
+      "inputs": {
+        "nixpkgs": [
+          "nixarchy",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1768920986,
+        "narHash": "sha256-CNzzBsRhq7gg4BMBuTDObiWDH/rFYHEuDRVOwCcwXw4=",
+        "owner": "nix-community",
+        "repo": "disko",
+        "rev": "de5708739256238fb912c62f03988815db89ec9a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "ref": "latest",
+        "repo": "disko",
+        "type": "github"
+      }
+    },
     "flake-compat": {
       "flake": false,
       "locked": {
@@ -130,6 +152,28 @@
       "original": {
         "owner": "nix-community",
         "repo": "home-manager",
+        "type": "github"
+      }
+    },
+    "hypr-rdp": {
+      "inputs": {
+        "nixpkgs": [
+          "nixarchy",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1787094885,
+        "narHash": "sha256-yrC8fITJofWJ2wpZMiaX06UVCMFI4GRg9pGyaTdosHg=",
+        "owner": "MuNeNiCK",
+        "repo": "hypr-rdp",
+        "rev": "cf3fbd82e2176070c0860bd53eb87d0b098decd4",
+        "type": "github"
+      },
+      "original": {
+        "owner": "MuNeNiCK",
+        "ref": "v0.1.5",
+        "repo": "hypr-rdp",
         "type": "github"
       }
     },
@@ -485,28 +529,72 @@
         "type": "github"
       }
     },
+    "microvm": {
+      "inputs": {
+        "nixpkgs": [
+          "nixarchy",
+          "nixpkgs"
+        ],
+        "spectrum": "spectrum"
+      },
+      "locked": {
+        "lastModified": 1788518164,
+        "narHash": "sha256-vY71mJCu5NgR+n+V4zpcRzZc6KL6SU9WmyMGzd8kYIA=",
+        "owner": "microvm-nix",
+        "repo": "microvm.nix",
+        "rev": "fdfc1821a0eb76e44a13d206b72e6ca6961fbb7c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "microvm-nix",
+        "repo": "microvm.nix",
+        "rev": "fdfc1821a0eb76e44a13d206b72e6ca6961fbb7c",
+        "type": "github"
+      }
+    },
+    "nix-flatpak": {
+      "locked": {
+        "lastModified": 1767983141,
+        "narHash": "sha256-7ZCulYUD9RmJIDULTRkGLSW1faMpDlPKcbWJLYHoXcs=",
+        "owner": "gmodena",
+        "repo": "nix-flatpak",
+        "rev": "440818969ac2cbd77bfe025e884d0aa528991374",
+        "type": "github"
+      },
+      "original": {
+        "owner": "gmodena",
+        "ref": "v0.7.0",
+        "repo": "nix-flatpak",
+        "type": "github"
+      }
+    },
     "nixarchy": {
       "inputs": {
+        "disko": "disko",
         "home-manager": "home-manager_2",
+        "hypr-rdp": "hypr-rdp",
         "hyprland": "hyprland",
+        "microvm": "microvm",
+        "nix-flatpak": "nix-flatpak",
         "nixpkgs": [
           "nixpkgs"
         ],
         "omarchy": "omarchy",
+        "sops-nix": "sops-nix",
         "systems": "systems_2",
         "zen-browser": "zen-browser"
       },
       "locked": {
-        "lastModified": 1787928582,
-        "narHash": "sha256-+w3C5FQE4deDTZrtnT976rlQm8N28xEgxLl+0WZA2PQ=",
+        "lastModified": 1788537688,
+        "narHash": "sha256-+4Vz8tfPBz33sqXD9xewnuaIo4gWHuf/VAv4wI7xcYs=",
         "owner": "olafkfreund",
         "repo": "nixarchy",
-        "rev": "ced0cff9821e085264a3e56ae3cd1071df6a7d37",
+        "rev": "ac50fdb8a1ce6e05a67f9eff81fbf6553319b26e",
         "type": "github"
       },
       "original": {
         "owner": "olafkfreund",
-        "ref": "v4.0.1-1",
+        "ref": "v4.0.2-4",
         "repo": "nixarchy",
         "type": "github"
       }
@@ -581,16 +669,16 @@
     "omarchy": {
       "flake": false,
       "locked": {
-        "lastModified": 1787652758,
-        "narHash": "sha256-dj3etcMp2lpIP2pPvub2tiXFbZYMWl6RDeCHtTEksek=",
+        "lastModified": 1788130066,
+        "narHash": "sha256-DtaDI3gyvK7YVnul2vRmNHHGK86Hn64WfbAVeG4888Y=",
         "owner": "basecamp",
         "repo": "omarchy",
-        "rev": "13f18b2cb7286fb54f87daf571a031aa6af3d8f0",
+        "rev": "346e69e1cec6c4e8924531874af6ba010a1bc99e",
         "type": "github"
       },
       "original": {
         "owner": "basecamp",
-        "ref": "v4.0.1",
+        "ref": "v4.0.2",
         "repo": "omarchy",
         "type": "github"
       }
@@ -624,6 +712,44 @@
         "nixarchy": "nixarchy",
         "nixos-wsl": "nixos-wsl",
         "nixpkgs": "nixpkgs_3"
+      }
+    },
+    "sops-nix": {
+      "inputs": {
+        "nixpkgs": [
+          "nixarchy",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1786629091,
+        "narHash": "sha256-gkig4nPi1CWc4Z50GBsjE4ygSE7hMpl/TwID2an2Cck=",
+        "owner": "Mic92",
+        "repo": "sops-nix",
+        "rev": "a8627b21b9107c5711c96b84f32a9a4b3d45295f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Mic92",
+        "repo": "sops-nix",
+        "rev": "a8627b21b9107c5711c96b84f32a9a4b3d45295f",
+        "type": "github"
+      }
+    },
+    "spectrum": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1785761586,
+        "narHash": "sha256-MWOMVqJJERwjQGgRIv8d6rlEBqbLM3VZWxHkNKIIZNw=",
+        "ref": "refs/heads/main",
+        "rev": "a7762d6f54b40560dd5255ce902e6e6a5d980fe9",
+        "revCount": 1416,
+        "type": "git",
+        "url": "https://spectrum-os.org/git/spectrum"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://spectrum-os.org/git/spectrum"
       }
     },
     "systems": {

@@ -1,7 +1,24 @@
 { config, lib, pkgs, inputs, ... }:
 
+let
+  # Nixarchy v4.0.2-4 currently ships an installPhase whose embedded Python
+  # check keeps Nix indentation. Unindent the generated shell phase locally;
+  # shell indentation is not semantic, while Python indentation is.
+  nixarchyPackage = (pkgs.extend inputs.nixarchy.overlays.default).omarchy.overrideAttrs (old: {
+    installPhase = lib.replaceStrings [ "\n            " ] [ "\n" ] old.installPhase;
+  });
+in
 {
   imports = [ inputs.nixarchy.nixosModules.nixarchy ];
+
+  # Nixarchy v4.0.2-4 expects this package from nixpkgs, but the pinned
+  # NixOS 26.05 branch predates its addition. Keep the stable nixpkgs pin and
+  # provide the small compatibility package locally until nixpkgs includes it.
+  nixpkgs.overlays = [
+    (final: _prev: {
+      "hyprland-preview-share-picker" = final.callPackage ./packages/hyprland-preview-share-picker.nix { };
+    })
+  ];
 
   # Desktop hosts own networking, audio, printing, fonts, and graphical tools.
   networking.networkmanager.enable = true;
@@ -46,6 +63,7 @@
 
   programs.nixarchy = {
     enable = true;
+    package = nixarchyPackage;
     displayManager = false;
     # Omarchy's update widget and CLI must update the user-owned source flake,
     # not the root-owned compatibility files under /etc/nixos.
