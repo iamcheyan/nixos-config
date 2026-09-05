@@ -1,0 +1,351 @@
+# NixOS 更新前自动快照方案
+
+本文记录 HX90 的自动更新保护方案。目标是在每次正式更新前，自动保存系统、
+用户目录和 NixOS generation 的对应关系；出现问题时，可以先查看记录，再选择
+回滚系统配置、恢复 Btrfs 快照，或两者一起处理。
+
+本文记录已经实现的自动化流程以及恢复边界。恢复 `/` 和 `/home` 仍然不会自动执行，
+需要根据记录人工确认。
+
+## 目标
+
+以后正式更新统一使用：
+
+```bash
+nixos-update
+```
+
+它完成以下工作：
+
+```text
+检查当前系统和仓库状态
+        ↓
+记录当前 NixOS generation、flake revision 和时间
+        ↓
+创建 / 的 Btrfs/Snapper 快照
+创建 /home 的 Btrfs/Snapper 快照
+        ↓
+更新 Nix flake 输入
+更新 Omarchy git 插件
+        ↓
+构建 NixOS 配置
+        ↓
+切换到新的 NixOS generation
+        ↓
+记录成功、失败或中断状态
+        ↓
+按 Snapper 数量策略清理过期快照
+```
+
+如果更新失败，快照记录仍然应该保留，方便定位和恢复。
+
+## 当前机器已确认的事实
+
+HX90 的布局是：
+
+```text
+/dev/nvme0n1p2  Btrfs
+├── /            根文件系统（顶层 Btrfs volume）
+├── /home        独立 Btrfs 子卷
+└── /nix         独立 Btrfs 子卷
+
+/dev/nvme0n1p3  独立 swap 分区
+```
+
+当前已有：
+
+- NixOS generation，可使用 `nixos-rebuild switch --rollback` 回滚系统配置；
+- `/`、`/home` 和 `/nix` 的 Btrfs 子卷；
+- zram + 磁盘 swap；
+- `btrfs-progs`；
+- Nixarchy/Omarchy 的 NixOS 更新入口。
+
+当前已实现：
+
+- Snapper 的 `root` 和 `home` 配置；
+- `nixos-update` 自动更新前快照；
+- `/var/lib/nixos-update/history/` 更新记录；
+- `nixos-update list` 和 `nixos-update show <transaction-id>` 查看命令。
+
+恢复命令仍未自动化，避免误覆盖故障发生后新产生的文件。
+
+## 三种回滚机制的职责
+
+### NixOS generation
+
+```bash
+nixos-rebuild list-generations
+sudo nixos-rebuild switch --rollback
+```
+
+负责回滚：
+
+- NixOS 配置；
+- 系统软件包；
+- 内核；
+- systemd system service；
+- NixOS 生成的 `/etc` 内容。
+
+不负责回滚：
+
+- `/home` 中普通文件；
+- 浏览器数据；
+- SSH key；
+- 数据库和容器卷；
+- 不属于 NixOS/Home Manager 的运行时状态。
+
+### `/` 的 Btrfs/Snapper 快照
+
+负责保存根文件系统某一时刻的状态，包括非 Nix 生成的系统文件和运行时数据。
+
+它不能替代 NixOS generation。两者需要配对记录。
+
+### `/home` 的 Btrfs/Snapper 快照
+
+负责保存用户目录，包括：
+
+- chezmoi 配置和源仓库；
+- 浏览器数据；
+- SSH 配置；
+- 用户文档；
+- 用户级 systemd 状态；
+- 不由 Home Manager 管理的用户文件。
+
+`/nix` 通常不纳入更新前快照：Nix store 是不可变内容寻址存储，旧 generation
+需要的 store path 会继续保留，直到执行垃圾回收。是否备份 `/nix` 是独立的备份
+策略，不放入每次更新前快照。
+
+## Snapper 配置
+
+系统已声明两个 Snapper 配置：
+
+```text
+root → /
+home → /home
+```
+
+两个快照会使用同一个更新事务 ID，例如：
+
+```text
+update-2026-09-05T153000-generation-6
+```
+
+这样可以在记录中把两个快照配成一组：
+
+```text
+transaction = update-2026-09-05T153000-generation-6
+root_snapshot = 42
+home_snapshot = 17
+generation_before = 6
+```
+
+快照默认使用只读模式或等价的保护策略，防止普通应用意外修改历史快照。
+
+## `nixos-update` 行为
+
+### 更新前检查
+
+命令启动后先检查：
+
+1. 当前是否是 NixOS；
+2. 主机名是否能匹配 flake 配置；
+3. `/` 和 `/home` 是否为支持快照的 Btrfs 子卷；
+4. Snapper 配置是否存在；
+5. `~/nixos-config` 是否有未提交改动；
+6. 是否已经有另一个更新任务运行；
+7. 当前磁盘剩余空间是否足够创建快照元数据；
+8. 当前用户是否有可用的 sudo 权限。
+
+发现配置仓库有未提交改动时，默认应停止，而不是把不清楚的状态标记为可恢复
+基线。需要强制更新时，应提供明确的 `--allow-dirty` 选项并记录原因。
+
+### 快照和元数据
+
+快照前记录：
+
+```text
+主机名
+开始时间
+当前 NixOS generation
+当前运行 kernel
+flake 当前 Git revision
+flake.lock 的状态
+root 快照编号
+home 快照编号
+```
+
+记录位置：
+
+```text
+/var/lib/nixos-update/history/
+```
+
+记录由 root 创建和维护，每个事务一份文本文件，方便 SSH 查询：
+
+```bash
+nixos-update list
+nixos-update show <transaction-id>
+journalctl -t nixos-update
+```
+
+### 更新 Flake
+
+快照创建成功后，命令才执行：
+
+```bash
+nix flake update --flake ~/nixos-config
+```
+
+之后执行：
+
+```bash
+nixos-rebuild build --flake ~/nixos-config#hx90
+sudo nixos-rebuild switch --flake ~/nixos-config#hx90
+```
+
+如果构建失败，应该：
+
+- 保留快照；
+- 记录失败日志；
+- 不切换系统；
+- 不自动恢复 `/` 或 `/home`。
+
+### Omarchy 插件更新
+
+当前 Omarchy 4.0.1 提供：
+
+```bash
+omarchy plugin update [id] [--yes]
+```
+
+不带插件 ID 时，更新所有 git-managed 插件：
+
+```bash
+omarchy plugin update --yes
+```
+
+这一步已纳入 `nixos-update`。插件更新会修改用户目录，所以必须放在 `/home`
+快照创建之后。插件自身如果遇到本地改动或验证失败，应保留失败状态并停止后续
+系统切换，不能静默覆盖用户修改。
+
+当前 `~/.config/omarchy/plugins.list` 由 chezmoi 管理，但插件 checkout 的更新
+动作由 Omarchy 命令负责。两者职责不同：
+
+```text
+chezmoi
+└── 记录插件清单和启用关系
+
+omarchy plugin update
+└── 更新已安装插件的 git checkout
+```
+
+### 防止自动睡眠
+
+`nixos-update` 会使用 `systemd-inhibit` 锁住 `sleep` 和 `idle`，防止 SSH 发起的
+长时间构建被桌面电源策略中断。HX90 平时的空闲自动睡眠也已禁用。
+
+## 为什么不拦截所有 `nixos-rebuild`
+
+NixOS 没有一个可以安全拦截所有任意 `nixos-rebuild switch` 调用的统一 pre-hook。
+因此自动快照只对以下入口保证：
+
+```bash
+nixos-update
+```
+
+直接执行：
+
+```bash
+sudo nixos-rebuild switch --flake .#hx90
+```
+
+会绕过更新前快照流程。该命令仍可用于紧急修复、回滚或开发调试，但正式更新应
+统一使用 `nixos-update`。
+
+同理，`omarchy update` 仍可能直接更新 flake 并执行 NixOS switch，会绕过快照流程。
+正式更新应使用 `nixos-update`；本实现不修改 `/usr/share/omarchy`，并在 Nixarchy
+菜单中提供了 `NixOS Update (Snapshot)` 入口。
+
+## 恢复流程设计
+
+恢复不是默认自动执行的，因为恢复 `/` 或 `/home` 可能覆盖用户在故障后的新文件。
+当前实现提供查看记录和快照的命令；实际恢复仍按本文的离线流程人工执行。
+
+### 先判断问题类型
+
+```text
+桌面、内核、systemd、Nix 包异常
+→ 先尝试 NixOS generation 回滚
+
+用户文件、浏览器数据、配置文件异常
+→ 根据事务记录查看 /home 快照
+
+系统文件和用户目录都需要回到更新前
+→ 回滚 generation，并从同一个事务 ID 恢复 root + home 快照
+```
+
+### 查看记录
+
+```bash
+nixos-update list
+nixos-update show <transaction-id>
+sudo snapper -c root list
+sudo snapper -c home list
+```
+
+### NixOS generation 回滚
+
+```bash
+sudo nixos-rebuild list-generations
+sudo nixos-rebuild switch --rollback
+```
+
+无法进入桌面时，从 systemd-boot 选择旧 generation。
+
+### Btrfs 快照恢复
+
+当前提供单独的查看命令；恢复 `/` 和 `/home` 时不自动覆盖当前文件。
+推荐从 NixOS 安装介质或另一套可启动系统执行恢复，在离线状态下：
+
+1. 确认事务 ID；
+2. 确认 root 和 home 快照编号属于同一事务；
+3. 备份当前需要保留的新文件；
+4. 恢复 `/`；
+5. 恢复 `/home`；
+6. 重启并选择对应的 NixOS generation；
+7. 检查 SSH、网络、桌面和用户数据。
+
+## 保留和清理策略
+
+自动快照必须自动清理，否则会持续占用 Btrfs 空间。当前策略为：
+
+```text
+最近 10 次更新事务：保留 root + home
+最近 5 次重要事务：长期保留
+普通快照超过 30 天：自动清理
+用户手动标记的重要快照：不自动清理
+```
+
+清理前必须保证 root 和 home 成对删除，不能只删除其中一个，否则记录会变成
+不可恢复的半组快照。
+
+快照只保护同一块磁盘上的快速回滚，不防止硬盘损坏。重要数据仍需使用外部磁盘、
+NAS、`btrfs send/receive`、restic 或 borg 做异地/离线备份。
+
+## 实施状态与后续
+
+以下基础功能已经实施并验证：
+
+1. 安装并声明 Snapper；
+2. 建立 `root` 和 `home` 配置；
+3. 实现 `nixos-update list/show`；
+4. 接入 flake 更新、插件更新、构建和 switch；
+5. 加入快照清理策略。
+
+仍待后续验证或实现：
+
+1. 用一次非破坏性更新验证完整日志链路；
+2. 从 Live 环境实际演练 `/` 和 `/home` 恢复；
+3. 根据演练结果决定是否提供恢复辅助命令。
+
+在恢复流程经过实际演练前，不会把自动恢复加入更新命令。

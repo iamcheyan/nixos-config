@@ -12,6 +12,7 @@ in
     ../../modules/zsh.nix
     ../../modules/cli.nix
     ../../modules/dev.nix
+    ../../modules/update-snapshots.nix
     inputs.home-manager.nixosModules.home-manager
   ] ++ lib.optional (localHost != null && builtins.pathExists localHost) localHost;
 
@@ -58,6 +59,12 @@ in
     "system.hibernate" = {
       when = ''test -r /sys/power/image_size && awk 'NR > 1 && $1 !~ /zram/ && $3 > 0 { found = 1 } END { exit !found }' /proc/swaps && grep -q 'resume=' /run/current-system/kernel-params'';
       action = "systemctl hibernate";
+    };
+    "system.nixos-update" = {
+      icon = "󰒓";
+      label = "NixOS Update (Snapshot)";
+      description = "Snapshot / and /home, update plugins and NixOS";
+      action = "nixos-update";
     };
   };
 

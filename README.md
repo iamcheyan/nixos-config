@@ -130,6 +130,12 @@ sudo nixos-rebuild switch --rollback
 想系统学习 NixOS 的设计取舍和本仓库的实践方式，可从
 [`docs/nixos-learning-notes.md`](docs/nixos-learning-notes.md) 开始。
 
+更新前自动快照、NixOS generation、`/home` 恢复和 Omarchy 插件更新的完整设计见
+[`docs/nixos-update-snapshots.md`](docs/nixos-update-snapshots.md)。
+
+统一更新命令是 `nixos-update`；正式更新请使用它，以确保更新前自动创建 `/` 与
+`/home` 快照，并同时更新 Omarchy 插件。
+
 ## NixOS 与 chezmoi 的用户配置边界
 
 本仓库通过 Home Manager 管理 NixOS 专属的用户配置，入口是
