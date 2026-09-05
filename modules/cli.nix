@@ -5,6 +5,7 @@
   # This module intentionally contains no desktop services or compilers.
   environment.systemPackages = with pkgs; [
     git
+    chezmoi
     curl
     wget
     openssh
