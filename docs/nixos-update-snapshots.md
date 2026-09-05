@@ -143,6 +143,26 @@ generation_before = 6
 
 ## `nixos-update` 行为
 
+### 完整执行顺序
+
+默认执行 `nixos-update` 时，实际顺序如下：
+
+1. 解析 `~/nixos-config` 和当前主机名，例如 `hx90`；
+2. 检查 `flake.nix`、Snapper、Omarchy 和 `nixos-rebuild` 是否可用；
+3. 检查配置仓库是否干净；有未提交改动时默认停止；
+4. 使用 `systemd-inhibit` 锁住 `sleep` 和 `idle`，防止更新期间休眠；
+5. 创建更新事务记录；
+6. 创建 `/` 的 root 快照；
+7. 创建 `/home` 的 home 快照；
+8. 执行 `omarchy plugin update --yes`；
+9. 执行 `nix flake update --flake ~/nixos-config`；
+10. 执行 `nixos-rebuild build --flake ~/nixos-config#hx90`；
+11. 构建成功后执行 `sudo nixos-rebuild switch --flake ~/nixos-config#hx90`；
+12. 将成功、失败、generation 和快照编号写入事务记录。
+
+构建失败时不会切换到新系统，已创建的快照和失败记录会保留。该命令不会自动
+恢复快照，也不会自动回滚 NixOS generation。
+
 ### 更新前检查
 
 命令启动后先检查：
@@ -209,6 +229,61 @@ sudo nixos-rebuild switch --flake ~/nixos-config#hx90
 - 记录失败日志；
 - 不切换系统；
 - 不自动恢复 `/` 或 `/home`。
+
+### Nixarchy 是如何更新的
+
+本仓库的 Nixarchy 不是通过 Omarchy 插件 checkout 更新的，而是 flake input：
+
+```nix
+nixarchy.url = "github:olafkfreund/nixarchy/v4.0.1-1";
+```
+
+它在系统层和 Home Manager 层分别接入：
+
+```nix
+inputs.nixarchy.nixosModules.nixarchy
+inputs.nixarchy.homeManagerModules.nixarchy
+```
+
+Nixarchy 提供的包、NixOS 模块、Home Manager 模块和 `omarchy` 命令，都会从这个
+flake input 构建。锁定的实际 commit 保存在 `flake.lock` 的 `nixarchy` 节点中。
+
+因此执行：
+
+```bash
+nix flake update --flake ~/nixos-config
+```
+
+时，Nix 会按照 `flake.nix` 中的 URL 更新 Nixarchy，并把新的 commit 和 hash 写入
+`flake.lock`。随后 `nixos-rebuild build` 和 `switch` 才会让新的 Nixarchy 版本进入
+当前系统。
+
+这里有三个容易混淆的更新动作：
+
+```text
+nix flake update
+└── 更新 Nixarchy 本身及其他 flake inputs
+
+nixos-rebuild switch
+└── 让新的 Nixarchy 包、模块和配置进入系统
+
+omarchy plugin update
+└── 更新用户目录中的 Omarchy 插件 git checkout
+```
+
+也就是说，`nixos-update` 通过两个独立步骤同时处理 Nixarchy 和 Omarchy 插件：
+先执行 `omarchy plugin update --yes`，再执行 `nix flake update`，最后构建并切换
+NixOS。它不会更新 chezmoi 或 `dotfiles`。
+
+更新完成后，如果 `flake.lock` 发生变化，应检查并提交：
+
+```bash
+cd ~/nixos-config
+git diff -- flake.lock
+git add flake.lock
+git commit -m "chore: update flake inputs"
+git push
+```
 
 ### Omarchy 插件更新
 
