@@ -15,6 +15,8 @@ in
     inputs.home-manager.nixosModules.home-manager
   ] ++ lib.optional (localHost != null && builtins.pathExists localHost) localHost;
 
+  home-manager.extraSpecialArgs = { inherit inputs; };
+
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.kernelPackages = pkgs.linuxPackages_latest;
@@ -23,19 +25,7 @@ in
   time.timeZone = "Asia/Tokyo";
 
   home-manager.users.tetsuya = {
-    imports = [ inputs.nixarchy.homeManagerModules.nixarchy ];
-    home.stateVersion = "26.05";
-    programs.nixarchy.enable = true;
-
-    # Keep the user-selected cursor across every Nixarchy theme change.
-    xdg.configFile."omarchy/hooks/theme-set.d/cursor".enable = lib.mkForce false;
-    home.pointerCursor = {
-      gtk.enable = true;
-      x11.enable = true;
-      name = "Adwaita";
-      package = pkgs.adwaita-icon-theme;
-      size = 24;
-    };
+    imports = [ ../../modules/home-manager/nixos-user.nix ];
   };
 
   services.spice-vdagentd.enable = true;

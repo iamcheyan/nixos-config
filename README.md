@@ -17,6 +17,7 @@ nixos-config/
 ├── modules/                   # 所有机器共享的配置模块
 │   ├── core.nix               # 基础系统：引导、内核、网络、 locale、输入法、zram……
 │   ├── desktop.nix            # 桌面：SDDM + Hyprland、PipeWire、字体……
+│   ├── home-manager/           # NixOS 专属的用户级 Home Manager 配置
 │   └── zsh.nix                # 全局 Zsh
 └── hosts/                     # 每台机器一个目录
     ├── aarch64/               # ARM64 虚拟机
@@ -76,13 +77,13 @@ HX90 的 `networking.hostName` 与 flake 输出名统一为 `hx90`，因此 Nixa
 ### modules/zsh.nix
 全局启用 Zsh 和补全。用户 shell 在各主机 configuration.nix 里指定。
 
-### nixos-new 主机特有的部分
+### HX90 主机特有的部分
 - **休眠**：`boot.resumeDevice` 指向 NVMe swap 分区。因为 zram 里的页在内存
   里，直接休眠会 ENOMEM 失败，所以装了 `systemd/system-sleep/10-hibernate-zram.sh`：
   休眠前把 zram swap 整个 swapoff 到磁盘、把 image_size 调到最小；唤醒后
   重置 zram0 并重启 zram-setup 服务恢复优先级配置。
-- **logind**：盖子/电源键挂起保留，但禁用"无人值守空闲挂起"——这台机器固件
-  的 s2idle 唤醒可靠性还没验证过。
+- **logind**：电源键/（若存在的）盖子动作按主机配置处理，但禁用"无人值守空闲挂起"，
+  以保证 SSH 任务不会因空闲而中断。
 - **snapper**：`/` 和 `/home` 各一套自动快照（小时/天/周/月保留策略），
   用于本地回滚。注释里写明：这不是加密 NAS 备份的替代品。
 - **Docker + Windows VM 工具链**：docker、docker-compose、freerdp（RDP）、
@@ -128,6 +129,22 @@ sudo nixos-rebuild switch --rollback
 
 想系统学习 NixOS 的设计取舍和本仓库的实践方式，可从
 [`docs/nixos-learning-notes.md`](docs/nixos-learning-notes.md) 开始。
+
+## NixOS 与 chezmoi 的用户配置边界
+
+本仓库通过 Home Manager 管理 NixOS 专属的用户配置，入口是
+[`modules/home-manager/nixos-user.nix`](modules/home-manager/nixos-user.nix)。这里适合放：
+
+- 依赖 Nix store 软件包的用户配置、用户级 systemd service；
+- Nixarchy/Omarchy 的 NixOS 接线；
+- 只在 NixOS 上使用的用户环境变量、GUI 默认值和配置文件。
+
+跨发行版或跨平台的用户偏好继续由 `~/chezmoi` 管理，例如 Hyprland、Fcitx5、终端、
+tmux、Voxtype 和通用脚本。一个具体文件只能由一个系统管理：迁移到 Home Manager
+后必须从 chezmoi 删除对应文件，反之亦然。NixOS 的用户配置通过
+`sudo nixos-rebuild switch --flake ~/nixos-config#<主机名>` 生效；chezmoi 配置仍通过
+`chezmoi apply` 生效。这样在 Fedora、Arch、Debian 或 macOS 上使用 chezmoi 时，
+不会依赖 NixOS 的模块或 Nix store 路径。
 
 ## 仓库地图
 
@@ -206,16 +223,35 @@ cp /etc/nixos/hardware-configuration.nix ~/nixos-config/hosts/旧机器名/
 | zram 刷盘钩子 | 有 zram 就必须带 `10-hibernate-zram.sh` | zram 里的页在内存里，快照算不下会 ENOMEM 弹回（nixos-new 实测踩过） |
 | Secure Boot lockdown | 关闭（或内核未进 lockdown） | lockdown 开启时内核直接禁止休眠，与本配置无关 |
 
+### HX90 台式机策略
+
+HX90 是需要长期通过 SSH 运行任务的台式机，因此配置为：
+
+- 空闲时不自动 suspend 或 hibernate：`services.logind.settings.Login.IdleAction = "ignore"`。
+- 手动 suspend 和 hibernate 仍然可用；例如 `systemctl hibernate`。
+- 禁用 hybrid sleep 与 suspend-then-hibernate，避免后台策略自行改变电源状态。
+- hibernate 写入磁盘后使用 `HibernateMode = "shutdown"`。这台机器的固件在 ACPI S4
+  阶段会因为 USB 控制器返回 `EBUSY` 导致恢复失败，所以采用快照后正常关机。
+- 休眠目标是独立 NVMe swap 分区，不是 EXT4/Btrfs 文件系统里的 swapfile。当前 HX90
+  的 swap UUID 是 `cfceef33-5044-4a72-8c01-c8d1f4444f00`，必须同时出现在
+  `hardware-configuration.nix` 的 `swapDevices` 和 `configuration.nix` 的
+  `boot.resumeDevice`。
+
+这套台式机策略不应原样复制到笔记本：笔记本通常需要保留合盖动作，并可能需要
+`suspend-then-hibernate`。复制时应按笔记本的电源管理需求单独设置 `logind`，并使用
+笔记本自己的 swap UUID。
+
 新机器要启用休眠的检查清单：
 
-1. **装机时留出 ≥ 内存的 swap 分区**（参考 nixos-new：16.5G swap / 14G RAM）。
+1. **装机时留出 ≥ 内存的 swap 分区**（HX90 使用约 68.4 GiB swap / 约 62 GiB RAM）。
 2. `nixos-generate-config` 生成 hardware 文件后，从里面的 `swapDevices` 拿到
    swap 分区 UUID，填进该主机 `configuration.nix` 的 `boot.resumeDevice`。
-3. 把 nixos-new 里 `environment.etc."systemd/system-sleep/10-hibernate-zram.sh"`
+3. 把 HX90 里 `environment.etc."systemd/system-sleep/10-hibernate-zram.sh"`
    那一整块复制过去——zram 在 `modules/core.nix` 是共享启用的，所以只要用
    zram 就需要这个钩子（钩子和 resumeDevice 同在 host 文件里，结构上保证同进退）。
 4. **验证顺序**：`swapon --show` 确认两个 swap（zram0 优先级 100 + 磁盘分区 -1）
-   → 真点一次休眠按钮走完整断电循环 → 唤醒后确认会话还在、zram 优先级恢复 100。
+   → `nixos-rebuild build --flake .#主机名` → 真点一次休眠按钮走完整断电循环
+   → 唤醒后确认会话还在、zram 优先级恢复 100。
 
 电源面板只在内核支持 disk 休眠且存在非 zram 的磁盘 swap 分区时显示
 Hibernate 按钮，没配 swap 的机器会自动隐藏。
@@ -230,8 +266,9 @@ Hibernate 按钮，没配 swap 的机器会自动隐藏。
   不要顺手 `nix flake update`。
 - **免密 sudo**：`tetsuya` 在所有机器上 `NOPASSWD: ALL`。多用户环境不适用，
   需要时改 `modules/core.nix`。
-- **nixos-new 的空闲挂起被禁用**（logind `IdleAction=ignore`），因为该固件
-  s2idle 唤醒未验证；盖子和电源键的挂起不受影响。验证稳定后可改回。
+- **HX90 的空闲挂起被禁用**（logind `IdleAction=ignore`），因为它是需要保持 SSH
+  在线的台式机；手动挂起/休眠仍可用，电源键和（若存在的）合盖动作仍按各自的
+  `Handle*` 设置处理。
 
 ## 各主机 rebuild 速查
 

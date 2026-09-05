@@ -36,7 +36,7 @@
         ];
       };
 
-      # x86_64 ext4 workstation using the same nixarchy desktop baseline.
+      # x86_64 btrfs workstation using the same nixarchy desktop baseline.
       hx90 = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         specialArgs = { inherit inputs localRoot; };

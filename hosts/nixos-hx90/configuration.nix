@@ -15,6 +15,8 @@ in
     inputs.home-manager.nixosModules.home-manager
   ] ++ lib.optional (localHost != null && builtins.pathExists localHost) localHost;
 
+  home-manager.extraSpecialArgs = { inherit inputs; };
+
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.kernelPackages = pkgs.linuxPackages_latest;
@@ -25,7 +27,7 @@ in
   # Disk hibernation: this host has a 68.4 GiB NVMe swap partition (UUID from
   # hardware-configuration.nix) and ~62 GiB RAM. NixOS does not wire resume=
   # from swapDevices alone.
-  boot.resumeDevice = "/dev/disk/by-uuid/8123e3f3-db0c-4d51-b48e-b1239eaad003";
+  boot.resumeDevice = "/dev/disk/by-uuid/cfceef33-5044-4a72-8c01-c8d1f4444f00";
 
   # Keep lid/power-button suspend. Do not auto-sleep on idle.
   services.logind.settings.Login = {
@@ -35,20 +37,28 @@ in
     HandleSuspendKey = "suspend";
   };
 
-  # This workstation must never enter suspend or hibernation automatically.
-  # Keep the policy declarative so a future nixos-rebuild cannot undo it.
+  # Keep manual suspend/hibernation available, but do not trigger either one
+  # automatically. The lid and power-button policy above controls that latter
+  # behavior.
   systemd.sleep.settings.Sleep = {
-    AllowSuspend = "no";
-    AllowHibernation = "no";
+    AllowSuspend = "yes";
+    AllowHibernation = "yes";
     AllowHybridSleep = "no";
     AllowSuspendThenHibernate = "no";
+    # ACPI S4 poweroff fails on this firmware: xhci 0000:04:00.4 returns EBUSY
+    # (-16), USB resets count as a wakeup, and the kernel rolls the image back.
+    # After the snapshot is on disk, do a normal poweroff instead of S4.
+    HibernateMode = "shutdown";
   };
 
-  # ACPI S4 poweroff fails on this firmware: xhci 0000:04:00.4 returns EBUSY
-  # (-16), USB resets count as a wakeup, and the kernel rolls the image back.
-  # After the snapshot is on disk, do a normal poweroff instead of S4.
-  systemd.sleep.settings.Sleep = {
-    HibernateMode = "shutdown";
+  # Nixarchy's upstream menu uses an Arch/mkinitcpio-only hibernation marker.
+  # Override that existing row declaratively so the option is visible on NixOS
+  # when this host has a resume-capable swap device and boot configuration.
+  programs.nixarchy.menu.extraEntries = {
+    "system.hibernate" = {
+      when = ''test -r /sys/power/image_size && awk 'NR > 1 && $1 !~ /zram/ && $3 > 0 { found = 1 } END { exit !found }' /proc/swaps && grep -q 'resume=' /run/current-system/kernel-params'';
+      action = "systemctl hibernate";
+    };
   };
 
   # zram pages live in RAM. Flush them to the NVMe resume swap before the
@@ -86,9 +96,8 @@ in
     '';
   };
 
-  home-manager.users.tetsuya = { config, pkgs, lib, ... }: {
-    imports = [ inputs.nixarchy.homeManagerModules.nixarchy ];
-    home.stateVersion = "26.05";
+  home-manager.users.tetsuya = { ... }: {
+    imports = [ ../../modules/home-manager/nixos-user.nix ];
     home.sessionVariables.BROWSER = "firefox";
     xdg.mimeApps = {
       enable = true;
@@ -99,22 +108,6 @@ in
         "x-scheme-handler/about" = [ "firefox.desktop" ];
         "x-scheme-handler/unknown" = [ "firefox.desktop" ];
       };
-    };
-    programs.nixarchy.enable = true;
-
-    # Disable nixarchy automatic cursor override
-    xdg.configFile."omarchy/hooks/theme-set.d/cursor".enable = lib.mkForce false;
-    systemd.user.services.omarchy-theme-gnome.Service.ExecStart = lib.mkForce [
-      "${config.programs.nixarchy.package}/bin/omarchy-theme-set-gnome"
-    ];
-
-    # Set default cursor (Adwaita)
-    home.pointerCursor = {
-      gtk.enable = true;
-      x11.enable = true;
-      name = "Adwaita";
-      package = pkgs.adwaita-icon-theme;
-      size = 24;
     };
   };
 
