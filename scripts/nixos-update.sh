@@ -5,6 +5,7 @@ usage() {
   cat <<'EOF'
 Usage:
   nixos-update [--yes] [--allow-dirty]
+  nixos-update check
   nixos-update list
   nixos-update show <transaction-id>
 
@@ -18,8 +19,10 @@ host="$(hostname -s)"
 history_dir="/var/lib/nixos-update/history"
 sudo_cmd="/run/wrappers/bin/sudo"
 [[ -x "$sudo_cmd" ]] || sudo_cmd="$(command -v sudo || true)"
+release_api="https://api.github.com/repos/olafkfreund/nixarchy/releases/latest"
 yes=false
 allow_dirty=false
+original_args=("$@")
 
 current_generation() {
   nixos-rebuild list-generations 2>/dev/null \
@@ -68,6 +71,59 @@ show_record() {
     || { echo "Transaction not found: $id" >&2; exit 1; }
 }
 
+nixarchy_release() {
+  sed -nE 's#^[[:space:]]*url[[:space:]]*=[[:space:]]*"github:olafkfreund/nixarchy/([^"]+)";.*#\1#p' \
+    "$flake_dir/flake.nix" | head -n1
+}
+
+latest_nixarchy_release() {
+  curl --fail --silent --show-error --location --retry 2 \
+    --header 'Accept: application/vnd.github+json' \
+    "$release_api" | jq --raw-output '.tag_name // empty'
+}
+
+check_nixarchy_release() {
+  local current latest newest
+  current="$(nixarchy_release)"
+  [[ "$current" =~ ^v[0-9]+(\.[0-9]+)*(-[0-9]+)?$ ]] || {
+    echo "Could not determine the pinned Nixarchy release from flake.nix." >&2
+    return 1
+  }
+  latest="$(latest_nixarchy_release)"
+  [[ "$latest" =~ ^v[0-9]+(\.[0-9]+)*(-[0-9]+)?$ ]] || {
+    echo "Could not determine the latest Nixarchy release from GitHub." >&2
+    return 1
+  }
+  newest="$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n1)"
+  printf 'Nixarchy release: current=%s latest=%s\n' "$current" "$latest"
+  if [[ "$current" == "$latest" ]]; then
+    printf 'Nixarchy is up to date.\n'
+    return 0
+  fi
+  if [[ "$newest" != "$latest" ]]; then
+    printf 'Pinned Nixarchy release is newer than the latest GitHub release; no upgrade suggested.\n'
+    return 0
+  fi
+  printf 'Nixarchy update available: %s -> %s\n' "$current" "$latest"
+  return 0
+}
+
+upgrade_nixarchy_ref() {
+  local latest=$1
+  sed -i -E \
+    "s#^([[:space:]]*url[[:space:]]*=[[:space:]]*\"github:olafkfreund/nixarchy/)[^\"]+(\";.*)#\\1${latest}\\2#" \
+    "$flake_dir/flake.nix"
+}
+
+if [[ "${1:-}" == "check" ]]; then
+  [[ -f "$flake_dir/flake.nix" ]] || {
+    echo "NixOS flake not found: $flake_dir" >&2
+    exit 1
+  }
+  check_nixarchy_release
+  exit 0
+fi
+
 if [[ "${1:-}" == "list" ]]; then
   show_history
   echo
@@ -101,7 +157,26 @@ done
 if [[ "${NIXOS_UPDATE_INHIBITED:-0}" != 1 ]]; then
   export NIXOS_UPDATE_INHIBITED=1
   exec systemd-inhibit --what=sleep:idle --why="NixOS update in progress" \
-    --mode=block "$0" "$@"
+    --mode=block "$0" "${original_args[@]}"
+fi
+
+current_nixarchy_release="$(nixarchy_release)"
+latest_nixarchy_release="$(latest_nixarchy_release)"
+[[ "$current_nixarchy_release" =~ ^v[0-9]+(\.[0-9]+)*(-[0-9]+)?$ ]] || {
+  echo "Could not determine the pinned Nixarchy release from flake.nix." >&2
+  exit 1
+}
+[[ "$latest_nixarchy_release" =~ ^v[0-9]+(\.[0-9]+)*(-[0-9]+)?$ ]] || {
+  echo "Could not determine the latest Nixarchy release from GitHub." >&2
+  exit 1
+}
+nixarchy_upgrade=false
+if [[ "$current_nixarchy_release" != "$latest_nixarchy_release" ]] &&
+  [[ "$(printf '%s\n%s\n' "$current_nixarchy_release" "$latest_nixarchy_release" | sort -V | tail -n1)" == "$latest_nixarchy_release" ]]; then
+  nixarchy_upgrade=true
+  printf 'Nixarchy update available: %s -> %s\n' "$current_nixarchy_release" "$latest_nixarchy_release"
+else
+  printf 'Nixarchy release: %s (latest: %s)\n' "$current_nixarchy_release" "$latest_nixarchy_release"
 fi
 
 [[ -n "$sudo_cmd" ]] || { echo "sudo is not available" >&2; exit 1; }
@@ -116,7 +191,11 @@ if [[ "$allow_dirty" != true ]] && [[ -n "$(git -C "$flake_dir" status --porcela
 fi
 
 if [[ "$yes" != true ]]; then
-  read -r -p "Create / and /home snapshots, update plugins/flake, and switch NixOS? [y/N] " answer
+  if [[ "$nixarchy_upgrade" == true ]]; then
+    read -r -p "Upgrade Nixarchy to $latest_nixarchy_release, create snapshots, update and switch NixOS? [y/N] " answer
+  else
+    read -r -p "Create / and /home snapshots, update plugins/flake, and switch NixOS? [y/N] " answer
+  fi
   [[ "$answer" =~ ^[Yy]$ ]] || { echo "Cancelled."; exit 0; }
 fi
 
@@ -135,10 +214,19 @@ trap finish EXIT
   printf 'kernel_before=%s\n' "$(uname -r)"
   printf 'flake_dir=%s\n' "$flake_dir"
   printf 'flake_revision_before=%s\n' "$(git -C "$flake_dir" rev-parse HEAD)"
+  printf 'nixarchy_release_before=%s\n' "$current_nixarchy_release"
+  printf 'nixarchy_release_latest=%s\n' "$latest_nixarchy_release"
   printf 'flake_dirty_before=%s\n' "$(git -C "$flake_dir" status --porcelain | wc -l)"
   printf 'status=started\n'
 } > "$record_tmp"
 write_record
+
+if [[ "$nixarchy_upgrade" == true ]]; then
+  echo "Updating flake.nix Nixarchy reference to $latest_nixarchy_release..."
+  upgrade_nixarchy_ref "$latest_nixarchy_release"
+  append_record "nixarchy_release_after=$latest_nixarchy_release"
+  write_record
+fi
 
 description="nixos-update $transaction"
 echo "Creating root snapshot..."

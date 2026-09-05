@@ -147,21 +147,32 @@ generation_before = 6
 
 默认执行 `nixos-update` 时，实际顺序如下：
 
-1. 解析 `~/nixos-config` 和当前主机名，例如 `hx90`；
-2. 检查 `flake.nix`、Snapper、Omarchy 和 `nixos-rebuild` 是否可用；
-3. 检查配置仓库是否干净；有未提交改动时默认停止；
-4. 使用 `systemd-inhibit` 锁住 `sleep` 和 `idle`，防止更新期间休眠；
-5. 创建更新事务记录；
-6. 创建 `/` 的 root 快照；
-7. 创建 `/home` 的 home 快照；
-8. 执行 `omarchy plugin update --yes`；
-9. 执行 `nix flake update --flake ~/nixos-config`；
-10. 执行 `nixos-rebuild build --flake ~/nixos-config#hx90`；
-11. 构建成功后执行 `sudo nixos-rebuild switch --flake ~/nixos-config#hx90`；
-12. 将成功、失败、generation 和快照编号写入事务记录。
+1. 查询 Nixarchy 最新正式 release，并和 `flake.nix` 当前版本比较；
+2. 解析 `~/nixos-config` 和当前主机名，例如 `hx90`；
+3. 检查 `flake.nix`、Snapper、Omarchy 和 `nixos-rebuild` 是否可用；
+4. 检查配置仓库是否干净；有未提交改动时默认停止；
+5. 使用 `systemd-inhibit` 锁住 `sleep` 和 `idle`，防止更新期间休眠；
+6. 创建更新事务记录；
+7. 创建 `/` 的 root 快照；
+8. 创建 `/home` 的 home 快照；
+9. 如发现新 Nixarchy release，在快照之后更新 `flake.nix` 的版本引用；
+10. 执行 `omarchy plugin update --yes`；
+11. 执行 `nix flake update --flake ~/nixos-config`；
+12. 执行 `nixos-rebuild build --flake ~/nixos-config#hx90`；
+13. 构建成功后执行 `sudo nixos-rebuild switch --flake ~/nixos-config#hx90`；
+14. 将成功、失败、generation 和快照编号写入事务记录。
 
 构建失败时不会切换到新系统，已创建的快照和失败记录会保留。该命令不会自动
 恢复快照，也不会自动回滚 NixOS generation。
+
+单独检查 Nixarchy release，不修改仓库或系统：
+
+```bash
+nixos-update check
+```
+
+正式执行 `nixos-update` 时，如果发现较新的 release，会在确认提示中显示旧版本
+和新版本；确认后才修改 `flake.nix`。如果使用 `--yes`，则自动接受这个版本升级。
 
 ### 更新前检查
 

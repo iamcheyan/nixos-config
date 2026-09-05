@@ -5,10 +5,12 @@ let
     name = "nixos-update";
     runtimeInputs = [
       pkgs.coreutils
+      pkgs.curl
       pkgs.findutils
       pkgs.gawk
       pkgs.gnugrep
       pkgs.git
+      pkgs.jq
       pkgs.nix
       pkgs.nixos-rebuild
       pkgs.snapper
