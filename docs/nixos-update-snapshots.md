@@ -293,6 +293,36 @@ sudo snapper -c root list
 sudo snapper -c home list
 ```
 
+本次更新的事务记录示例：
+
+```bash
+nixos-update show update-20260905T151243-generation-8
+```
+
+记录中的 `root_snapshot`、`home_snapshot` 和 `generation_before` 是一组，
+恢复时应优先使用同一个事务中的编号，不要只凭快照编号猜测对应关系。
+
+### 查看快照内容
+
+Snapper 使用 `0` 表示当前正在使用的文件系统。比较更新前快照 `1` 和当前状态：
+
+```bash
+sudo snapper -c root status 1..0
+sudo snapper -c root diff 1..0
+
+sudo snapper -c home status 1..0
+sudo snapper -c home diff 1..0
+```
+
+`status` 只列出新增、删除和修改的路径，`diff` 会显示文件内容差异。快照也可以
+临时挂载后以普通文件的方式查看：
+
+```bash
+sudo snapper -c home mount 1
+findmnt -t btrfs | grep snapper
+sudo snapper -c home umount 1
+```
+
 ### NixOS generation 回滚
 
 ```bash
@@ -304,7 +334,23 @@ sudo nixos-rebuild switch --rollback
 
 ### Btrfs 快照恢复
 
-当前提供单独的查看命令；恢复 `/` 和 `/home` 时不自动覆盖当前文件。
+当前提供查看命令和单文件恢复命令；恢复整个 `/` 和 `/home` 时不自动覆盖当前文件。
+
+如果只是误删或误改了一个用户文件，可以先查看差异，再只恢复指定路径：
+
+```bash
+sudo snapper -c home undochange 1..0 -- /home/tetsuya/.config/example.conf
+```
+
+也可以指定一个目录，但这会覆盖目录下对应的当前文件，执行前应确认路径范围：
+
+```bash
+sudo snapper -c home undochange 1..0 -- /home/tetsuya/.config/some-directory
+```
+
+`undochange` 会直接修改当前文件系统，不能当作只读查看命令。重要文件应先复制
+一份到其他位置。
+
 推荐从 NixOS 安装介质或另一套可启动系统执行恢复，在离线状态下：
 
 1. 确认事务 ID；
@@ -314,6 +360,17 @@ sudo nixos-rebuild switch --rollback
 5. 恢复 `/home`；
 6. 重启并选择对应的 NixOS generation；
 7. 检查 SSH、网络、桌面和用户数据。
+
+不要在尚未确认方案时直接执行：
+
+```bash
+sudo snapper -c root rollback 1
+```
+
+`rollback` 会创建新的读写快照并改变 Btrfs 默认启动子卷。它只处理对应的 Snapper
+配置，不能自动同时恢复 `/home`，因此不等价于“root + home 一键恢复”。完整恢复
+需要先备份故障发生后新增的文件，再分别处理 root 和 home，并选择匹配的旧 NixOS
+generation 启动。
 
 ## 保留和清理策略
 
@@ -326,8 +383,10 @@ sudo nixos-rebuild switch --rollback
 用户手动标记的重要快照：不自动清理
 ```
 
-清理前必须保证 root 和 home 成对删除，不能只删除其中一个，否则记录会变成
-不可恢复的半组快照。
+当前 root 和 home 使用各自的 Snapper 数量清理策略。事务记录仍然会保留两者的
+对应关系，但当前清理器不保证两个配置严格成对删除；如果某个事务必须长期保留，
+应同时把 root 和 home 快照标记为重要，或暂时不要运行清理。后续如有需要，再增加
+按事务 ID 成对清理的辅助逻辑。
 
 快照只保护同一块磁盘上的快速回滚，不防止硬盘损坏。重要数据仍需使用外部磁盘、
 NAS、`btrfs send/receive`、restic 或 borg 做异地/离线备份。
@@ -344,8 +403,8 @@ NAS、`btrfs send/receive`、restic 或 borg 做异地/离线备份。
 
 仍待后续验证或实现：
 
-1. 用一次非破坏性更新验证完整日志链路；
-2. 从 Live 环境实际演练 `/` 和 `/home` 恢复；
-3. 根据演练结果决定是否提供恢复辅助命令。
+1. 从 Live 环境实际演练 `/` 和 `/home` 恢复；
+2. 根据演练结果决定是否提供恢复辅助命令；
+3. 评估按事务 ID 成对清理 root/home 快照的辅助逻辑。
 
 在恢复流程经过实际演练前，不会把自动恢复加入更新命令。
