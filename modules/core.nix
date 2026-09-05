@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, pkgs, ... }:
 
 {
   # Settings shared by every NixOS host in this repository.
@@ -6,6 +6,12 @@
   # belong in their dedicated modules or host configurations.
   # Every NixOS host gets the dynamic loader for unpatched development binaries.
   programs.nix-ld.enable = true;
+
+  # Provide /bin/bash for FHS compatibility and scripts hardcoding #!/bin/bash
+  system.activationScripts.binbash = ''
+    mkdir -m 0755 -p /bin
+    ln -sfn "${pkgs.bashInteractive}/bin/bash" /bin/bash
+  '';
 
   # Shared remote-access baseline for every host.
   services.openssh.enable = true;

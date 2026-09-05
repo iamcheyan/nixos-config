@@ -21,6 +21,7 @@
     fcitx5.waylandFrontend = true;
     fcitx5.addons = with pkgs; [
       fcitx5-rime
+      librime
       fcitx5-gtk
       qt6Packages.fcitx5-configtool
     ];
@@ -85,6 +86,7 @@
   programs.dconf.enable = true;
 
   fonts.packages = with pkgs; [
+    adwaita-fonts
     cantarell-fonts
     noto-fonts
     noto-fonts-cjk-sans
@@ -108,6 +110,7 @@
     zellij
     ranger
     firefox
+    librime
     fish
     starship
     age
