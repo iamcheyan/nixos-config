@@ -17,8 +17,56 @@ let
           '[ "SystemSwitch", "Dictation", "ScreenRecording", "Reminder", "NightLight", "Dnd", "StayAwake" ]' \
           '[ "Dictation", "ScreenRecording", "Reminder", "NightLight", "Dnd", "StayAwake" ]'
       rm -f $out/share/omarchy/shell/plugins/bar/indicators/SystemSwitch.qml
+      # Keep terminal applications on their explicit monospace fonts while
+      # making the built-in Omarchy Shell UI and topbar use the GNOME-style
+      # Cantarell family. Nerd Font glyphs still resolve through Qt fallback.
+      substituteInPlace $out/share/omarchy/shell/Commons/Style.qml \
+        --replace-fail \
+          'property string fontFamily: "monospace"' \
+          'property string fontFamily: "Cantarell"'
+
+      # Match the heavier GNOME Shell appearance for readable bar labels.
+      # Keep icon glyphs in the same family so Nerd Font fallback remains intact.
+      newline="$(printf '\nX')"
+      newline="''${newline%X}"
+      substituteInPlace $out/share/omarchy/shell/Ui/WidgetButton.qml \
+        --replace-fail \
+          'font.pixelSize: root.fontSize' \
+          "font.pixelSize: root.fontSize''${newline}    font.weight: Font.DemiBold"
+      substituteInPlace $out/share/omarchy/shell/plugins/bar/widgets/ActiveWindow.qml \
+        --replace-fail \
+          'font.pixelSize: Style.font.body' \
+          "font.pixelSize: Style.font.body''${newline}      font.weight: Font.DemiBold"
+
+      # A local plugin watcher must never tear down a live session lock. Doing
+      # so destroys WlSessionLock while Hyprland is secure and can leave the
+      # compositor in its LOCK failsafe, producing a black screen. Defer the
+      # reload; after unlocking, a normal shell restart can load the change.
+      reload_newline="$(printf '\nX')"
+      reload_newline="''${reload_newline%X}"
+      reload_guard="  function reloadPlugins() {''${reload_newline}    var lockId = shell.pluginRegistry.resolveEnabledId(\"omarchy.lock\")''${reload_newline}    var lockService = shell.serviceFor(lockId)''${reload_newline}    if (lockService && lockService.locked) {''${reload_newline}      console.warn(\"Deferring plugin reload while session lock is active\")''${reload_newline}      return''${reload_newline}    }"
+      substituteInPlace $out/share/omarchy/shell/shell.qml \
+        --replace-fail \
+          '  function reloadPlugins() {' \
+          "$reload_guard"
     '';
   });
+
+  # Keep the login screen in the system closure so SDDM can discover it under
+  # /run/current-system/sw/share/sddm/themes.  The theme reuses the visual
+  # language of the user's Nixarchy lock screen but uses SDDM's own login API.
+  shizukaSddmTheme = pkgs.stdenvNoCC.mkDerivation {
+    pname = "shizuka-sddm-theme";
+    version = "0.1.0";
+    src = ./sddm-theme;
+
+    installPhase = ''
+      runHook preInstall
+      mkdir -p "$out/share/sddm/themes/shizuka"
+      cp -r ./* "$out/share/sddm/themes/shizuka/"
+      runHook postInstall
+    '';
+  };
 in
 {
   imports = [ inputs.nixarchy.nixosModules.nixarchy ];
@@ -106,10 +154,11 @@ in
   };
 
   services.xserver.enable = true;
+  services.displayManager.defaultSession = "omarchy";
   services.displayManager.sddm = {
     enable = true;
     wayland.enable = true;
-    theme = "breeze";
+    theme = "shizuka";
   };
   services.desktopManager.plasma6.enable = true;
   services.xserver.xkb = {
@@ -139,6 +188,7 @@ in
   # Keep these in the NixOS system layer so a fresh machine has the complete
   # graphical baseline before chezmoi applies user-level orchestration.
   environment.systemPackages = with pkgs; [
+    shizukaSddmTheme
     # Desktop terminal/file tools; not installed in the WSL host.
     kitty
     alacritty

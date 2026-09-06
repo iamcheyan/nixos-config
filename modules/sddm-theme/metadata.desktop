@@ -1,0 +1,11 @@
+[SddmGreeterTheme]
+Name=Shizuka
+Description=A quiet Nixarchy-inspired SDDM theme
+Author=iamcheyan
+Copyright=Copyright (C) 2026 iamcheyan
+License=MIT
+Type=sddm-theme
+Version=0.1.0
+Website=https://github.com/iamcheyan/shizuka
+Screenshot=preview.png
+ConfigFile=theme.conf
