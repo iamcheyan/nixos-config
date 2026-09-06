@@ -64,6 +64,55 @@ sudo nixos-rebuild switch --flake ~/nixos-config#hx90
 普通的 `nixos-rebuild switch` 不会主动访问网络更新任何输入，这是为了保持
 `flake.lock` 的可复现性；需要检查远程更新时，应先执行上面的更新命令。
 
+### Shizuka 的版本到底由哪里管理
+
+Shizuka 登录主题不是直接从 `~/development/shizuka` 运行。它有四个明确的层次：
+
+```text
+Shizuka GitHub main
+        ↓  nix flake update shizuka
+nixos-config/flake.lock       ← 锁定具体 Git commit
+        ↓  nixos-rebuild switch
+/run/current-system/.../shizuka ← 当前 NixOS generation 使用的不可变副本
+        ↓
+SDDM 登录界面
+```
+
+- 源码仓库是 `iamcheyan/shizuka`；本地开发目录只用于开发和测试。
+- `flake.nix` 声明 `shizuka` 输入，`flake.lock` 保存实际 commit。GitHub 推送新
+  commit 后，NixOS 不会自动使用它。
+- 注销或重新登录只会重启 SDDM/用户会话，不会更新 `flake.lock`，因此仍可能看到
+  旧主题版本。
+- `/nix/store` 中的旧副本和旧 generation 会保留用于回滚，但不是当前运行版本。
+
+更新 Shizuka 的推荐流程：
+
+```bash
+cd ~/development/shizuka
+git add -A
+git commit -m "describe the theme change"
+git push origin main
+
+nix flake update shizuka --flake ~/nixos-config
+nix flake check --no-build ~/nixos-config
+nixos-rebuild build --flake ~/nixos-config#hx90
+sudo nixos-rebuild switch --flake ~/nixos-config#hx90
+```
+
+确认实际版本：
+
+```bash
+readlink /nix/var/nix/profiles/system
+readlink -f /run/current-system/sw/share/sddm/themes/shizuka
+```
+
+如果主题目录路径末尾包含对应的 Shizuka Git commit，说明当前系统已经切换到该
+版本；仅看到 GitHub 上有新 commit，不能证明本机已经更新。
+
+锁屏插件是独立组件，位于
+`~/.config/omarchy/plugins/iamcheyan.lock-screen`。它与 Shizuka 保持视觉一一对应，
+但不会因为更新 SDDM 主题而自动更新；修改锁屏插件后应单独验证其 QML 和锁屏流程。
+
 ### 为什么只改一个锁节点也可能下载很多包
 
 锁文件的变更行数不等于软件包变更数量。`nixpkgs` 位于依赖图根部，它的一个

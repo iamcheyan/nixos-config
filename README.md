@@ -131,6 +131,10 @@ sudo nixos-rebuild switch --rollback
 输入，但不会更新 chezmoi、dotfiles 或用户运行时数据。详细范围、验证和双层回滚
 方法见 [`docs/nixarchy/update-and-rollback.md`](docs/nixarchy/update-and-rollback.md)。
 
+Shizuka 登录主题的源码、`flake.lock` 锁定版本、NixOS generation 和 SDDM 实际加载
+路径之间的关系，见该文档中的「Shizuka 的版本到底由哪里管理」章节。注销登录不会
+自动更新 Shizuka；更新 GitHub 后必须更新 `flake.lock` 并重新构建切换。
+
 想系统学习 NixOS 的设计取舍和本仓库的实践方式，可从
 [`docs/nixos-learning-notes.md`](docs/nixos-learning-notes.md) 开始。
 
