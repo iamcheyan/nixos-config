@@ -11,6 +11,7 @@ MINILA-R Convertible 的系统级键位映射由 `modules/keyd.nix` 声明。所
 | 内容 | 修改位置 | 作用 |
 |---|---|---|
 | 物理键、独立层、按键输出 | `~/nixos-config/modules/keyd.nix` | 把 MINILA-R 硬件事件转换成普通按键或组合键 |
+| 可复用语音 Ctrl 映射 | `~/nixos-config/modules/keyd-voice.nix` | 为任意 keyd keyboard profile 提供 Ctrl/CapsLock → F24 映射 |
 | 桌面动作、程序命令 | `~/chezmoi/dot_config/hypr/bindings.lua` | 把按键绑定到 Omarchy/Hyprland 功能 |
 | 生成结果 | `/etc/keyd/minila-r.conf` | 只读检查，禁止直接编辑 |
 | 部署后的 Hyprland 配置 | `~/.config/hypr/bindings.lua` | 由 chezmoi 管理，禁止直接编辑 |
@@ -36,6 +37,43 @@ keyd 不应该直接执行截图、启动程序或修改桌面状态。它只负
 | Grave | Escape | 交换行为 |
 | Escape | Grave | 交换行为 |
 | 左 Ctrl | `overload(control, f24)` | 长按是 Ctrl，单按是 F24 |
+
+## 可复用的语音 Ctrl 映射
+
+语音输入的键盘侧逻辑集中在 `modules/keyd-voice.nix`，桌面侧的 F24
+绑定集中在 chezmoi 的 `dot_config/hypr/bindings.lua`。因此新增键盘时，
+只需在该键盘自己的 `settings.main` 中组合需要的映射。
+
+例如，在 `~/nixos-config/modules/keyd.nix` 或其他 NixOS keyd 模块中：
+
+```nix
+let
+  voice = import ./keyd-voice.nix;
+in
+{
+  services.keyd.keyboards.some-keyboard.settings.main = {
+    # 该键盘自己的映射...
+  } // voice.leftControl;
+}
+```
+
+可用片段：
+
+- `voice.leftControl`：单独按左 Ctrl 切换 Voxtype，Ctrl 组合键保持不变；
+- `voice.rightControl`：同样应用到右 Ctrl；
+- `voice.capsLock`：单独按 CapsLock 发出 F24。
+
+这些片段只负责输出 F24，不直接执行命令。F24 的统一桌面绑定位于
+`~/chezmoi/dot_config/hypr/bindings.lua`：
+
+```lua
+hl.bind("F24", hl.dsp.exec_cmd("voxtype record toggle"), {
+  release = true,
+  description = "MINILA-R Ctrl dictation"
+})
+```
+
+只有配置了相应 keyd 映射的键盘会产生 F24；其他键盘不会受到这个桌面绑定影响。
 
 ## Muhenkan 独立层
 

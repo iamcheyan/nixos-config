@@ -1,5 +1,9 @@
 { pkgs, ... }:
 
+let
+  voice = import ./keyd-voice.nix;
+in
+
 {
   # One shared MINILA-R profile for every host. The USB ID identifies the
   # keyboard, not a machine-specific configuration variant.
@@ -21,15 +25,14 @@
         rightalt = "down";
         grave = "escape";
         escape = "grave";
-        leftcontrol = "overload(control, f24)";
+      } // voice.leftControl;
+      settings.muhenkan = {
+        # Emit Ctrl+Super+V for the clipboard action.
+        v = "C-M-v";
+        l = "C-M-l";
+        "3" = "C-S-f3";
+        s = "print";
       };
-    settings.muhenkan = {
-      # Emit Ctrl+Super+V for the clipboard action.
-      v = "C-M-v";
-      l = "C-M-l";
-      "3" = "C-S-f3";
-      s = "print";
-    };
       settings."muhenkan+shift" = {
         # Keep physical Shift+Print's delayed screenshot untouched while
         # providing a distinct chord for MINILA-R's direct full-screen shot.
