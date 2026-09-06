@@ -711,7 +711,25 @@
         "home-manager": "home-manager",
         "nixarchy": "nixarchy",
         "nixos-wsl": "nixos-wsl",
-        "nixpkgs": "nixpkgs_3"
+        "nixpkgs": "nixpkgs_3",
+        "shizuka": "shizuka"
+      }
+    },
+    "shizuka": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788678093,
+        "narHash": "sha256-FmghYNmdXTSjpGOflrsYsD/SppSPc22o5kU2CO/TBOQ=",
+        "ref": "main",
+        "rev": "80b486a30eeb98cd92e57713b943de783fbcc408",
+        "revCount": 6,
+        "type": "git",
+        "url": "https://github.com/iamcheyan/shizuka.git"
+      },
+      "original": {
+        "ref": "main",
+        "type": "git",
+        "url": "https://github.com/iamcheyan/shizuka.git"
       }
     },
     "sops-nix": {

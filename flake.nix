@@ -18,6 +18,13 @@
 
     # Minimal NixOS environment for WSL2 on Windows 11.
     nixos-wsl.url = "github:nix-community/NixOS-WSL";
+
+    # Shizuka SDDM theme. Keep the theme as a locked flake input instead of
+    # copying its files into this configuration repository.
+    shizuka = {
+      url = "git+https://github.com/iamcheyan/shizuka.git?ref=main";
+      flake = false;
+    };
   };
 
   outputs = { self, nixpkgs, ... }@inputs:

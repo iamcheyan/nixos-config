@@ -39,6 +39,7 @@ Nixarchy 替换了 Omarchy 原本面向 Arch/pacman 的更新器。本机执行
 | `nixarchy` | NixOS/Home Manager 集成、NixOS 专用 Omarchy 命令和模块行为 |
 | `omarchy` | 经 Nixarchy 打包的 Omarchy Shell、命令、默认配置和主题资源 |
 | `home-manager` | 用户级声明式配置模块及其激活逻辑 |
+| `shizuka` | SDDM 登录主题；更新后自动重新打包并随系统 generation 生效 |
 | 传递输入 | Hyprland、Aquamarine、xdg-desktop-portal-hyprland、Zen Browser 等依赖 |
 
 输入使用 `follows` 时会共享同一个 nixpkgs；锁文件中同名带后缀的节点是不同依赖
@@ -47,6 +48,21 @@ Nixarchy 替换了 Omarchy 原本面向 Arch/pacman 的更新器。本机执行
 
 更新后的 rebuild 会重新求值整个系统，但 Nix 只构建或下载发生变化的
 derivation；未变化的内容直接复用 `/nix/store`。
+
+Shizuka 不再复制到本仓库。它作为 `flake = false` 的 Git 输入由
+`flake.lock` 锁定。执行 `nix flake update` 或 `nixos-update` 时会检查
+`iamcheyan/shizuka` 的 `main` 分支；如果有新 commit，就只更新锁文件中的
+Shizuka revision，随后 rebuild 会从新 revision 重新打包主题。也可以只检查并更新
+这一项：
+
+```bash
+nix flake update shizuka --flake ~/nixos-config
+nixos-rebuild build --flake ~/nixos-config#hx90
+sudo nixos-rebuild switch --flake ~/nixos-config#hx90
+```
+
+普通的 `nixos-rebuild switch` 不会主动访问网络更新任何输入，这是为了保持
+`flake.lock` 的可复现性；需要检查远程更新时，应先执行上面的更新命令。
 
 ### 为什么只改一个锁节点也可能下载很多包
 

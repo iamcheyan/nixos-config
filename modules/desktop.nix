@@ -53,12 +53,12 @@ let
   });
 
   # Keep the login screen in the system closure so SDDM can discover it under
-  # /run/current-system/sw/share/sddm/themes.  The theme reuses the visual
-  # language of the user's Nixarchy lock screen but uses SDDM's own login API.
+  # /run/current-system/sw/share/sddm/themes. The source is the locked Shizuka
+  # flake input, so new machines do not need a local theme clone or copy.
   shizukaSddmTheme = pkgs.stdenvNoCC.mkDerivation {
     pname = "shizuka-sddm-theme";
-    version = "0.1.0";
-    src = ./sddm-theme;
+    version = inputs.shizuka.rev or "unstable";
+    src = inputs.shizuka;
 
     installPhase = ''
       runHook preInstall

@@ -114,6 +114,10 @@ sudo nixos-rebuild switch --flake ~/nixos-config#aarch64   # ARM64 虚拟机
 nix flake update
 sudo nixos-rebuild switch --flake ~/nixos-config#<name>
 
+# 只检查并更新 Shizuka SDDM 主题
+nix flake update shizuka --flake ~/nixos-config
+sudo nixos-rebuild switch --flake ~/nixos-config#<name>
+
 # 测试构建（不切换）
 nixos-rebuild build --flake ~/nixos-config#<name>
 
