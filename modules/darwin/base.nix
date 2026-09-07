@@ -14,6 +14,14 @@
   programs.zsh.enable = true;
   environment.shells = [ pkgs.zsh ];
 
+  # Apple Silicon Homebrew is installed outside the Nix store. Keep its
+  # executables visible to both interactive shells and Bash child scripts
+  # (for example the fnm/npm-backed Codex wrapper).
+  environment.systemPath = [
+    "/opt/homebrew/bin"
+    "/opt/homebrew/sbin"
+  ];
+
   # Keep this list intentionally small. Cross-platform shell configuration
   # remains in ~/dotfiles and private ~/chezmoi; these are the binaries that
   # should exist before either repository's setup scripts run.
@@ -26,7 +34,6 @@
     git
     jq
     neovim
-    openssh
     ripgrep
     tmux
     tree
