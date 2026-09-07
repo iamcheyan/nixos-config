@@ -1,0 +1,1672 @@
+{
+    "profiles": [
+        {
+            "complex_modifications": {
+                "rules": [
+                    {
+                        "description": "Map Option+Space to Control+Space for clean IME switching without space insertion",
+                        "manipulators": [
+                            {
+                                "from": {
+                                    "key_code": "spacebar",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "left_option"
+                                        ],
+                                        "optional": [
+                                            "caps_lock",
+                                            "shift"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "spacebar",
+                                        "modifiers": [
+                                            "left_control"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "spacebar",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "right_option"
+                                        ],
+                                        "optional": [
+                                            "caps_lock",
+                                            "shift"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "spacebar",
+                                        "modifiers": [
+                                            "left_control"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Map Japanese Eisuu/Kana to F13/F14",
+                        "manipulators": [
+                            {
+                                "from": {
+                                    "key_code": "japanese_eisuu"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "f13"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "japanese_kana"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "f14"
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Fn-F3 selects a macOS screenshot area",
+                        "manipulators": [
+                            {
+                                "from": {
+                                    "key_code": "f3",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "fn"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "4",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_shift"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Left Control: delayed F13 tap or hold",
+                        "manipulators": [
+                            {
+                                "from": {
+                                    "key_code": "left_control",
+                                    "modifiers": {
+                                        "optional": [
+                                            "any"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "set_variable": {
+                                            "name": "left_control_pending",
+                                            "value": 1
+                                        }
+                                    },
+                                    {
+                                        "key_code": "left_control",
+                                        "lazy": true
+                                    }
+                                ],
+                                "to_if_held_down": [
+                                    {
+                                        "set_variable": {
+                                            "name": "left_control_long_press",
+                                            "value": 1
+                                        }
+                                    },
+                                    {
+                                        "key_code": "f13"
+                                    }
+                                ],
+                                "to_delayed_action": {
+                                    "to_if_canceled": [
+                                        {
+                                            "set_variable": {
+                                                "name": "left_control_pending",
+                                                "value": 0
+                                            }
+                                        },
+                                        {
+                                            "key_code": "left_control"
+                                        }
+                                    ]
+                                },
+                                "to_after_key_up": [
+                                    {
+                                        "set_variable": {
+                                            "name": "left_control_pending",
+                                            "value": 0
+                                        }
+                                    },
+                                    {
+                                        "set_variable": {
+                                            "name": "left_control_long_press",
+                                            "value": 0
+                                        }
+                                    }
+                                ],
+                                "parameters": {
+                                    "basic.to_delayed_action_delay_milliseconds": 250,
+                                    "basic.to_if_alone_timeout_milliseconds": 250,
+                                    "basic.to_if_held_down_threshold_milliseconds": 250
+                                },
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "description": "MINILA-R Convertible layout (USB 0c45:22b8)",
+                        "manipulators": [
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "left_option"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "left_command",
+                                        "lazy": true
+                                    }
+                                ],
+                                "to_if_alone": [
+                                    {
+                                        "apple_vendor_keyboard_key_code": "mission_control"
+                                    }
+                                ],
+                                "parameters": {
+                                    "basic.to_if_alone_timeout_milliseconds": 250
+                                },
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "left_command"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "left_option"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "japanese_pc_nfer"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "f13"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "japanese_pc_katakana"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "left_arrow"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "delete_forward"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "right_arrow"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "right_control"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "up_arrow"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "right_option"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "down_arrow"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "grave_accent_and_tilde"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "escape"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "escape"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "grave_accent_and_tilde"
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Map Control shortcuts to Command shortcuts",
+                        "manipulators": [
+                            {
+                                "from": {
+                                    "key_code": "t",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control",
+                                            "shift"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "t",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_shift"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "t",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "t",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "w",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control",
+                                            "shift"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "w",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_shift"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "w",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "w",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "r",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control",
+                                            "shift"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "r",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_shift"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "r",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "r",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "n",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control",
+                                            "shift"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "n",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_shift"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "n",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "n",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "z",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control",
+                                            "shift"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "z",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_shift"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "z",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "z",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "y",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "y",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "l",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "l",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "f",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "f",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "s",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "s",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "a",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "a",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "c",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "c",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "v",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "v",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "x",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "x",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "fn_function_keys": [
+                {
+                    "from": {
+                        "key_code": "f6"
+                    },
+                    "to": [
+                        {
+                            "key_code": "f6"
+                        }
+                    ]
+                }
+            ],
+            "name": "Default profile",
+            "selected": true,
+            "virtual_hid_keyboard": {
+                "country_code": 0,
+                "keyboard_type_v2": "jis"
+            }
+        },
+        {
+            "complex_modifications": {
+                "rules": [
+                    {
+                        "description": "Map Japanese Eisuu/Kana to F13/F14",
+                        "manipulators": [
+                            {
+                                "from": {
+                                    "key_code": "japanese_eisuu"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "f13"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "japanese_kana"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "f14"
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Cmd alone opens Mission Control",
+                        "manipulators": [
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_unless"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "left_command",
+                                    "modifiers": {
+                                        "optional": [
+                                            "any"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "left_command",
+                                        "lazy": true
+                                    }
+                                ],
+                                "to_if_alone": [
+                                    {
+                                        "apple_vendor_keyboard_key_code": "mission_control"
+                                    }
+                                ],
+                                "parameters": {
+                                    "basic.to_if_alone_timeout_milliseconds": 250
+                                },
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_unless"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "right_command",
+                                    "modifiers": {
+                                        "optional": [
+                                            "any"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "right_command",
+                                        "lazy": true
+                                    }
+                                ],
+                                "to_if_alone": [
+                                    {
+                                        "apple_vendor_keyboard_key_code": "mission_control"
+                                    }
+                                ],
+                                "parameters": {
+                                    "basic.to_if_alone_timeout_milliseconds": 250
+                                },
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Fn-F3 selects a macOS screenshot area",
+                        "manipulators": [
+                            {
+                                "from": {
+                                    "key_code": "f3",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "fn"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "4",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_shift"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Left Control: delayed F13 tap or hold",
+                        "manipulators": [
+                            {
+                                "from": {
+                                    "key_code": "left_control",
+                                    "modifiers": {
+                                        "optional": [
+                                            "any"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "set_variable": {
+                                            "name": "left_control_pending",
+                                            "value": 1
+                                        }
+                                    },
+                                    {
+                                        "key_code": "left_control",
+                                        "lazy": true
+                                    }
+                                ],
+                                "to_if_held_down": [
+                                    {
+                                        "set_variable": {
+                                            "name": "left_control_long_press",
+                                            "value": 1
+                                        }
+                                    },
+                                    {
+                                        "key_code": "f13"
+                                    }
+                                ],
+                                "to_delayed_action": {
+                                    "to_if_canceled": [
+                                        {
+                                            "set_variable": {
+                                                "name": "left_control_pending",
+                                                "value": 0
+                                            }
+                                        },
+                                        {
+                                            "key_code": "left_control"
+                                        }
+                                    ]
+                                },
+                                "to_after_key_up": [
+                                    {
+                                        "set_variable": {
+                                            "name": "left_control_pending",
+                                            "value": 0
+                                        }
+                                    },
+                                    {
+                                        "set_variable": {
+                                            "name": "left_control_long_press",
+                                            "value": 0
+                                        }
+                                    }
+                                ],
+                                "parameters": {
+                                    "basic.to_delayed_action_delay_milliseconds": 250,
+                                    "basic.to_if_alone_timeout_milliseconds": 250,
+                                    "basic.to_if_held_down_threshold_milliseconds": 250
+                                },
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "description": "MINILA-R Convertible layout (USB 0c45:22b8)",
+                        "manipulators": [
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "left_option"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "left_command",
+                                        "lazy": true
+                                    }
+                                ],
+                                "to_if_alone": [
+                                    {
+                                        "apple_vendor_keyboard_key_code": "mission_control"
+                                    }
+                                ],
+                                "parameters": {
+                                    "basic.to_if_alone_timeout_milliseconds": 250
+                                },
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "left_command"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "left_option"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "japanese_pc_nfer"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "f13"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "japanese_pc_katakana"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "left_arrow"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "delete_forward"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "right_arrow"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "right_control"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "up_arrow"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "right_option"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "down_arrow"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "grave_accent_and_tilde"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "escape"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "identifiers": [
+                                            {
+                                                "vendor_id": 3141,
+                                                "product_id": 8888
+                                            }
+                                        ],
+                                        "type": "device_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "escape"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "grave_accent_and_tilde"
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Map Control shortcuts to Command shortcuts",
+                        "manipulators": [
+                            {
+                                "from": {
+                                    "key_code": "t",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control",
+                                            "shift"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "t",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_shift"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "t",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "t",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "w",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control",
+                                            "shift"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "w",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_shift"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "w",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "w",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "r",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control",
+                                            "shift"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "r",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_shift"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "r",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "r",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "n",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control",
+                                            "shift"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "n",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_shift"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "n",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "n",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "z",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control",
+                                            "shift"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "z",
+                                        "modifiers": [
+                                            "left_command",
+                                            "left_shift"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "z",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "z",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "y",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "y",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "l",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "l",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "f",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "f",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "s",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "s",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "a",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "a",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "c",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "c",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "v",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "v",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "from": {
+                                    "key_code": "x",
+                                    "modifiers": {
+                                        "mandatory": [
+                                            "control"
+                                        ],
+                                        "optional": [
+                                            "caps_lock"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "x",
+                                        "modifiers": [
+                                            "left_command"
+                                        ]
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "fn_function_keys": [
+                {
+                    "from": {
+                        "key_code": "f6"
+                    },
+                    "to": [
+                        {
+                            "key_code": "f6"
+                        }
+                    ]
+                }
+            ],
+            "name": "Backup (with Cmd alone Mission Control)",
+            "selected": false,
+            "virtual_hid_keyboard": {
+                "country_code": 0,
+                "keyboard_type_v2": "jis"
+            }
+        }
+    ]
+}

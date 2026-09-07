@@ -1,0 +1,116 @@
+# =======================================================================
+# AeroSpace Configuration (Pure Floating Workspaces Mode)
+# No Automatic Tiling - Preserves native macOS floating window experience
+# Managed by Chezmoi dotfiles (Private Orchestration Layer)
+# =======================================================================
+
+# Configuration Format Version (Version 2 is recommended by AeroSpace)
+config-version = 2
+
+start-at-login = true
+
+# -----------------------------------------------------------------------
+# 快捷键映射 (Key Mappings - Workspaces Only)
+# -----------------------------------------------------------------------
+[mode.main.binding]
+
+# --- 1. 跨工作区切换与发送 (Workspaces 1 ~ 9) ---
+# Cmd + 1~9: 瞬时跳转到对应工作区 (零延迟、零动画，当前程序绝对不跟随)
+cmd-1 = 'workspace 1'
+cmd-2 = 'workspace 2'
+cmd-3 = 'workspace 3'
+cmd-4 = 'workspace 4'
+cmd-5 = 'workspace 5'
+cmd-6 = 'workspace 6'
+cmd-7 = 'workspace 7'
+cmd-8 = 'workspace 8'
+cmd-9 = 'workspace 9'
+
+# Cmd + Shift + 1~9: 将当前窗口发送到工作区 (并跟随切换焦点)
+cmd-shift-1 = 'move-node-to-workspace 1 --focus-follows-window'
+cmd-shift-2 = 'move-node-to-workspace 2 --focus-follows-window'
+cmd-shift-3 = 'move-node-to-workspace 3 --focus-follows-window'
+cmd-shift-4 = 'move-node-to-workspace 4 --focus-follows-window'
+cmd-shift-5 = 'move-node-to-workspace 5 --focus-follows-window'
+cmd-shift-6 = 'move-node-to-workspace 6 --focus-follows-window'
+cmd-shift-7 = 'move-node-to-workspace 7 --focus-follows-window'
+cmd-shift-8 = 'move-node-to-workspace 8 --focus-follows-window'
+cmd-shift-9 = 'move-node-to-workspace 9 --focus-follows-window'
+
+# Cmd + Ctrl + 1~9: 静默将当前窗口发送到工作区 (留在原地)
+cmd-ctrl-1 = 'move-node-to-workspace 1'
+cmd-ctrl-2 = 'move-node-to-workspace 2'
+cmd-ctrl-3 = 'move-node-to-workspace 3'
+cmd-ctrl-4 = 'move-node-to-workspace 4'
+cmd-ctrl-5 = 'move-node-to-workspace 5'
+cmd-ctrl-6 = 'move-node-to-workspace 6'
+cmd-ctrl-7 = 'move-node-to-workspace 7'
+cmd-ctrl-8 = 'move-node-to-workspace 8'
+cmd-ctrl-9 = 'move-node-to-workspace 9'
+
+# --- 2. 窗口状态与焦点闪切 ---
+# Option(Alt) + Tab / Option(Alt) + Shift + Tab:
+# 在“当前窗口”与“上一个激活的窗口”之间瞬间来回闪切 (Back-and-Forth)
+# 支持跨工作区（如工作区 2 的 Kitty <-> 工作区 4 的 Telegram）与工作区内部
+alt-tab = 'focus-back-and-forth'
+alt-shift-tab = 'focus-back-and-forth'
+
+# Option(Alt) + ` (反引号): 在“最近使用的工作区”与“当前工作区”之间来回闪切 (Workspace Back-and-Forth)
+alt-backtick = 'workspace-back-and-forth'
+
+# --- 3. 配置管理 ---
+# Cmd + Shift + R: 重新加载配置
+cmd-shift-r = 'reload-config'
+
+# -----------------------------------------------------------------------
+# 应用自动分流规则 (App Routing)
+# -----------------------------------------------------------------------
+
+# --- 工作区 2：终端工具 ---
+# Kitty 终端
+[[on-window-detected]]
+if.app-id = 'net.kovidgoyal.kitty'
+run = ['move-node-to-workspace 2', 'layout floating']
+
+# Alacritty 终端
+[[on-window-detected]]
+if.app-id = 'org.alacritty'
+run = ['move-node-to-workspace 2', 'layout floating']
+
+# --- 工作区 3：虚拟机 ---
+# UTM 虚拟机
+[[on-window-detected]]
+if.app-id = 'com.utmapp.UTM'
+run = ['move-node-to-workspace 3', 'layout floating']
+
+# --- 工作区 4：社交通讯与聊天软件 ---
+# Telegram
+[[on-window-detected]]
+if.app-id = 'ru.keepcoder.Telegram'
+run = ['move-node-to-workspace 4', 'layout floating']
+
+[[on-window-detected]]
+if.app-id = 'com.tdesktop.Telegram'
+run = ['move-node-to-workspace 4', 'layout floating']
+
+# WeChat 微信
+[[on-window-detected]]
+if.app-id = 'com.tencent.xinWeChat'
+run = ['move-node-to-workspace 4', 'layout floating']
+
+# QQ
+[[on-window-detected]]
+if.app-id = 'com.tencent.qq'
+run = ['move-node-to-workspace 4', 'layout floating']
+
+# Discord
+[[on-window-detected]]
+if.app-id = 'com.hnc.Discord'
+run = ['move-node-to-workspace 4', 'layout floating']
+
+# -----------------------------------------------------------------------
+# 全局纯浮动规则：匹配其他所有窗口，默认全部浮动
+# -----------------------------------------------------------------------
+[[on-window-detected]]
+if.app-name-regex-substring = '.*'
+run = 'layout floating'

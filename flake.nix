@@ -16,6 +16,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # macOS system management for the Apple Silicon host. Keep this on the
+    # matching 26.05 branch while the NixOS side uses nixpkgs 26.05.
+    nix-darwin = {
+      url = "github:nix-darwin/nix-darwin/nix-darwin-26.05";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Minimal NixOS environment for WSL2 on Windows 11.
     nixos-wsl.url = "github:nix-community/NixOS-WSL";
 
@@ -61,6 +68,17 @@
           ./hosts/wsl/configuration.nix
         ];
       };
+    };
+
+    # Apple Silicon macOS host. This is intentionally a separate output:
+    # nix-darwin modules are not NixOS modules, and macOS has no hardware
+    # configuration file comparable to a NixOS installation.
+    darwinConfigurations.macbook-m1-max = inputs.nix-darwin.lib.darwinSystem {
+      system = "aarch64-darwin";
+      specialArgs = { inherit inputs localRoot; };
+      modules = [
+        ./hosts/macbook-m1-max/configuration.nix
+      ];
     };
   };
 }
