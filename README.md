@@ -1,12 +1,12 @@
-# Tetsuya 的多设备 NixOS Flake 配置
+# Tetsuya 的多设备 Nix / NixOS / macOS Flake 配置
 
-用一份 flake 管理多台 NixOS 机器：公共配置抽成 `modules/`，每台机器只保留
-自己的硬件扫描文件和少量主机差异项。换机器时只需新增一个 `hosts/<名字>/`
-目录并在 `flake.nix` 里注册一行。
+用一份 flake 管理多台 NixOS 机器和一台 macOS：公共配置抽成 `modules/`，每台
+机器只保留自己的硬件或平台差异项。NixOS 使用 `nixosConfigurations`，macOS
+使用独立的 `darwinConfigurations`；两者共享锁文件，但不直接共享 Linux 专用模块。
 
-本仓库只负责 **NixOS 系统层**：系统包和服务、硬件、内核、启动、用户组以及
-Nixarchy 的系统接线。用户级私人编排由 `~/chezmoi` 管理，可公开复用的通用
-配置由 `~/dotfiles` 管理；详细边界见 `AGENTS.md`。
+本仓库负责 **NixOS 和 macOS 系统层**：系统包和服务、硬件或平台差异、启动和
+用户组，以及 Nixarchy 的 NixOS 系统接线。用户级私人编排由 `~/chezmoi` 管理，
+可公开复用的通用配置由 `~/dotfiles` 管理；详细边界见 `AGENTS.md`。
 
 ## 目录结构
 
@@ -14,22 +14,31 @@ Nixarchy 的系统接线。用户级私人编排由 `~/chezmoi` 管理，可公�
 nixos-config/
 ├── flake.nix                  # 入口：注册所有主机，锁定 nixpkgs 版本
 ├── flake.lock                 # nixpkgs 的精确版本锁定（换机后照常使用）
-├── modules/                   # 所有机器共享的配置模块
+├── modules/                   # 系统与平台模块
 │   ├── core.nix               # 基础系统：引导、内核、网络、 locale、输入法、zram……
 │   ├── desktop.nix            # 桌面：SDDM + Hyprland、PipeWire、字体……
-│   ├── home-manager/           # NixOS 专属的用户级 Home Manager 配置
-│   └── zsh.nix                # 全局 Zsh
+│   ├── home-manager/           # NixOS/Darwin 用户级 Home Manager 配置
+│   ├── darwin/                 # macOS / nix-darwin 模块
+│   └── zsh.nix                 # NixOS 全局 Zsh
 └── hosts/                     # 每台机器一个目录
     ├── aarch64/               # ARM64 虚拟机
-    └── hx90/                   # HX90 工作站
+    ├── hx90/                   # HX90 工作站
+    └── macbook-m1-max/         # Apple Silicon macOS
 ```
 
-## 四台主机现状
+## 主机现状
 
 | 主机 | flake 名 | 状态 | 说明 |
 |------|----------|------|------|
 | ARM64 虚拟机 | `aarch64` | 可用 | QEMU `aarch64-linux`，GNOME、PipeWire、SPICE |
 | HX90 工作站 | `hx90` | 可用 | x86_64，休眠和桌面环境 |
+| WSL2 | `wsl` | 可用 | x86_64，Windows 11 终端环境 |
+| Apple Silicon Mac | `macbook-m1-max` | 配置已加入，待首次安装 Nix/激活 | `aarch64-darwin`，nix-darwin |
+
+macOS 的配置和第一次激活步骤见
+[`docs/macos-nix-darwin.md`](docs/macos-nix-darwin.md)。
+想系统学习这次迁移的设计、日常操作、边界、回滚和扩展方式，见
+[`docs/macos-nix-darwin/README.md`](docs/macos-nix-darwin/README.md)。
 
 HX90 的 `networking.hostName` 与 flake 输出名统一为 `hx90`，因此 Nixarchy 的
 `omarchy update` 即使不附加 `#hx90` 也能选中正确配置。
@@ -153,8 +162,9 @@ Shizuka 登录主题的源码、`flake.lock` 锁定版本、NixOS generation 和
 - Nixarchy/Omarchy 的 NixOS 接线；
 - 只在 NixOS 上使用的用户环境变量、GUI 默认值和配置文件。
 
-跨发行版或跨平台的用户偏好继续由 `~/chezmoi` 管理，例如 Hyprland、Fcitx5、终端、
-tmux、Voxtype 和通用脚本。一个具体文件只能由一个系统管理：迁移到 Home Manager
+跨发行版或跨平台的用户偏好继续由 `~/chezmoi` 管理，例如 Fcitx5、终端、tmux、
+Voxtype 和通用脚本。macOS 专属的 AeroSpace、Karabiner、Hammerspoon、skhd 则由
+本仓库的 Darwin Home Manager 管理。一个具体文件只能由一个系统管理：迁移到 Home Manager
 后必须从 chezmoi 删除对应文件，反之亦然。NixOS 的用户配置通过
 `sudo nixos-rebuild switch --flake ~/nixos-config#<主机名>` 生效；chezmoi 配置仍通过
 `chezmoi apply` 生效。这样在 Fedora、Arch、Debian 或 macOS 上使用 chezmoi 时，
