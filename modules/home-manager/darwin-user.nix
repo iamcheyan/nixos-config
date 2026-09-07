@@ -23,5 +23,9 @@
     ".hammerspoon/init.lua".source = ./darwin-files/hammerspoon/init.lua;
     ".skhdrc".source = ./darwin-files/skhdrc;
     ".local/bin/macos-zero-animation".source = ./darwin-files/scripts/macos-zero-animation.sh;
+    ".local/bin/icloud-backup.sh" = {
+      source = ./darwin-files/scripts/icloud-backup.sh;
+      executable = true;
+    };
   };
 }

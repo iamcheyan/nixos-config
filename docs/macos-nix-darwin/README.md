@@ -11,6 +11,8 @@
 6. [安装、权限和故障排查](./06-troubleshooting.md)
 7. [以后如何扩展配置](./07-how-to-extend.md)
 8. [macOS 专属配置迁移记录](./08-migrating-macos-only-config.md)
+9. [Mac 软件清单与声明式管理](./09-software-inventory-and-management.md)
+10. [Home Manager 配置归属审计](./10-home-manager-config-audit.md)
 
 总入口文档仍然是 [`../macos-nix-darwin.md`](../macos-nix-darwin.md)。本目录提供
 更细的学习材料，不替代仓库顶层的 `AGENTS.md`。

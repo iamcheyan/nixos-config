@@ -99,3 +99,24 @@ nix flake update
 ```bash
 darwin-rebuild switch --flake ~/nixos-config#macbook-m1-max
 ```
+
+## 免密码切换
+
+当前 Darwin 配置还会生成一个固定目标的包装命令：
+
+```bash
+sudo darwin-rebuild-macbook
+```
+
+它只执行：
+
+```text
+darwin-rebuild switch --flake /Users/tetsuya/nixos-config#macbook-m1-max
+```
+
+不会接受额外参数，因此没有开放整个 `nix`、shell 或任意 flake 的免密码 root 权限。
+第一次安装这条 sudoers 规则时，仍然要使用原来的命令输入一次 macOS 登录密码；规则
+只有在该次 switch 成功后才会生效。
+
+如果以后改了仓库路径、主机名或希望支持 rollback，需要先修改包装脚本和 sudoers 规则，
+再用一次普通 sudo 激活新 generation。不要为了省事直接改成 `NOPASSWD: ALL`。
