@@ -119,6 +119,11 @@ run = ['move-node-to-workspace 1-2', 'layout floating']
 if.app-id = 'org.alacritty'
 run = ['move-node-to-workspace 1-2', 'layout floating']
 
+# Seedmux 终端/会话工具
+[[on-window-detected]]
+if.app-id = 'com.xx.seedmux'
+run = ['move-node-to-workspace 1-2', 'layout floating']
+
 # --- 主屏 工作区 1-3：虚拟机 ---
 # UTM 虚拟机
 [[on-window-detected]]
