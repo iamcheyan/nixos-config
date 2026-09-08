@@ -13,6 +13,14 @@
   # (backups, assets, and Spoons).
   home.file = {
     ".config/aerospace/aerospace.toml".source = ./darwin-files/aerospace/aerospace.toml;
+    ".config/aerospace/scripts/switch-workspace.sh" = {
+      source = ./darwin-files/aerospace/scripts/switch-workspace.sh;
+      executable = true;
+    };
+    ".config/aerospace/scripts/move-workspace.sh" = {
+      source = ./darwin-files/aerospace/scripts/move-workspace.sh;
+      executable = true;
+    };
     ".config/karabiner/karabiner.json" = {
       source = ./darwin-files/karabiner/karabiner.json;
       # Karabiner regenerates a minimal default file when its old directory is
