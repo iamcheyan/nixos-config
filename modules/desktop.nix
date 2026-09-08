@@ -69,7 +69,10 @@ let
   };
 in
 {
-  imports = [ inputs.nixarchy.nixosModules.nixarchy ];
+  imports = [
+    inputs.nixarchy.nixosModules.nixarchy
+    ./fonts.nix
+  ];
 
   # Nixarchy v4.0.2-4 expects this package from nixpkgs, but the pinned
   # NixOS 26.05 branch predates its addition. Keep the stable nixpkgs pin and
@@ -171,18 +174,6 @@ in
   services.gnome.gnome-keyring.enable = true;
   services.power-profiles-daemon.enable = true;
   programs.dconf.enable = true;
-
-  fonts.packages = with pkgs; [
-    adwaita-fonts
-    cantarell-fonts
-    noto-fonts
-    noto-fonts-cjk-sans
-    noto-fonts-color-emoji
-    nerd-fonts.jetbrains-mono
-    meslo-lgs-nf
-    material-symbols
-    font-awesome
-  ];
 
   # Desktop utilities and graphical tools for the Hyprland/Omarchy session.
   # Common CLI and development tools are provided by cli.nix and dev.nix.
