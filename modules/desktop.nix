@@ -184,48 +184,34 @@ in
     font-awesome
   ];
 
-  # Desktop utilities used by the Hyprland/Omarchy session and user services.
-  # Keep these in the NixOS system layer so a fresh machine has the complete
-  # graphical baseline before chezmoi applies user-level orchestration.
+  # Desktop utilities and graphical tools for the Hyprland/Omarchy session.
+  # Common CLI and development tools are provided by cli.nix and dev.nix.
   environment.systemPackages = with pkgs; [
     shizukaSddmTheme
-    # Desktop terminal/file tools; not installed in the WSL host.
+
+    # Desktop terminals and GUI applications
     kitty
     alacritty
     ghostty
     foot
-    yazi
-    zellij
-    ranger
     firefox
-    librime
+    nautilus
+
+    # Desktop shell / input method / voice
     fish
-    starship
-    age
-    bat
-    eza
-    p7zip
-    man-db
-    rclone
-    atuin
+    librime
     voxtype-onnx
-    gh
-    yq
+
+    # Linux system utilities, compilers & sandboxing
+    man-db
     bubblewrap
-    ninja
-    just
-    rustup
-    bun
-    nodejs
     podman
-    fnm
-    bitwarden-cli
-    dotnet-sdk_9
-    yt-dlp
-    node-gyp
-    gcc
-    tree-sitter
     sshfs
+    gcc
+    dotnet-sdk_9
+    node-gyp
+
+    # Wayland / desktop automation tools
     wlr-randr
     grim
     slurp
@@ -235,9 +221,6 @@ in
     ydotool
     brightnessctl
     pamixer
-    nautilus
-    btop
-    htop
   ];
 
   systemd.services.amdgpu-dpm = {

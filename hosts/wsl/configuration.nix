@@ -8,6 +8,7 @@ in
     ../../modules/core.nix
     ../../modules/zsh.nix
     ../../modules/cli.nix
+    ../../modules/dev.nix
   ] ++ lib.optional (localHost != null && builtins.pathExists localHost) localHost;
 
   wsl.enable = true;

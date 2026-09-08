@@ -1,7 +1,12 @@
 { ... }:
 
 {
-  # macOS defaults remain intentionally unmanaged in the first migration.
-  # Add settings only after reading the live System Settings state and
-  # documenting the user-visible effect here.
+  system.defaults = {
+    dock = {
+      orientation = "bottom";
+      autohide = true;
+      show-recents = false;
+    };
+    spaces.spans-displays = false;
+  };
 }

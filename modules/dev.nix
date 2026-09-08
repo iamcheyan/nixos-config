@@ -1,12 +1,24 @@
 { config, pkgs, ... }:
 
 {
-  # Compiler, interpreter, and build-tool layer.
-  # Keep this separate from cli.nix so a shell-only host can omit it.
+  # Cross-platform compiler, interpreter, and build-tool layer shared by NixOS and macOS.
+  # Keep this separate from cli.nix so a minimal shell-only host can omit it.
   environment.systemPackages = with pkgs; [
-    python3
-    gcc
+    # GitHub CLI
+    gh
+
+    # Build tools & Task runners
+    just
     gnumake
     cmake
+    ninja
+    tree-sitter
+
+    # Languages & Runtimes
+    python3
+    nodejs
+    fnm
+    bun
+    rustup
   ];
 }

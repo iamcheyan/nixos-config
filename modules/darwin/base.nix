@@ -37,25 +37,9 @@ in
     "/opt/homebrew/sbin"
   ];
 
-  # Keep this list intentionally small. Cross-platform shell configuration
-  # remains in ~/dotfiles and private ~/chezmoi; these are the binaries that
-  # should exist before either repository's setup scripts run.
-  environment.systemPackages = with pkgs; [
-    age
-    chezmoi
-    curl
-    fd
-    fzf
-    git
-    jq
-    neovim
-    ripgrep
-    tmux
-    tree
-    unzip
-    wget
-    zip
-    zellij
+  # System-level helper binaries for macOS.
+  # Cross-platform CLI and development tools are managed by cli.nix and dev.nix.
+  environment.systemPackages = [
     darwinRebuildMacbook
   ];
 

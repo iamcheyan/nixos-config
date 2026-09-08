@@ -2,6 +2,8 @@
 
 {
   imports = [
+    ../../modules/cli.nix
+    ../../modules/dev.nix
     ../../modules/darwin/base.nix
     ../../modules/darwin/packages.nix
     ../../modules/darwin/homebrew.nix
