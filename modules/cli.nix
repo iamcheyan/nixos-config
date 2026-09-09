@@ -10,6 +10,9 @@
     curl
     wget
     openssh
+    ffmpeg
+    git-extras
+    translate-shell
     tmux
     zellij
     neovim
@@ -23,6 +26,14 @@
     yq
     bat
     eza
+    zoxide
+    glow
+    mdcat
+    tealdeer
+    gping
+    httpie
+    broot
+    viu
     tree
     fastfetch
 
