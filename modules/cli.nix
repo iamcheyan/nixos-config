@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, inputs, ... }:
 
 {
   # Cross-platform command-line environment shared by NixOS and macOS (nix-darwin).
@@ -16,7 +16,9 @@
     tmux
     zellij
     neovim
-    fresh-editor
+    # Fresh follows its own upstream flake because the pinned nixpkgs release
+    # can lag behind the current editor and its Git review/Live Diff features.
+    inputs.fresh.packages.${pkgs.system}.default
 
     # Modern CLI replacements & search
     ripgrep

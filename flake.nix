@@ -26,6 +26,11 @@
     # Minimal NixOS environment for WSL2 on Windows 11.
     nixos-wsl.url = "github:nix-community/NixOS-WSL";
 
+    # Fresh moves faster than the pinned Nixpkgs release. Keep its official
+    # flake independent so the CLI/editor can follow Fresh releases without
+    # upgrading the system-wide nixpkgs baseline.
+    fresh.url = "github:sinelaw/fresh";
+
     # Shizuka SDDM theme. Keep the theme as a locked flake input instead of
     # copying its files into this configuration repository.
     shizuka = {
