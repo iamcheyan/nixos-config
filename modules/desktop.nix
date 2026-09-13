@@ -4,8 +4,10 @@ let
   # Nixarchy v4.0.2-4 currently ships an installPhase whose embedded Python
   # check keeps Nix indentation. Unindent the generated shell phase locally;
   # shell indentation is not semantic, while Python indentation is.
-  nixarchyPackage = (pkgs.extend inputs.nixarchy.overlays.default).omarchy.overrideAttrs (old: {
-    installPhase = lib.replaceStrings [ "\n            " ] [ "\n" ] old.installPhase;
+  nixarchyPackageBase = import ./packages/nixarchy-omarchy.nix {
+    inherit lib pkgs inputs;
+  };
+  nixarchyPackage = nixarchyPackageBase.overrideAttrs (old: {
     # The custom SystemSwitch indicator can remain active after a rebuild
     # process exits because Quickshell's process poll is not synchronized with
     # the terminal launcher.  A stale “Rebuilding the system...” spinner is
@@ -66,6 +68,19 @@ let
       cp -r ./* "$out/share/sddm/themes/shizuka/"
       runHook postInstall
     '';
+  };
+
+  # NixOS 26.05's Qt6 SDDM wrapper exposes only sddm-greeter-qt6, while
+  # SDDM's custom-theme compatibility check still looks for sddm-greeter.
+  # Keep the Qt6 greeter and provide the legacy name as a local alias so the
+  # Shizuka theme is actually loaded instead of silently falling back.
+  sddmUnwrappedQt6Compat = pkgs.kdePackages.sddm.unwrapped.overrideAttrs (old: {
+    postInstall = (old.postInstall or "") + ''
+      ln -sf sddm-greeter-qt6 $out/bin/sddm-greeter
+    '';
+  });
+  sddmQt6Compat = pkgs.kdePackages.sddm.override {
+    sddm-unwrapped = sddmUnwrappedQt6Compat;
   };
 in
 {
@@ -160,8 +175,12 @@ in
   services.displayManager.defaultSession = "omarchy";
   services.displayManager.sddm = {
     enable = true;
+    package = lib.mkForce sddmQt6Compat;
     wayland.enable = true;
     theme = "shizuka";
+    # Use a revision-specific URL: /run/current-system is stable across
+    # rebuilds and Nix normalizes mtimes, so Qt can reuse stale QML bytecode.
+    settings.Theme.ThemeDir = "${shizukaSddmTheme}/share/sddm/themes";
   };
   services.desktopManager.plasma6.enable = true;
   services.xserver.xkb = {
@@ -171,6 +190,23 @@ in
 
   programs.hyprland.xwayland.enable = true;
   security.polkit.enable = true;
+  # The Windows VM helper deliberately writes its compose file as root through
+  # pkexec. Authorize only this root-owned, immutable Omarchy helper for the
+  # local desktop user so installation does not depend on an interactive
+  # password dialog. This does not authorize arbitrary pkexec programs.
+  security.polkit.extraConfig = ''
+    polkit.addRule(function(action, subject) {
+      var program = action.lookup("program");
+      if (action.id == "org.freedesktop.policykit.exec" &&
+          subject.user == "tetsuya" &&
+          subject.local == true &&
+          subject.active == true &&
+          program != null &&
+          /\/share\/omarchy\/bin\/omarchy-windows-vm$/.test(program)) {
+        return polkit.Result.YES;
+      }
+    });
+  '';
   services.gnome.gnome-keyring.enable = true;
   services.power-profiles-daemon.enable = true;
   programs.dconf.enable = true;

@@ -66,6 +66,14 @@ sudo nixos-rebuild switch --flake ~/nixos-config#hx90
 
 ### Shizuka 的版本到底由哪里管理
 
+注意 Qt QML 磁盘缓存：即使 `/run/current-system` 已指向新版本，SDDM 也可能
+沿用相同 URL 对应的旧字节码。2026-09-06 的黑壁纸现场中，真实 greeter 仍报
+`Cannot open: file://assets/background.jpg`；同用户、同路径禁用 QML 磁盘缓存后
+错误消失。`modules/desktop.nix` 因此将 `settings.Theme.ThemeDir` 指向主题包
+自身的 `/nix/store/.../share/sddm/themes`，让每次主题更新使用不同 URL。
+验证时必须同时检查真实 greeter 日志与画面，不能只凭 store 路径或预览退出码
+认定修复成功。切换返回非零也可能已部分激活，应检查失败单元。
+
 Shizuka 登录主题不是直接从 `~/development/shizuka` 运行。它有四个明确的层次：
 
 ```text

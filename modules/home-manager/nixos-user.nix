@@ -4,9 +4,9 @@ let
   # Keep the Home Manager package identical to the system package. Nixarchy
   # v4.0.2-4's embedded Python check needs the same indentation compatibility
   # fix on both module paths.
-  nixarchyPackage = (pkgs.extend inputs.nixarchy.overlays.default).omarchy.overrideAttrs (old: {
-    installPhase = lib.replaceStrings [ "\n            " ] [ "\n" ] old.installPhase;
-  });
+  nixarchyPackage = import ../packages/nixarchy-omarchy.nix {
+    inherit lib pkgs inputs;
+  };
 in
 
 # User configuration that is specific to the NixOS + Nixarchy environment.
@@ -35,5 +35,14 @@ in
     name = "Adwaita";
     package = pkgs.adwaita-icon-theme;
     size = 24;
+  };
+
+  # Use the Pop!_OS-style application icons across GTK applications.
+  gtk = {
+    enable = true;
+    iconTheme = {
+      package = pkgs.pop-icon-theme;
+      name = "Pop";
+    };
   };
 }

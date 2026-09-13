@@ -17,7 +17,7 @@
   services.openssh.enable = true;
   networking.firewall.allowedTCPPorts = [ 22 ];
 
-  i18n.defaultLocale = "zh_CN.UTF-8";
+  i18n.defaultLocale = "ja_JP.UTF-8";
   i18n.extraLocaleSettings = {
     LC_ADDRESS = "ja_JP.UTF-8";
     LC_IDENTIFICATION = "ja_JP.UTF-8";

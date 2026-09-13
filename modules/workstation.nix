@@ -14,6 +14,11 @@
   ];
 
   home-manager.extraSpecialArgs = { inherit inputs; };
+  # Preserve pre-existing unmanaged GTK files when Home Manager first takes
+  # ownership of them.  This keeps activation recoverable on this workstation.
+  # Keep the pre-existing .hm-backup file intact. This distinct suffix lets
+  # Home Manager complete activation without clobbering an older backup.
+  home-manager.backupFileExtension = "hm-backup-nixos";
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -61,6 +66,7 @@
   };
 
   environment.systemPackages = with pkgs; [
+    android-tools
     spice-vdagent
   ];
 

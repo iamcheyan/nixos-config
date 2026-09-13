@@ -8,6 +8,7 @@ in
     ./hardware-configuration.nix
     ../../modules/workstation.nix
     ../../modules/update-snapshots.nix
+    ./nixarchy-apps.nix
   ] ++ lib.optional (localHost != null && builtins.pathExists localHost) localHost;
 
   networking.hostName = "hx90";
