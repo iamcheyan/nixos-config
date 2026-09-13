@@ -7,7 +7,7 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
 
     nixarchy = {
-      url = "github:olafkfreund/nixarchy/v4.0.2-4";
+      url = "github:olafkfreund/nixarchy/v4.0.2-12";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
