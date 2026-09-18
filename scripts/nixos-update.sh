@@ -20,6 +20,7 @@ history_dir="/var/lib/nixos-update/history"
 sudo_cmd="/run/wrappers/bin/sudo"
 [[ -x "$sudo_cmd" ]] || sudo_cmd="$(command -v sudo || true)"
 release_api="https://api.github.com/repos/olafkfreund/nixarchy/releases/latest"
+releases_api="https://api.github.com/repos/olafkfreund/nixarchy/releases?per_page=30"
 yes=false
 allow_dirty=false
 original_args=("$@")
@@ -120,6 +121,15 @@ latest_nixarchy_release() {
     "$release_api" | jq --raw-output '.tag_name // empty'
 }
 
+nixarchy_releases() {
+  curl --fail --silent --show-error --location --retry 2 \
+    --header 'Accept: application/vnd.github+json' \
+    "$releases_api" \
+    | jq --raw-output '.[] | select(.draft == false and .prerelease == false) | .tag_name' \
+    | awk '/^v[0-9]+(\.[0-9]+)*(-[0-9]+)?$/' \
+    | sort -V -r
+}
+
 check_nixarchy_release() {
   local current latest newest
   current="$(nixarchy_release)"
@@ -155,10 +165,14 @@ upgrade_nixarchy_ref() {
 }
 
 make_candidate_flake() {
+  local release=$1
+  if [[ -n "$candidate_flake_dir" && -d "$candidate_flake_dir" ]]; then
+    rm -rf "$candidate_flake_dir"
+  fi
   candidate_flake_dir="$(mktemp -d /tmp/nixos-update-flake.XXXXXX)"
   cp -a "$flake_dir"/. "$candidate_flake_dir/"
   rm -rf "$candidate_flake_dir/.git"
-  upgrade_nixarchy_ref "$latest_nixarchy_release" "$candidate_flake_dir"
+  upgrade_nixarchy_ref "$release" "$candidate_flake_dir"
   echo "Updating candidate flake inputs..."
   nix flake update --flake "$candidate_flake_dir"
 }
@@ -313,15 +327,53 @@ write_record
 append_record 'status=snapshots-created'
 write_record
 
-make_candidate_flake
-append_record "nixarchy_release_candidate=$latest_nixarchy_release"
-append_record 'status=candidate-flake-updated'
-write_record
+mapfile -t release_candidates < <(
+  nixarchy_releases \
+    | while IFS= read -r release; do
+        [[ "$release" == "$current_nixarchy_release" ]] && continue
+        newest="$(printf '%s\n%s\n' "$current_nixarchy_release" "$release" | sort -V | tail -n1)"
+        [[ "$newest" == "$release" ]] && printf '%s\n' "$release"
+      done
+)
+if ((${#release_candidates[@]} == 0)); then
+  release_candidates=("$current_nixarchy_release")
+fi
 
-echo "Building candidate NixOS configuration for $host..."
-nixos-rebuild build --flake "$candidate_flake_dir#$host"
-append_record 'status=build-succeeded'
-write_record
+validated_release=""
+for candidate_release in "${release_candidates[@]}"; do
+  echo "Validating Nixarchy candidate $candidate_release..."
+  append_record "nixarchy_release_candidate=$candidate_release"
+  if ! make_candidate_flake "$candidate_release"; then
+    echo "Could not prepare candidate $candidate_release; trying the next older release..." >&2
+    append_record "nixarchy_release_rejected=$candidate_release"
+    append_record 'status=candidate-rejected'
+    write_record
+    continue
+  fi
+  append_record 'status=candidate-flake-updated'
+  write_record
+
+  echo "Building candidate NixOS configuration for $host..."
+  if nixos-rebuild build --flake "$candidate_flake_dir#$host"; then
+    validated_release="$candidate_release"
+    append_record "nixarchy_release_validated=$validated_release"
+    append_record 'status=build-succeeded'
+    write_record
+    break
+  fi
+  echo "Candidate $candidate_release failed to build; trying the next older release..." >&2
+  append_record "nixarchy_release_rejected=$candidate_release"
+  append_record 'status=candidate-rejected'
+  write_record
+done
+
+[[ -n "$validated_release" ]] || {
+  echo "No newer Nixarchy candidate passed the build; keeping $current_nixarchy_release." >&2
+  append_record "nixarchy_release_after=$current_nixarchy_release"
+  append_record 'status=no-candidate-promoted'
+  write_record
+  exit 0
+}
 
 echo "Updating Omarchy plugins..."
 omarchy plugin update --yes
@@ -330,7 +382,7 @@ write_record
 
 echo "Promoting validated flake candidate..."
 promote_candidate_flake
-append_record "nixarchy_release_after=$latest_nixarchy_release"
+append_record "nixarchy_release_after=$validated_release"
 append_record 'status=flake-promoted'
 write_record
 

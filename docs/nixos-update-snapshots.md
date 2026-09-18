@@ -155,8 +155,8 @@ generation_before = 6
 6. 创建更新事务记录；
 7. 创建 `/` 的 root 快照；
 8. 创建 `/home` 的 home 快照；
-9. 在临时候选 flake 中写入最新 release，并执行 `nix flake update`；
-10. 执行 `nixos-rebuild build` 验证候选 flake；
+9. 按 release 从新到旧创建临时候选 flake，并执行 `nix flake update`；
+10. 执行 `nixos-rebuild build` 验证候选 flake；当前候选失败时继续尝试更旧版本；
 11. 候选构建成功后执行 `omarchy plugin update --yes`；
 12. 将通过验证的候选 `flake.nix` 和 `flake.lock` 提升到真实仓库；
 13. 执行 `sudo nixos-rebuild switch`；
@@ -172,8 +172,8 @@ generation_before = 6
 nixos-update check
 ```
 
-正式执行 `nixos-update` 时，如果发现较新的 release，会把它作为候选版本验证，
-而不是直接写入真实 `flake.nix`。只有候选构建和切换都成功，才会保留这个版本；
+正式执行 `nixos-update` 时，如果发现较新的 release，会按新旧顺序作为候选版本验证，
+而不是直接写入真实 `flake.nix`。只有某个候选构建和切换都成功，才会保留这个版本；
 如果使用 `--yes`，则自动接受验证流程，但不会跳过构建验证。
 
 工作区有改动时，交互式运行会询问是否临时暂存（包括未跟踪文件）。选择是后，
