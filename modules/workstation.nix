@@ -13,12 +13,15 @@
     inputs.home-manager.nixosModules.home-manager
   ];
 
-  home-manager.extraSpecialArgs = { inherit inputs; };
+  home-manager.extraSpecialArgs = {
+    inherit inputs;
+    hostName = config.networking.hostName;
+  };
   # Preserve pre-existing unmanaged GTK files when Home Manager first takes
   # ownership of them.  This keeps activation recoverable on this workstation.
-  # Keep the pre-existing .hm-backup file intact. This distinct suffix lets
-  # Home Manager complete activation without clobbering an older backup.
-  home-manager.backupFileExtension = "hm-backup-nixos";
+  # Keep older backups intact while avoiding a collision with the existing
+  # .gtkrc-2.0.hm-backup-nixos file from the previous activation.
+  home-manager.backupFileExtension = "hm-backup-nixos-v2";
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;

@@ -1,0 +1,8 @@
+# Omarchy plugins managed by Home Manager.
+# Format: plugin-id repository-url
+hancore.overview-workspaces https://github.com/iamcheyan/omarchy-overview-workspaces.git
+hancore.voxtype-enhance https://github.com/iamcheyan/omarchy-voxtype-enhance.git
+iamcheyan.active-window https://github.com/iamcheyan/omarchy-active-window.git
+iamcheyan.clipboard https://github.com/iamcheyan/omarchy-clipboard.git
+iamcheyan.launcher https://github.com/iamcheyan/omarchy-launcher.git
+iamcheyan.lock-screen https://github.com/iamcheyan/omarchy-lock-screen.git

@@ -12,9 +12,20 @@ in
 # User configuration that is specific to the NixOS + Nixarchy environment.
 # Cross-platform application preferences remain managed by chezmoi.
 {
-  imports = [ inputs.nixarchy.homeManagerModules.nixarchy ];
+  imports = [
+    inputs.nixarchy.homeManagerModules.nixarchy
+    ./hyprland.nix
+  ];
 
   home.stateVersion = "26.05";
+
+  # Keep the complete Omarchy plugin inventory with the NixOS/Home Manager
+  # configuration.  The plugin checkouts themselves remain a separate Git
+  # workspace because Omarchy updates them outside the Nix store.
+  home.file.".config/omarchy/plugins.list" = {
+    source = ./omarchy-plugins.list;
+    force = true;
+  };
 
   programs.nixarchy = {
     enable = true;
