@@ -20,5 +20,7 @@
     fnm
     bun
     rustup
+    # QML/Quickshell plugin development and CI checks.
+    qt6Packages.qtdeclarative
   ];
 }
