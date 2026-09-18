@@ -36,6 +36,9 @@ candidate_flake_dir=""
 switch_succeeded=false
 original_flake_nix=""
 original_flake_lock=""
+stashed_dirty=false
+stash_ref=""
+stash_restore_failed=false
 write_record() {
   [[ -n "$record_path" && -f "$record_tmp" ]] || return 0
   "$sudo_cmd" install -d -m 0755 "$history_dir"
@@ -61,6 +64,10 @@ finish() {
   fi
   [[ -z "$original_flake_nix" ]] || rm -f "$original_flake_nix"
   [[ -z "$original_flake_lock" ]] || rm -f "$original_flake_lock"
+  restore_stash || true
+  if [[ "$stash_restore_failed" == true && "$exit_code" -eq 0 ]]; then
+    exit_code=1
+  fi
   if [[ "$exit_code" -eq 0 ]]; then
     append_record 'status=success'
   else
@@ -70,6 +77,20 @@ finish() {
   write_record || true
   rm -f "$record_tmp"
   exit "$exit_code"
+}
+
+restore_stash() {
+  [[ "$stashed_dirty" == true ]] || return 0
+  echo "Restoring temporarily stashed changes..."
+  if git -C "$flake_dir" stash apply "$stash_ref"; then
+    git -C "$flake_dir" stash drop "$stash_ref" >/dev/null || true
+    stashed_dirty=false
+    return 0
+  fi
+  stash_restore_failed=true
+  echo "Could not automatically restore the stashed changes." >&2
+  echo "They remain saved in $stash_ref; resolve the working tree, then drop the stash manually." >&2
+  return 1
 }
 
 show_history() {
@@ -218,9 +239,24 @@ command -v omarchy >/dev/null || { echo "omarchy is not available" >&2; exit 1; 
 command -v nixos-rebuild >/dev/null || { echo "nixos-rebuild is not available" >&2; exit 1; }
 
 if [[ "$allow_dirty" != true ]] && [[ -n "$(git -C "$flake_dir" status --porcelain)" ]]; then
-  echo "NixOS configuration has uncommitted changes." >&2
-  echo "Commit them first, or use --allow-dirty and inspect the record afterward." >&2
-  exit 1
+  if [[ -t 0 ]]; then
+    read -r -p "NixOS configuration has uncommitted changes. Temporarily stash them and restore them after the update? [y/N] " answer
+  else
+    echo "NixOS configuration has uncommitted changes." >&2
+    echo "Run interactively to stash them, commit them first, or use --allow-dirty." >&2
+    exit 1
+  fi
+  if [[ "$answer" =~ ^[Yy]$ ]]; then
+    stash_message="nixos-update temporary stash $(date --iso-8601=seconds)"
+    git -C "$flake_dir" stash push --include-untracked --message "$stash_message"
+    stash_ref="stash@{0}"
+    stashed_dirty=true
+    trap restore_stash EXIT
+    echo "Changes stashed temporarily; they will be restored after the update."
+  else
+    echo "Cancelled; no changes were made."
+    exit 1
+  fi
 fi
 
 if [[ "$yes" != true ]]; then
