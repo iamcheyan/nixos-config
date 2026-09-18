@@ -155,15 +155,16 @@ generation_before = 6
 6. 创建更新事务记录；
 7. 创建 `/` 的 root 快照；
 8. 创建 `/home` 的 home 快照；
-9. 如发现新 Nixarchy release，在快照之后更新 `flake.nix` 的版本引用；
-10. 执行 `omarchy plugin update --yes`；
-11. 执行 `nix flake update --flake ~/nixos-config`；
-12. 执行 `nixos-rebuild build --flake ~/nixos-config#hx90`；
-13. 构建成功后执行 `sudo nixos-rebuild switch --flake ~/nixos-config#hx90`；
+9. 在临时候选 flake 中写入最新 release，并执行 `nix flake update`；
+10. 执行 `nixos-rebuild build` 验证候选 flake；
+11. 候选构建成功后执行 `omarchy plugin update --yes`；
+12. 将通过验证的候选 `flake.nix` 和 `flake.lock` 提升到真实仓库；
+13. 执行 `sudo nixos-rebuild switch`；
 14. 将成功、失败、generation 和快照编号写入事务记录。
 
-构建失败时不会切换到新系统，已创建的快照和失败记录会保留。该命令不会自动
-恢复快照，也不会自动回滚 NixOS generation。
+候选构建或切换失败时，真实仓库会恢复到更新前的 `flake.nix` 和 `flake.lock`，
+因此当前配置始终代表最后一次成功验证的版本。已创建的快照和失败记录会保留，
+但该命令不会自动恢复快照，也不会自动回滚 NixOS generation。
 
 单独检查 Nixarchy release，不修改仓库或系统：
 
@@ -171,8 +172,9 @@ generation_before = 6
 nixos-update check
 ```
 
-正式执行 `nixos-update` 时，如果发现较新的 release，会在确认提示中显示旧版本
-和新版本；确认后才修改 `flake.nix`。如果使用 `--yes`，则自动接受这个版本升级。
+正式执行 `nixos-update` 时，如果发现较新的 release，会把它作为候选版本验证，
+而不是直接写入真实 `flake.nix`。只有候选构建和切换都成功，才会保留这个版本；
+如果使用 `--yes`，则自动接受验证流程，但不会跳过构建验证。
 
 ### 更新前检查
 

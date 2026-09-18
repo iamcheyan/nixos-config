@@ -32,6 +32,10 @@ current_generation() {
 
 record_path=""
 record_tmp=""
+candidate_flake_dir=""
+switch_succeeded=false
+original_flake_nix=""
+original_flake_lock=""
 write_record() {
   [[ -n "$record_path" && -f "$record_tmp" ]] || return 0
   "$sudo_cmd" install -d -m 0755 "$history_dir"
@@ -44,6 +48,19 @@ append_record() {
 
 finish() {
   local exit_code=$?
+  if [[ "$exit_code" -ne 0 && "$switch_succeeded" != true ]]; then
+    if [[ -n "$original_flake_nix" && -f "$original_flake_nix" ]]; then
+      cp -f "$original_flake_nix" "$flake_dir/flake.nix"
+    fi
+    if [[ -n "$original_flake_lock" && -f "$original_flake_lock" ]]; then
+      cp -f "$original_flake_lock" "$flake_dir/flake.lock"
+    fi
+  fi
+  if [[ -n "$candidate_flake_dir" && -d "$candidate_flake_dir" ]]; then
+    rm -rf "$candidate_flake_dir"
+  fi
+  [[ -z "$original_flake_nix" ]] || rm -f "$original_flake_nix"
+  [[ -z "$original_flake_lock" ]] || rm -f "$original_flake_lock"
   if [[ "$exit_code" -eq 0 ]]; then
     append_record 'status=success'
   else
@@ -104,15 +121,30 @@ check_nixarchy_release() {
     printf 'Pinned Nixarchy release is newer than the latest GitHub release; no upgrade suggested.\n'
     return 0
   fi
-  printf 'Nixarchy update available: %s -> %s\n' "$current" "$latest"
+  printf 'Nixarchy candidate available: %s -> %s (will be validated before promotion)\n' "$current" "$latest"
   return 0
 }
 
 upgrade_nixarchy_ref() {
   local latest=$1
+  local target_flake=${2:-$flake_dir}
   sed -i -E \
     "s#^([[:space:]]*url[[:space:]]*=[[:space:]]*\"github:olafkfreund/nixarchy/)[^\"]+(\";.*)#\\1${latest}\\2#" \
-    "$flake_dir/flake.nix"
+    "$target_flake/flake.nix"
+}
+
+make_candidate_flake() {
+  candidate_flake_dir="$(mktemp -d /tmp/nixos-update-flake.XXXXXX)"
+  cp -a "$flake_dir"/. "$candidate_flake_dir/"
+  rm -rf "$candidate_flake_dir/.git"
+  upgrade_nixarchy_ref "$latest_nixarchy_release" "$candidate_flake_dir"
+  echo "Updating candidate flake inputs..."
+  nix flake update --flake "$candidate_flake_dir"
+}
+
+promote_candidate_flake() {
+  cp -f "$candidate_flake_dir/flake.nix" "$flake_dir/flake.nix"
+  cp -f "$candidate_flake_dir/flake.lock" "$flake_dir/flake.lock"
 }
 
 if [[ "${1:-}" == "check" ]]; then
@@ -174,7 +206,8 @@ nixarchy_upgrade=false
 if [[ "$current_nixarchy_release" != "$latest_nixarchy_release" ]] &&
   [[ "$(printf '%s\n%s\n' "$current_nixarchy_release" "$latest_nixarchy_release" | sort -V | tail -n1)" == "$latest_nixarchy_release" ]]; then
   nixarchy_upgrade=true
-  printf 'Nixarchy update available: %s -> %s\n' "$current_nixarchy_release" "$latest_nixarchy_release"
+  printf 'Nixarchy candidate available: %s -> %s (will be validated before promotion)\n' \
+    "$current_nixarchy_release" "$latest_nixarchy_release"
 else
   printf 'Nixarchy release: %s (latest: %s)\n' "$current_nixarchy_release" "$latest_nixarchy_release"
 fi
@@ -221,12 +254,10 @@ trap finish EXIT
 } > "$record_tmp"
 write_record
 
-if [[ "$nixarchy_upgrade" == true ]]; then
-  echo "Updating flake.nix Nixarchy reference to $latest_nixarchy_release..."
-  upgrade_nixarchy_ref "$latest_nixarchy_release"
-  append_record "nixarchy_release_after=$latest_nixarchy_release"
-  write_record
-fi
+original_flake_nix="$(mktemp /tmp/nixos-update-flake-nix.XXXXXX)"
+original_flake_lock="$(mktemp /tmp/nixos-update-flake-lock.XXXXXX)"
+cp -f "$flake_dir/flake.nix" "$original_flake_nix"
+cp -f "$flake_dir/flake.lock" "$original_flake_lock"
 
 description="nixos-update $transaction"
 echo "Creating root snapshot..."
@@ -246,24 +277,30 @@ write_record
 append_record 'status=snapshots-created'
 write_record
 
+make_candidate_flake
+append_record "nixarchy_release_candidate=$latest_nixarchy_release"
+append_record 'status=candidate-flake-updated'
+write_record
+
+echo "Building candidate NixOS configuration for $host..."
+nixos-rebuild build --flake "$candidate_flake_dir#$host"
+append_record 'status=build-succeeded'
+write_record
+
 echo "Updating Omarchy plugins..."
 omarchy plugin update --yes
 append_record 'status=plugins-updated'
 write_record
 
-echo "Updating Nix flake inputs..."
-nix flake update --flake "$flake_dir"
-append_record "flake_revision_after_update=$(git -C "$flake_dir" rev-parse HEAD)"
-append_record 'status=flake-updated'
-write_record
-
-echo "Building NixOS configuration for $host..."
-nixos-rebuild build --flake "$flake_dir#$host"
-append_record 'status=build-succeeded'
+echo "Promoting validated flake candidate..."
+promote_candidate_flake
+append_record "nixarchy_release_after=$latest_nixarchy_release"
+append_record 'status=flake-promoted'
 write_record
 
 echo "Switching NixOS configuration..."
-"$sudo_cmd" nixos-rebuild switch --flake "$flake_dir#$host"
+"$sudo_cmd" nixos-rebuild switch --flake "$candidate_flake_dir#$host"
+switch_succeeded=true
 append_record "generation_after=$(current_generation)"
 append_record "kernel_after=$(uname -r)"
 append_record "flake_revision_after_switch=$(git -C "$flake_dir" rev-parse HEAD)"
