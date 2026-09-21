@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+active="$(powerprofilesctl get 2>/dev/null || true)"
+powerprofilesctl list 2>/dev/null | awk -v active="$active" '
+  /^[[:space:]]*\*?[[:space:]]*[[:alnum:]][[:alnum:]_-]*:/ {
+    name=$0
+    sub(/^[[:space:]]*\*?[[:space:]]*/, "", name)
+    sub(/:.*/, "", name)
+    if (name != "" && name != "CpuDriver" && name != "PlatformDriver" && name != "Degraded")
+      print name "\t" (name == active ? "1" : "0")
+  }
+'

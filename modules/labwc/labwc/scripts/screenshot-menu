@@ -1,0 +1,39 @@
+#!/bin/sh
+# Screenshot menu — fuzzel
+
+ICO_AREA='󰆏'
+ICO_FULL='󰊓'
+ICO_WIN='󰖲'
+ICO_DELAY='󰔚'
+ICO_COLOR='󰈋'
+ICO_CLOSE='󰅖'
+
+# Check fuzzel version for compatibility
+FUZZEL_VERSION=$(fuzzel --version 2>/dev/null | sed -n 's/.*version: \([0-9]*\.[0-9]*\).*/\1/p')
+FUZZEL_MAJOR=$(echo "$FUZZEL_VERSION" | cut -d. -f1)
+FUZZEL_MINOR=$(echo "$FUZZEL_VERSION" | cut -d. -f2)
+
+# Build fuzzel options based on version (supports --hide-prompt and --anchor since 1.10)
+FUZZEL_OPTS="--dmenu --width 24 --lines 6"
+if [ "$FUZZEL_MAJOR" -gt 1 ] 2>/dev/null || { [ "$FUZZEL_MAJOR" -eq 1 ] 2>/dev/null && [ "$FUZZEL_MINOR" -ge 10 ] 2>/dev/null; }; then
+    FUZZEL_OPTS="$FUZZEL_OPTS --hide-prompt --anchor top-right --y-margin 10 --x-margin 10"
+fi
+
+choice=$(printf "%s    Area\n%s    Full Screen\n%s    Window\n%s    Delay 3s\n%s    Pick Color\n%s    Close" \
+	"$ICO_AREA" "$ICO_FULL" "$ICO_WIN" "$ICO_DELAY" "$ICO_COLOR" "$ICO_CLOSE" | fuzzel $FUZZEL_OPTS)
+
+[ -z "$choice" ] && exit 0
+
+case "$choice" in
+*"Area"*) grim -g "$(slurp)" - | wl-copy && notify-send -i camera-photo Screenshot "Area copied to clipboard" ;;
+*"Full Screen"*) grim - | wl-copy && notify-send -i camera-photo Screenshot "Full screen copied to clipboard" ;;
+*"Window"*) grim -g "$(slurp -f '%w x %h' -o)" - | wl-copy && notify-send -i camera-photo Screenshot "Window copied to clipboard" ;;
+*"Delay 3s"*)
+	notify-send -i camera-photo Screenshot "Capturing in 3 seconds..."
+	sleep 3
+	grim - | wl-copy && notify-send -i camera-photo Screenshot "Full screen copied to clipboard"
+	;;
+*"Pick Color"*) hyprpicker -a -n -f hex ;;
+*"Close"*) exit 0 ;;
+*) exit 0 ;;
+esac

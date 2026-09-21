@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+source_dir="$HOME/.config/labwc"
+runtime_dir="${XDG_RUNTIME_DIR:-/tmp}/labwc-wsl-config"
+
+mkdir -p "$runtime_dir"
+
+for entry in autostart environment environment.d scripts themes; do
+    ln -sfn "$source_dir/$entry" "$runtime_dir/$entry"
+done
+
+printf '%s\n' "$runtime_dir"

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Open the active labwc Quickshell clipboard panel through its IPC handler.
+# The panel is already part of the topbar, so this avoids starting a second
+# Quickshell instance and does not depend on Omarchy or Hyprland.
+
+# Ensure Wayland environment is available (may be missing in non-interactive shells).
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+
+QS=/run/current-system/sw/bin/quickshell
+
+pid="$(ps -eo pid=,args= | awk '/[q]uickshell/ && / -p / { print $1; exit }')"
+if [[ -n "$pid" ]]; then
+  exec "$QS" ipc --pid "$pid" call iamcheyan.clipboard toggleAtCursor
+fi
+
+notify-send "Clipboard" "Quickshell clipboard panel is not running" 2>/dev/null || true
+exit 1

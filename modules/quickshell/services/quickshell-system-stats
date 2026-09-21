@@ -1,0 +1,2 @@
+#!/bin/sh
+printf 'status\tok\n'

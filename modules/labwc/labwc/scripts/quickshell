@@ -1,0 +1,41 @@
+#!/bin/sh
+set -eu
+
+qs_bin=""
+for candidate in \
+    "$HOME/.local/bin/quickshell" \
+    "$HOME/.local/bin/qs" \
+    "$(command -v quickshell 2>/dev/null || true)" \
+    "$(command -v qs 2>/dev/null || true)"; do
+    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+        qs_bin="$candidate"
+        break
+    fi
+done
+
+if [ -z "$qs_bin" ]; then
+    printf 'Quickshell executable not found\n' >&2
+    exit 127
+fi
+
+config_dir="${QUICKSHELL_ROOT:-${XDG_CONFIG_HOME:-$HOME/.config}/quickshell}"
+mode_file="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/mode"
+if [ -r "$mode_file" ] && [ "$(cat "$mode_file")" = dev ] \
+    && [ -f /home/tetsuya/nixos-config/modules/quickshell/shell.qml ]; then
+    config_dir=/home/tetsuya/nixos-config/modules/quickshell
+fi
+export QUICKSHELL_ROOT="$config_dir"
+export QUICKSHELL_CONFIG="${QUICKSHELL_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/shell.json}"
+export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
+export QML2_IMPORT_PATH="/run/current-system/sw/lib/qt-6/qml${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
+export QML_IMPORT_PATH="/run/current-system/sw/lib/qt-6/qml${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
+
+if [ -x "$config_dir/run" ]; then
+    exec "$config_dir/run"
+fi
+
+if "$qs_bin" --help 2>&1 | grep -q -- ' -p'; then
+    exec "$qs_bin" -p "$config_dir"
+fi
+
+exec "$qs_bin" "$config_dir/shell.qml"

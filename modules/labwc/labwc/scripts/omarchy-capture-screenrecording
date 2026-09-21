@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+output_dir="${OMARCHY_SCREENRECORD_DIR:-${XDG_VIDEOS_DIR:-$HOME/Videos}}"
+mkdir -p "$output_dir"
+recording_file="${XDG_RUNTIME_DIR:-/tmp}/omarchy-screenrecord-filename"
+
+if [[ " $* " == *" --stop-recording "* ]]; then
+  pkill -SIGINT -f '^gpu-screen-recorder' 2>/dev/null || true
+  rm -f "$recording_file"
+  notify-send "Screen recording" "Stopped" 2>/dev/null || true
+  exit 0
+fi
+
+args=()
+[[ " $* " == *" --with-desktop-audio "* ]] && args+=(-a default_output -ac aac)
+[[ " $* " == *" --with-microphone-audio "* ]] && args+=(-a default_input -ac aac)
+if [[ " $* " == *" --fullscreen "* ]]; then
+  capture_args=(-w screen)
+else
+  selection="$(slurp 2>/dev/null)" || exit 0
+  [[ -n "$selection" ]] || exit 0
+  capture_args=(-w "$selection")
+fi
+
+filepath="$output_dir/screenrecording-$(date +%Y-%m-%d_%H-%M-%S).mp4"
+gpu-screen-recorder "${capture_args[@]}" -k auto -f 60 -fm cfr -fallback-cpu-encoding yes -o "$filepath" "${args[@]}" &
+echo "$filepath" >"$recording_file"
+notify-send "Screen recording" "Recording started" 2>/dev/null || true

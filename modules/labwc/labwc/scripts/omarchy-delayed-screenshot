@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+seconds="${1:-3}"
+mode="${2:-fullscreen}"
+script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+lock_file="${XDG_RUNTIME_DIR:-/tmp}/omarchy-delayed-screenshot.lock"
+exec 9>"$lock_file"
+if ! flock -n 9; then
+  notify-send "Screenshot" "A delayed screenshot is already scheduled" -t 3000 2>/dev/null || true
+  exit 0
+fi
+
+notify-send "Screenshot" "Capturing in ${seconds}s..." 2>/dev/null || true
+sleep "$seconds"
+case "$mode" in
+  region|fullscreen) exec "$script_dir/omarchy-capture-screenshot" "$mode" slurp ;;
+  *) echo "usage: omarchy-delayed-screenshot [seconds] [region|fullscreen]" >&2; exit 2 ;;
+esac

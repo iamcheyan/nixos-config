@@ -1,0 +1,29 @@
+#!/bin/sh
+set -eu
+
+mode_file="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/mode"
+case "${1:-}" in
+    dev|nix)
+        mkdir -p "$(dirname "$mode_file")"
+        printf '%s\n' "$1" > "$mode_file"
+        ;;
+    status)
+        if [ -r "$mode_file" ]; then
+            printf 'Quickshell mode: %s\n' "$(cat "$mode_file")"
+        else
+            printf 'Quickshell mode: nix (default)\n'
+        fi
+        exit 0
+        ;;
+    *)
+        printf 'Usage: %s {dev|nix|status}\n' "$0" >&2
+        exit 2
+        ;;
+esac
+
+# Labwc's autostart supervisor notices the exit and starts the selected root.
+if command -v quickshell >/dev/null 2>&1; then
+    quickshell kill --newest >/dev/null 2>&1 || true
+fi
+
+printf 'Quickshell mode set to %s; the shell is restarting.\n' "$1"

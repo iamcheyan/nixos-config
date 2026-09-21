@@ -7,6 +7,29 @@ hl.config({
   general = {
     gaps_in = 0,
     gaps_out = 0,
+    -- Allow the mouse to resize tiled windows by dragging their shared edge.
+    resize_on_border = true,
+    -- Make the border easier to grab on a HiDPI display.
+    extend_border_grab_area = 12,
+    hover_icon_on_border = true,
+  },
+})
+
+-- Practical mode: override Omarchy's default per-window opacity rule and keep
+-- every normal application fully opaque, including unfocused tiled windows.
+o.window(".*", { opacity = "1 1" })
+
+hl.config({
+  decoration = {
+    active_opacity = 1.0,
+    inactive_opacity = 1.0,
+    fullscreen_opacity = 1.0,
+    dim_inactive = false,
+    shadow = { enabled = false },
+    blur = { enabled = false },
+  },
+  animations = {
+    enabled = false,
   },
 })
 
@@ -53,4 +76,3 @@ hl.workspace_rule({
 --     column_width = 0.97,
 --   },
 -- })
-

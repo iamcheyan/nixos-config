@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+selection="$(slurp 2>/dev/null)" || exit 0
+[[ -n "$selection" ]] || exit 0
+result="$(grim -g "$selection" - | zbarimg -q --raw -Sdisable -Sqrcode.enable - 2>/dev/null)" || true
+if [[ -z "$result" ]]; then
+  notify-send -u critical "QR code" "No QR code found in the selected region" 2>/dev/null || true
+  exit 1
+fi
+
+printf '%s' "$result" | wl-copy --sensitive
+notify-send "QR code" "Copied to clipboard" 2>/dev/null || true

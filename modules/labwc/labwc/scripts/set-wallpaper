@@ -1,0 +1,54 @@
+#!/bin/sh
+set -eu
+
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+
+wallpaper=""
+wallpaper_state="${XDG_STATE_HOME:-$HOME/.local/state}/labwc/wallpaper"
+
+# 1. Read last user-selected wallpaper from state file
+if [ -r "$wallpaper_state" ]; then
+	_saved_wallpaper=$(cat "$wallpaper_state")
+	if [ -n "$_saved_wallpaper" ] && [ -f "$_saved_wallpaper" ]; then
+		wallpaper="$_saved_wallpaper"
+	fi
+fi
+
+# 2. If no state file, pick the first available image from ~/wallpapers
+if [ -z "$wallpaper" ] && [ -d "$HOME/wallpapers" ]; then
+	for f in "$HOME/wallpapers"/*; do
+		case "$f" in
+			*.png|*.jpg|*.jpeg|*.webp|*.bmp)
+				if [ -f "$f" ]; then
+					wallpaper="$f"
+					mkdir -p "$(dirname "$wallpaper_state")"
+					printf '%s\n' "$wallpaper" > "$wallpaper_state"
+					break
+				fi
+				;;
+		esac
+	done
+fi
+
+case "${1:-wayland}" in
+--print)
+	printf '%s\n' "${wallpaper:-none}"
+	;;
+wayland)
+	if [ -n "$wallpaper" ] && [ -f "$wallpaper" ]; then
+		exec swaybg -i "$wallpaper" -m fill
+	else
+		exec swaybg -c "#181825"
+	fi
+	;;
+x11)
+	if [ -n "$wallpaper" ] && [ -f "$wallpaper" ]; then
+		exec feh --bg-fill "$wallpaper"
+	fi
+	;;
+*)
+	printf 'Usage: %s [wayland|x11|--print]\n' "$0" >&2
+	exit 2
+	;;
+esac

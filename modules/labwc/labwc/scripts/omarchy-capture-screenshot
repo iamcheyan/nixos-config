@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Labwc-compatible Omarchy screenshot command.
+# Usage: omarchy-capture-screenshot [smart|region|windows|fullscreen] [slurp|copy|save]
+set -euo pipefail
+
+[[ -f ~/.config/user-dirs.dirs ]] && source ~/.config/user-dirs.dirs
+script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+output_dir="${OMARCHY_SCREENSHOT_DIR:-${XDG_PICTURES_DIR:-$HOME/Pictures}}"
+mkdir -p "$output_dir"
+mode="${1:-smart}"
+processing="${2:-slurp}"
+timestamp="$(date +%Y-%m-%d_%H-%M-%S)"
+filepath="$output_dir/screenshot-$timestamp.png"
+
+notify() {
+  notify-send "Screenshot" "$1" -t "${2:-2500}" 2>/dev/null || true
+}
+
+if [[ "$mode" == fullscreen ]]; then
+  geometry=""
+else
+  geometry="$("$script_dir/omarchy-capture-region" "$mode")" || exit 0
+  [[ -n "$geometry" ]] || exit 0
+fi
+
+case "$processing" in
+  slurp)
+    if [[ -n "$geometry" ]]; then
+      grim -g "$geometry" "$filepath"
+    else
+      grim "$filepath"
+    fi
+    wl-copy --type image/png <"$filepath"
+    echo "$filepath"
+    notify "Saved to Pictures and copied to clipboard"
+    ;;
+  copy)
+    if [[ -n "$geometry" ]]; then grim -g "$geometry" - | wl-copy --type image/png
+    else grim - | wl-copy --type image/png
+    fi
+    notify "Copied to clipboard"
+    ;;
+  save)
+    if [[ -n "$geometry" ]]; then grim -g "$geometry" "$filepath"
+    else grim "$filepath"
+    fi
+    echo "$filepath"
+    notify "Saved to $filepath"
+    ;;
+  *)
+    echo "usage: omarchy-capture-screenshot [mode] [slurp|copy|save]" >&2
+    exit 2
+    ;;
+esac

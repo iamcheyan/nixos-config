@@ -1,0 +1,311 @@
+/* =========================
+ * Global
+ * ========================= */
+* {
+    font-family: 'Open Sans', 'MesloLGS NF', 'Ubuntu Nerd Font', 'Ubuntu', 'Noto Sans Mono', sans-serif;
+    font-size: 12px;
+    min-height: 0;
+}
+
+/* =========================
+ * Waybar Window
+ * ========================= */
+window#waybar {
+    background-color: rgba(0, 0, 0, 0.5);
+    color: #ffffff;
+}
+
+/* 全屏时顶栏颜色 */
+window#waybar.fullscreen {
+    background: rgba(0, 0, 0, 1);
+}
+
+window#waybar.hidden {
+    opacity: 0.2;
+}
+
+/* =========================
+ * Buttons / Hover
+ * ========================= */
+button {
+    border: none;
+    border-radius: 0;
+    padding: 0;
+}
+
+button:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* =========================
+ * Workspace (Solid Circles with Opacity)
+ * ========================= */
+#workspaces button {
+    padding: 0 3px;
+    margin: 0;
+    background: transparent;
+    color: #ffffff;
+    opacity: 0.3;
+    font-size: 10px;
+}
+
+#workspaces button.active,
+#workspaces button.focused {
+    color: #ffffff;
+    opacity: 1; /* 激活圆点完全显示 */
+    font-weight: bold;
+    /* min-width:25px; */
+}
+
+#workspaces button.urgent {
+    color: #eb4d4b;
+    opacity: 1;
+}
+
+#workspaces button:hover {
+    color: #ffffff;
+    opacity: 0.8;
+}
+
+/* =========================
+ * Common Modules (Compact)
+ * ========================= */
+#mode {
+    background: #eb4d4b;
+    border-bottom: 3px solid #ffffff;
+    color: #ffffff;
+    font-weight: bold;
+    padding: 0 10px;
+    margin: 0 4px;
+}
+
+#clock,
+#battery,
+#cpu,
+#memory,
+#disk,
+#temperature,
+#backlight,
+#network,
+#custom-network,
+#pulseaudio,
+#wireplumber,
+#custom-media,
+#idle_inhibitor,
+#scratchpad,
+#power-profiles-daemon,
+#custom-zmk-studio,
+#custom-settings,
+#custom-launcher,
+#custom-power,
+#mpd,
+#privacy {
+    padding: 0 4px;
+    margin: 0 2px;
+    background: transparent;
+    color: #ffffff;
+}
+
+#bluetooth {
+    padding: 0 4px;
+    margin: 0 2px;
+    background: transparent;
+    color: #ffffff;
+}
+
+#custom-zmk-studio {
+    color: #ffffff;
+}
+
+#custom-zmk-studio:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+#custom-settings {
+    color: #ffffff; /* White color for the gear icon */
+}
+
+#custom-settings:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+#custom-launcher,
+#custom-workspace,
+#custom-cliphist,
+#custom-screenshot,
+#custom-kazamo,
+#custom-colorpicker,
+#custom-power {
+    padding: 0 8px;
+    margin: 0 4px;
+    color: #ffffff;
+}
+
+#custom-launcher:hover,
+#custom-workspace:hover,
+#custom-cliphist:hover,
+#custom-screenshot:hover,
+#custom-kazamo:hover,
+#custom-colorpicker:hover,
+#custom-power:hover {
+    background: transparent;
+}
+
+#taskbar button {
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    font-size: 0;
+    opacity: 0;
+}
+
+#taskbar button.active {
+    padding: 0 10px;
+    margin-left: 6px;
+    color: #d8dee9;
+    font-size: 12px;
+    opacity: 1;
+    background: transparent;
+}
+
+#taskbar button.active:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* .modules-left label { */
+/*     font-variant: small-caps; */
+/* } */
+
+
+/* =========================
+ * Right Side Spacing
+ * ========================= */
+#modules-right>widget>* {
+    padding: 0 6px;
+    margin: 0 3px;
+}
+
+/* =========================
+ * Tray (most important)
+ * ========================= */
+#tray {
+    padding: 0 4px;
+    margin: 0 2px;
+    background: transparent;
+}
+
+#tray>.item {
+    background-color: transparent;
+    border-radius: 4px;
+    padding: 0 2px;
+    margin: 0 1px;
+}
+
+#tray>.passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray>.needs-attention {
+    background-color: #eb4d4b;
+}
+
+/* =========================
+ * Language / Keyboard State
+ * ========================= */
+#language,
+#keyboard-state {
+    padding: 0 4px;
+    margin: 0 2px;
+    min-width: unset;
+    border-radius: 4px;
+}
+
+#language {
+    background: #00b093;
+    color: #000000;
+}
+
+#keyboard-state {
+    background: #97e1ad;
+    color: #000000;
+}
+
+#keyboard-state>label {
+    padding: 0 4px;
+}
+
+#keyboard-state>label.locked {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+/* =========================
+ * Battery States
+ * ========================= */
+#battery.charging,
+#battery.plugged {
+    color: #ffffff;
+}
+
+@keyframes blink {
+    to {
+        background-color: #ffffff;
+        color: #000000;
+    }
+}
+
+#battery.critical:not(.charging) {
+    background-color: #f53c3c;
+    color: #ffffff;
+    animation: blink 0.5s steps(12) infinite alternate;
+}
+
+/* =========================
+ * Audio
+ * ========================= */
+#pulseaudio.muted,
+#wireplumber.muted {
+    color: #888888;
+}
+
+/* =========================
+ * Temperature
+ * ========================= */
+#temperature.critical {
+    color: #ff6b6b;
+}
+
+/* =========================
+ * Privacy
+ * ========================= */
+#privacy {
+    padding: 0;
+}
+
+#privacy-item {
+    padding: 0 4px;
+    margin: 0 1px;
+}
+
+#privacy-item.screenshare {
+    background-color: #cf5700;
+}
+
+#privacy-item.audio-in {
+    background-color: #1ca000;
+}
+
+#privacy-item.audio-out {
+    background-color: #0069d4;
+}
+
+/* =========================
+ * Window Title
+ * ========================= */
+#window {
+    margin: 0 4px;
+    padding-left: 8px;
+}

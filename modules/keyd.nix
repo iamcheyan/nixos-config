@@ -12,12 +12,16 @@ in
   services.keyd = {
     enable = true;
     keyboards.minila-r = {
-      ids = [ "k:0c45:22b8" ];
+      ids = [
+        "k:0c45:22b8" # USB wired mode
+        "k:0a5c:8502" # Bluetooth mode
+      ];
       settings.main = {
         leftalt = "leftmeta";
         leftmeta = "leftalt";
         # Dedicated MINILA-R modifier layer.  Screenshot actions emit real
         # Print-based key events; the desktop binding remains in chezmoi.
+        fn = "layer(muhenkan)";
         muhenkan = "layer(muhenkan)";
         katakanahiragana = "left";
         delete = "right";
@@ -25,9 +29,12 @@ in
         rightalt = "down";
         grave = "escape";
         escape = "grave";
-      } // voice.leftControl;
+      # The physical right Ctrl key is the MINILA-R arrow-up key.  Keep this
+      # mapping authoritative; the voice layer must not turn it back into a
+      # Ctrl/F24 overload.
+      } // voice.leftControl // voice.capsLock;
       settings.muhenkan = {
-        # Emit Ctrl+Super+V for the clipboard action.
+        # Emit C-M-v directly; F13 is not reliably received by Labwc.
         v = "C-M-v";
         l = "C-M-l";
         "3" = "C-S-f3";

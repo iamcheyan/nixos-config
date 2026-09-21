@@ -1,0 +1,76 @@
+    <!-- Mac JIS: macOS 风格快捷键 -->
+
+    <!-- 系统启动 -->
+    <keybind key="W-Return">
+      <action name="Execute" command="alacritty" />
+    </keybind>
+    <keybind key="W-space">
+      <action name="Execute" command="~/.config/labwc/scripts/launcher" />
+    </keybind>
+    <keybind key="A-space">
+      <action name="ShowMenu" menu="root-menu" />
+    </keybind>
+
+    <!-- 窗口管理 -->
+    <keybind key="W-Tab">
+      <action name="NextWindow" />
+    </keybind>
+    <keybind key="W-S-Tab">
+      <action name="PreviousWindow" />
+    </keybind>
+    <keybind key="W-q">
+      <action name="Close" />
+    </keybind>
+    <keybind key="W-f">
+      <action name="ToggleFullscreen" />
+    </keybind>
+    <keybind key="W-m">
+      <action name="ToggleMaximize" />
+    </keybind>
+
+    <!-- 编辑 (macOS 风格: Win → Ctrl) -->
+    <keybind key="W-c">
+      <action name="Execute" command="wtype -M Ctrl c -m Ctrl" />
+    </keybind>
+    <keybind key="W-v">
+      <action name="Execute" command="wtype -M Ctrl v -m Ctrl" />
+    </keybind>
+    <keybind key="W-C-v">
+      <action name="Execute" command="~/.config/labwc/scripts/clipboard-history" />
+    </keybind>
+    <keybind key="A-C-v">
+      <action name="Execute" command="~/.config/labwc/scripts/clipboard-history" />
+    </keybind>
+    <keybind key="F13">
+      <action name="Execute" command="~/.config/labwc/scripts/clipboard-history" />
+    </keybind>
+    <keybind key="W-x">
+      <action name="Execute" command="wtype -M Ctrl x -m Ctrl" />
+    </keybind>
+    <keybind key="W-z">
+      <action name="Execute" command="wtype -M Ctrl z -m Ctrl" />
+    </keybind>
+    <keybind key="W-s">
+      <action name="Execute" command="wtype -M Ctrl s -m Ctrl" />
+    </keybind>
+
+    <!-- 剪贴板历史 (Alt+V) -->
+    <keybind key="A-v">
+      <action name="Execute" command="~/.config/cliphist/cliphist-fuzzel" />
+    </keybind>
+
+    <!-- 截图 -->
+    <keybind key="W-S-a">
+      <action name="Execute" command="~/.config/labwc/scripts/omarchy-capture-screenshot region copy" />
+    </keybind>
+
+    <!-- Voxtype voice input -->
+    <keybind key="A-a">
+      <action name="Execute" command="voxtype record toggle" />
+    </keybind>
+    <keybind key="F9">
+      <action name="Execute" command="voxtype record toggle" />
+    </keybind>
+    <keybind key="F24" onRelease="yes">
+      <action name="Execute" command="voxtype record toggle" />
+    </keybind>

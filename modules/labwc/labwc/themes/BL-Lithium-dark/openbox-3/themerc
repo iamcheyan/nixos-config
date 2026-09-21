@@ -1,0 +1,127 @@
+!! BL-Lithium-dark
+!! BL-Lithium geometry with Adwaita-Labwc-dark colors
+
+!! Menu settings
+menu.border.width: 0
+
+menu.title.bg: flat solid
+menu.title.bg.color: #202020
+menu.title.bg.colorTo: #202020
+menu.title.text.color: #ffffff
+menu.title.text.justify: right
+
+menu.items.bg: flat solid
+menu.items.bg.color: #353535
+menu.items.text.color: #ffffff
+menu.items.disabled.text.color: #777777
+
+menu.items.active.bg: flat solid
+menu.items.active.bg.color: #5d5d5d
+menu.items.active.bg.colorTo: #5d5d5d
+menu.items.active.text.color: #ffffff
+menu.bullet.selected.image.color: #ffffff
+
+menu.separator.color: #494949
+
+!! Focused window settings
+window.active.title.bg: flat solid
+window.active.title.bg.color: #303030
+window.active.title.bg.colorTo: #303030
+window.active.title.separator.color: #303030
+
+window.active.handle.bg: flat solid
+window.active.handle.bg.color: #303030
+window.active.handle.bg.colorTo: #303030
+window.active.grip.bg: parentrelative
+
+window.active.label.bg: parentrelative
+window.active.label.text.color: #ffffff
+
+window.*.button.*.bg: parentrelative
+window.active.button.*.image.color: #e0e0e0
+window.active.button.*.hover.image.color: #ffffff
+window.active.button.*.pressed.image.color: #a0a0a0
+window.active.button.disabled.image.color: #666666
+
+!! Unfocused window settings
+window.inactive.title.bg: flat solid
+window.inactive.title.bg.color: #242424
+window.inactive.title.bg.colorTo: #242424
+window.inactive.title.separator.color: #242424
+
+window.inactive.handle.bg: flat solid
+window.inactive.handle.bg.color: #242424
+window.inactive.handle.bg.colorTo: #242424
+window.inactive.grip.bg: parentrelative
+
+window.inactive.label.bg: parentrelative
+window.inactive.label.text.color: #919191
+
+window.inactive.button.*.image.color: #8e8e8e
+window.inactive.button.*.hover.image.color: #d0d0d0
+window.inactive.button.*.pressed.image.color: #707070
+window.inactive.button.disabled.image.color: #555555
+
+!! Global width settings
+border.width: 3
+padding.width: 1
+window.handle.width: 0
+window.client.padding.width: 0
+menu.overlap.x: -6
+menu.overlap.y: -6
+window.button.window-icon.size: 18
+
+!! Borders
+border.color: #000000
+window.active.border.color: #49b9c7
+window.inactive.border.color: #000000
+
+!! OSD
+osd.bg: flat solid
+osd.bg.color: #1e1e1e
+osd.bg.colorTo: #1e1e1e
+osd.border.color: #3a3a3a
+osd.border.width: 1
+osd.label.bg: parentrelative
+osd.hilight.bg: flat solid
+osd.hilight.bg.color: #5d5d5d
+osd.unhilight.bg: flat solid
+osd.unhilight.bg.color: #242424
+osd.label.text.color: #ffffff
+
+!! Window switcher — macOS thumbnail style
+osd.window-switcher.width: 80%
+osd.window-switcher.padding: 8
+
+!! Classic style (fallback)
+osd.window-switcher.style-classic.width: 600
+osd.window-switcher.style-classic.padding: 4
+osd.window-switcher.style-classic.item.padding.x: 10
+osd.window-switcher.style-classic.item.padding.y: 2
+osd.window-switcher.style-classic.item.active.border.width: 2
+osd.window-switcher.style-classic.item.active.bg.color: #3a3a3a
+osd.window-switcher.style-classic.item.active.border.color: #6cb4ee
+osd.window-switcher.style-classic.item.icon.size: 24
+
+!! Thumbnail style — macOS expose feel
+osd.window-switcher.style-thumbnail.width.max: 85%
+osd.window-switcher.style-thumbnail.padding: 12
+osd.window-switcher.style-thumbnail.item.width: 280
+osd.window-switcher.style-thumbnail.item.height: 200
+osd.window-switcher.style-thumbnail.item.padding: 8
+osd.window-switcher.style-thumbnail.item.active.border.width: 3
+osd.window-switcher.style-thumbnail.item.active.border.color: #6cb4ee
+osd.window-switcher.style-thumbnail.item.active.bg.color: #2a2a2a
+osd.window-switcher.style-thumbnail.item.icon.size: 48
+
+!! Preview outlines
+osd.window-switcher.preview.border.width: 2
+osd.window-switcher.preview.border.color: #6cb4ee
+
+
+!! Typography
+window.label.text.justify: center
+window.active.label.text.font:shadow=n:shadowtint=-60:shadowoffset=1
+window.inactive.label.text.font:shadow=n:shadowtint=-60:shadowoffset=1
+menu.items.font:
+menu.title.text.font:shadow=n:shadowtint=70

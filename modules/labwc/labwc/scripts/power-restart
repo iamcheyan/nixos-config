@@ -1,0 +1,21 @@
+#!/bin/sh
+# Quick restart menu — fuzzel
+
+choice=$(printf "Restart labwc\nRestart quickshell" | fuzzel --dmenu \
+    --hide-prompt \
+    --prompt "  Restart: " \
+    --anchor center \
+    --width 22 \
+    --lines 2)
+
+case "$choice" in
+    "Restart labwc")  labwc -r ;;
+    "Restart quickshell")
+        pkill -x qs 2>/dev/null || true
+        pkill -x quickshell 2>/dev/null || true
+        pkill -x waybar 2>/dev/null || true
+        "$HOME/.config/labwc/scripts/quickshell" \
+            >"${XDG_RUNTIME_DIR:-/tmp}/quickshell-labwc.log" 2>&1 &
+        ;;
+    *)                exit 0 ;;
+esac

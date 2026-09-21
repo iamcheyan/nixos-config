@@ -1,0 +1,117 @@
+@define-color window_bg #242424;
+@define-color panel_bg #303030;
+@define-color input_bg #202020;
+@define-color selected_bg #202020;
+@define-color hover_bg #424242;
+@define-color border #3f3f3f;
+@define-color separator #494949;
+@define-color text #ffffff;
+@define-color text_muted #b0b0b0;
+
+* {
+    all: unset;
+    font-family: "MesloLGS NF", "Ubuntu Nerd Font", sans-serif;
+    font-size: 14px;
+    color: @text;
+    background-color: transparent;
+    outline: none;
+    text-shadow: none;
+}
+
+#window {
+    background-color: @window_bg;
+    border: 1px solid @border;
+    border-radius: 0;
+}
+
+#outer-box {
+    padding: 10px;
+    background-color: @panel_bg;
+}
+
+#input {
+    min-height: 16px;
+    margin: 0 0 8px 0;
+    padding: 7px 10px;
+    color: @text;
+    background-color: @input_bg;
+    border: 1px solid @border;
+    border-radius: 0;
+    caret-color: @text;
+}
+
+#input:focus {
+    border-color: #707070;
+}
+
+#input image {
+    min-width: 18px;
+    min-height: 18px;
+    margin-right: 9px;
+    color: @text_muted;
+}
+
+#scroll {
+    border-top: 1px solid @separator;
+}
+
+#inner-box {
+    padding-top: 6px;
+}
+
+#entry {
+    min-height: 30px;
+    margin: 1px 0;
+    padding: 6px 9px;
+    color: @text;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+}
+
+#entry:hover {
+    background-color: @hover_bg;
+}
+
+#entry:selected {
+    color: @text;
+    background-color: @selected_bg;
+}
+
+#entry image {
+    min-width: 24px;
+    min-height: 24px;
+    margin-right: 10px;
+}
+
+#text {
+    color: @text;
+}
+
+#entry #text {
+    padding: 0 2px;
+}
+
+#entry:selected #text {
+    color: @text;
+}
+
+#entry arrow {
+    color: @text_muted;
+}
+
+scrollbar {
+    background-color: @input_bg;
+    border-left: 1px solid @separator;
+}
+
+scrollbar slider {
+    min-width: 6px;
+    min-height: 32px;
+    background-color: #666666;
+    border-radius: 0;
+}
+
+scrollbar slider:hover {
+    background-color: #808080;
+}

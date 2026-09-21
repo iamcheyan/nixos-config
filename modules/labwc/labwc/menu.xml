@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<openbox_menu>
+  <menu id="client-menu">
+    <item label="Minimize">
+      <action name="Iconify" />
+    </item>
+    <item label="Maximize">
+      <action name="ToggleMaximize" />
+    </item>
+    <item label="Fullscreen">
+      <action name="ToggleFullscreen" />
+    </item>
+    <separator />
+    <item label="Close">
+      <action name="Close" />
+    </item>
+  </menu>
+
+  <menu id="apps-menu" label="Applications">
+    <item label="Browse All...">
+      <action name="Execute" command="~/.config/wofi/app-launcher" />
+    </item>
+    <separator />
+    <item label="Terminal">
+      <action name="Execute" command="kitty" />
+    </item>
+    <item label="Web Browser">
+      <action name="Execute" command="firefox" />
+    </item>
+    <item label="Firefox (HiDPI 2x)">
+      <action name="Execute" command="~/.config/labwc/scripts/firefox-hidpi 2" />
+    </item>
+    <item label="File Manager">
+      <action name="Execute" command="dolphin" />
+    </item>
+    <item label="Text Editor">
+      <action name="Execute" command="kitty nvim" />
+    </item>
+    <item label="System Monitor">
+      <action name="Execute" command="alacritty -e htop" />
+    </item>
+    <item label="Process Manager">
+      <action name="Execute" command="alacritty -e btop" />
+    </item>
+  </menu>
+
+  <menu id="tools-menu" label="Tools">
+    <item label="Clipboard History">
+      <action name="Execute" command="~/.config/labwc/scripts/clipboard" />
+    </item>
+    <item label="Screenshot...">
+      <action name="Execute" command="~/.config/labwc/scripts/omarchy-capture-screenshot" />
+    </item>
+    <separator />
+    <item label="Brightness...">
+      <action name="Execute" command="~/.config/labwc/scripts/brightness" />
+    </item>
+    <item label="Audio...">
+      <action name="Execute" command="~/.config/labwc/scripts/audio" />
+    </item>
+  </menu>
+
+  <menu id="display-menu" label="Display">
+    <item label="Display Arrangement (wdisplays)">
+      <action name="Execute" command="wdisplays" />
+    </item>
+    <separator />
+    <menu id="scale-menu" label="Scale">
+      <item label="Scale 1.0">
+        <action name="Execute" command="~/.config/labwc/scripts/scale 1.0" />
+      </item>
+      <item label="Scale 1.25">
+        <action name="Execute" command="~/.config/labwc/scripts/scale 1.25" />
+      </item>
+      <item label="Scale 1.5">
+        <action name="Execute" command="~/.config/labwc/scripts/scale 1.5" />
+      </item>
+      <item label="Scale 2.0">
+        <action name="Execute" command="~/.config/labwc/scripts/scale 2.0" />
+      </item>
+    </menu>
+    <item label="Display Info">
+      <action name="Execute" command="~/.config/labwc/scripts/output-info" />
+    </item>
+  </menu>
+
+  <menu id="appearance-menu" label="Appearance">
+    <item label="Appearance (nwg-look)...">
+      <action name="Execute" command="nwg-look" />
+    </item>
+    <separator />
+    <item label="Wallpaper...">
+      <action name="Execute" command="~/.config/labwc/scripts/wallpaper" />
+    </item>
+    <item label="Theme...">
+      <action name="Execute" command="~/.config/labwc/scripts/theme-switch" />
+    </item>
+    <item label="Font Size...">
+      <action name="Execute" command="~/.config/labwc/scripts/font-size" />
+    </item>
+    <item label="Window Gaps...">
+      <action name="Execute" command="~/.config/labwc/scripts/gaps" />
+    </item>
+  </menu>
+
+  <menu id="settings-menu" label="Settings">
+    <menu id="display-menu" />
+    <menu id="appearance-menu" />
+  </menu>
+
+  <menu id="session-menu" label="Session">
+    <item label="Exit labwc">
+      <action name="Exit" />
+    </item>
+    <separator />
+    <item label="Suspend">
+      <action name="Execute" command="~/.config/labwc/scripts/system-menu suspend" />
+    </item>
+    <item label="Hibernate">
+      <action name="Execute" command="~/.config/labwc/scripts/system-menu hibernate" />
+    </item>
+    <item label="Reboot">
+      <action name="Execute" command="~/.config/labwc/scripts/system-menu reboot" />
+    </item>
+    <item label="Power Off">
+      <action name="Execute" command="~/.config/labwc/scripts/system-menu poweroff" />
+    </item>
+  </menu>
+
+  <menu id="root-menu">
+    <item label="Terminal">
+      <action name="Execute" command="kitty" />
+    </item>
+    <item label="Run Application...">
+      <action name="Execute" command="~/.config/wofi/app-launcher" />
+    </item>
+    <separator />
+    <menu id="apps-menu" />
+    <menu id="tools-menu" />
+    <menu id="settings-menu" />
+    <separator />
+    <menu id="session-menu" />
+    <item label="Reload Configuration">
+      <action name="Execute" command="~/.config/labwc/scripts/reload" />
+    </item>
+  </menu>
+</openbox_menu>

@@ -14,7 +14,9 @@ in
 {
   imports = [
     inputs.nixarchy.homeManagerModules.nixarchy
+    inputs.chatgpt-desktop-linux.homeManagerModules.default
     ./hyprland.nix
+    ./sway.nix
   ];
 
   home.stateVersion = "26.05";
@@ -30,6 +32,13 @@ in
   programs.nixarchy = {
     enable = true;
     package = nixarchyPackage;
+  };
+
+  # Install the official Linux ChatGPT/Codex desktop package declaratively.
+  # The package includes its own Codex CLI runtime; no separate CLI install is
+  # needed just to launch the desktop application.
+  programs.codexDesktopLinux = {
+    enable = true;
   };
 
   # Nixarchy owns the Omarchy/NixOS integration. Keep its generated user

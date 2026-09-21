@@ -1,0 +1,9 @@
+#!/bin/sh
+# launcher — toggle wofi application launcher
+
+if pgrep -f '(^|/)wofi( |$)' >/dev/null 2>&1; then
+    pkill -f '(^|/)wofi( |$)'
+    exit 0
+fi
+
+exec "$HOME/.config/wofi/app-launcher"

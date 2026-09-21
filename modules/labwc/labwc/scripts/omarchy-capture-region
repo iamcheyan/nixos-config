@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Labwc-compatible replacement for Omarchy's region picker.
+# Prints slurp geometry in the format expected by grim/gpu-screen-recorder.
+set -euo pipefail
+
+case "${1:-smart}" in
+  region|windows|smart)
+    exec slurp
+    ;;
+  fullscreen)
+    # Labwc does not expose Hyprland's focused-monitor API.  grim without a
+    # geometry captures the complete Wayland desktop, which is deterministic.
+    printf '%s\n' "0,0 $(wlr-randr | awk '/^[^[:space:]]/ {w += $3; if ($1 ~ /HDMI-A-1/) h=$5} END {if (w > 0 && h > 0) print w "x" h}' | tail -1)"
+    ;;
+  *)
+    echo "usage: omarchy-capture-region [region|windows|smart|fullscreen]" >&2
+    exit 2
+    ;;
+esac
