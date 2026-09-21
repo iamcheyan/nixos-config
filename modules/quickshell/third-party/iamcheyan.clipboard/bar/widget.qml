@@ -37,15 +37,24 @@ BarWidget {
             Qt.callLater(function() { if (panelLoader.item) panelLoader.item.openAtCursor(); });
         } else panelLoader.item.openAtCursor();
     }
+    function toggleAtCursor() {
+        if (!panelLoader.item) {
+            root.openAtCursor();
+            return;
+        }
+
+        panelLoader.item.toggleAtScreen();
+    }
     function close() { if (panelLoader.item) panelLoader.item.close(); }
     function toggleAtBar() { root.opened ? root.close() : root.openAtBar(); }
     onBarChanged: injectPanel()
 
     IpcHandler {
         target: "iamcheyan.clipboard"
-        function toggleAtCursor(): void { root.opened ? root.close() : root.openAtCursor(); }
+        function toggleAtCursor(): void { root.toggleAtCursor(); }
         function openAtCursor(): void { root.openAtCursor(); }
-        function toggle(): void { root.opened ? root.close() : root.openAtCursor(); }
+        function toggle(): void { root.toggleAtCursor(); }
+        function placement(): string { return panelLoader.item ? panelLoader.item.placement() : "unloaded"; }
         function open(): void { root.openAtCursor(); }
         function close(): void { root.close(); }
     }

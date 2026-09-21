@@ -20,19 +20,108 @@ Panel {
     property real cursorScreenY: 0
     property var cursorScreen: null
     property var cursorMonitors: []
+    // Keep shortcut placement fixed within the selected output on Labwc.
+    // Pointer-enter sampling below also works when this panel owns focus.
+    property bool shortcutScreenMode: false
+    property bool samplingScreen: false
+
+    function placement() {
+        return JSON.stringify({ opened: root.opened, visible: clipboardWindow.visible,
+            screen: clipboardWindow.screen ? clipboardWindow.screen.name : "",
+            sampling: samplingScreen });
+    }
+
+    function toggleAtScreen() {
+        if (root.hyprlandSession) {
+            root.opened ? root.close() : root.openAtCursor();
+            return;
+        }
+        root.samplingScreen = true;
+        screenSampleTimeout.restart();
+    }
+
+    function acceptScreen(target) {
+        if (!root.samplingScreen || !root.validScreen(target)) return;
+        screenSampleTimeout.stop();
+        if (root.opened && root.sameScreen(root.panelScreen(), target)) {
+            root.close();
+        } else {
+            root.cursorMode = true;
+            root.shortcutScreenMode = true;
+            root.cursorScreen = target;
+            root.cursorReady = true;
+            root.controller.show();
+        }
+        root.samplingScreen = false;
+    }
+
+    Timer {
+        id: screenSampleTimeout
+        interval: 500
+        onTriggered: {
+            root.acceptScreen(root.focusedScreen());
+            root.samplingScreen = false;
+        }
+    }
+
+    // A newly mapped layer receives pointer-enter even for a stationary
+    // pointer. Sample only the output, without global-coordinate IPC or a
+    // persistent input grab. This also works while our menu owns keyboard focus.
+    Variants {
+        model: Quickshell.screens
+        PanelWindow {
+            id: screenProbe
+            required property var modelData
+            screen: modelData
+            visible: root.samplingScreen
+            color: "transparent"
+            exclusionMode: ExclusionMode.Ignore
+            WlrLayershell.namespace: "quickshell:clipboard-screen-probe"
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            anchors { top: true; bottom: true; left: true; right: true }
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                onEntered: root.acceptScreen(screenProbe.modelData)
+            }
+        }
+    }
+
+    function focusedScreen() {
+        var active = ToplevelManager.activeToplevel
+        if (active && active.screens && active.screens.length > 0)
+            return active.screens[0]
+        return root.barScreen()
+    }
+
+    function sameScreen(left, right) {
+        if (!left || !right) return false
+        return left === right || (left.name && right.name && left.name === right.name)
+    }
+
+    function panelScreen() {
+        return clipboardWindow ? clipboardWindow.targetScreen : null
+    }
 
     function open() { root.openAtBar(); }
     function openAtBar() {
         root.cursorMode = false;
+        root.shortcutScreenMode = false;
         root.cursorReady = true;
         root.controller.show();
     }
     function openAtCursor() {
         if (!root.hyprlandSession) {
-            root.openAtBar();
+            root.cursorMode = true;
+            root.shortcutScreenMode = true;
+            root.cursorScreen = root.focusedScreen();
+            root.cursorReady = root.cursorScreen !== null;
+            root.controller.show();
             return;
         }
         root.cursorMode = true;
+        root.shortcutScreenMode = false;
         root.cursorReady = false;
         cursorPositionProcess.running = true;
         root.controller.show();
@@ -239,7 +328,7 @@ Panel {
             visible: clipboardWindow.visible
             show: root.opened
             embedded: !root.cursorMode
-            positionMode: root.cursorMode ? "cursor" : "bar"
+            positionMode: root.cursorMode && !root.shortcutScreenMode ? "cursor" : "bar"
             cursorGlobalX: root.cursorGlobalX
             cursorGlobalY: root.cursorGlobalY
             screenGlobalX: root.cursorScreenX
