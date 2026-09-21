@@ -20,6 +20,8 @@ Panel {
   property int profileIndex: 0
   property bool cursorActive: false
   property bool hibernateAvailable: false
+  property var anchorItem: null
+  property var hostWidget: null
   readonly property bool showPercentage: setting("showPercentage", false) === true
   // With the percentage shown the button paints a text block wider than an
   // icon, so the open-panel mark takes the painted width instead of the
@@ -303,7 +305,7 @@ Panel {
 
   KeyboardPanel {
     id: panel
-    anchorItem: button
+    anchorItem: root.anchorItem || button
     owner: root
     bar: root.bar
     open: root.opened

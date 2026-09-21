@@ -614,18 +614,6 @@ Item {
     Util.execDetached(command)
   }
 
-  function toggleTransparency() {
-    var nextTransparent = !(root.requestedTransparent === true)
-    if (root.shell && typeof root.shell.mutateShellConfig === "function") {
-      root.shell.mutateShellConfig(function(config) {
-        if (!Util.isPlainObject(config.bar)) config.bar = {}
-        config.bar.transparent = nextTransparent
-      })
-    } else {
-      root.setRequestedTransparency(nextTransparent)
-    }
-  }
-
   function rawLayoutSection(config, region) {
     if (!Util.isPlainObject(config.bar)) config.bar = {}
     if (!Util.isPlainObject(config.bar.layout)) config.bar.layout = {}
@@ -1475,16 +1463,6 @@ Item {
       }
     }
 
-    onDoubleClicked: function(mouse) {
-      if (suppressClick) {
-        suppressClick = false
-        return
-      }
-      if (mouse.button === Qt.LeftButton) {
-        root.toggleTransparency()
-        mouse.accepted = true
-      }
-    }
   }
 
   component ModuleList: Loader {

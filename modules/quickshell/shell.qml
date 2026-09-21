@@ -43,7 +43,7 @@ ShellRoot {
       transparent: false,
       centerAnchor: "omarchy.clock",
       layout: {
-        left: [{ id: "omarchy.menu" }, { id: "omarchy.workspaces" }],
+        left: [{ id: "omarchy.workspaces" }],
         center: [{ id: "omarchy.clock", format: "dddd HH:mm" }],
         right: [{ id: "omarchy.audio" }]
       }
@@ -921,14 +921,6 @@ ShellRoot {
     function reloadConfig(): string {
       userConfigFile.reload()
       return "ok"
-    }
-
-    function toggleBarTransparency(): string {
-      if (shell.bar && typeof shell.bar.toggleTransparency === "function") {
-        shell.bar.toggleTransparency()
-        return "ok"
-      }
-      return "no-bar"
     }
 
     function setPluginEnabled(id: string, enabled: string): string {

@@ -31,6 +31,14 @@
     # upgrading the system-wide nixpkgs baseline.
     fresh.url = "github:sinelaw/fresh";
 
+    # Community Nix/NixOS packaging for the official Linux ChatGPT/Codex
+    # desktop package. It verifies and wraps the upstream architecture-
+    # specific .deb directly.
+    chatgpt-desktop-linux = {
+      url = "github:ilysenko/codex-desktop-linux";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Shizuka SDDM theme. Keep the theme as a locked flake input instead of
     # copying its files into this configuration repository.
     shizuka = {

@@ -13,6 +13,10 @@ in
 
   networking.hostName = "hx90";
 
+  # Keep Omarchy/Hyprland as the default session while exposing the separate
+  # Labwc migration session in SDDM for manual testing.
+  programs.labwcPreview.enable = true;
+
   # Disk hibernation: this host has a 68.4 GiB NVMe swap partition (UUID from
   # hardware-configuration.nix) and ~62 GiB RAM. NixOS does not wire resume=
   # from swapDevices alone.

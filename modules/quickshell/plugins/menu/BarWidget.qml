@@ -1,4 +1,6 @@
 import QtQuick
+import Quickshell
+import qs.Commons
 import qs.Ui
 
 // Applications launcher button for the Labwc bar.
@@ -19,9 +21,9 @@ BarWidget {
       if (!root.bar)
         return;
       if (button === Qt.RightButton)
-        root.bar.run("xdg-terminal-exec");
+        Util.execDetached("xdg-terminal-exec");
       else
-        root.bar.run("$HOME/.config/labwc/scripts/launcher");
+        Util.execDetached(Quickshell.env("HOME") + "/.config/labwc/scripts/launcher");
     }
   }
 }

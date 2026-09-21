@@ -152,8 +152,7 @@ BarWidget {
 
     onPressed: function(b) {
       if (b === Qt.RightButton) root.cycleFormat()
-      else if (b === Qt.MiddleButton && root.bar && root.bar.shell)
-        root.bar.shell.toggle("omarchy.menu", '{"menu":"timezone"}')
+      else if (b === Qt.MiddleButton) root.cycleFormat()
       else root.togglePanel()
     }
 
