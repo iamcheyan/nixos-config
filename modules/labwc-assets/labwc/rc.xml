@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<labwc_config>
+
+  <core>
+    <gap>3</gap>
+  </core>
+
+  <theme>
+    <name>BL-Lithium-dark</name>
+    <cornerRadius>0</cornerRadius>
+    <maximizedDecoration>none</maximizedDecoration>
+
+    <font place="ActiveWindow" name="MesloLGS NF" size="9" />
+    <font place="InactiveWindow" name="MesloLGS NF" size="9" />
+    <font place="MenuItem" name="MesloLGS NF" size="9" />
+
+    <font place="OnScreenDisplay">
+      <name>MesloLGS NF</name>
+      <size>11</size>
+      <weight>normal</weight>
+    </font>
+  </theme>
+
+  <desktops number="4">
+    <popupTime>800</popupTime>
+  </desktops>
+
+  <windowSwitcher>
+    <osd show="yes" style="thumbnail" preview="yes" outlines="yes" output="cursor" />
+    <fields>
+      <field content="icon" width="15%" />
+      <field content="title" width="85%" />
+    </fields>
+  </windowSwitcher>
+
+  <keyboard>
+    <!-- ⚠️ 此文件由 keybind-profile 脚本自动生成，请勿直接编辑！ -->
+    <!-- 修改快捷键请编辑: ~/.config/labwc/keybinds/ 下的 xml 文件 -->
+    <default />
+    <!-- Mac JIS: macOS 风格快捷键 -->
+
+    <!-- 系统启动 -->
+    <keybind key="W-Return">
+      <action name="Execute" command="alacritty" />
+    </keybind>
+    <keybind key="W-d">
+      <action name="Execute" command="~/.config/labwc/scripts/launcher" />
+    </keybind>
+    <keybind key="A-space">
+      <action name="ShowMenu" menu="root-menu" />
+    </keybind>
+
+    <!-- 窗口管理 -->
+    <keybind key="W-Tab">
+      <action name="NextWindow" />
+    </keybind>
+    <keybind key="W-S-Tab">
+      <action name="PreviousWindow" />
+    </keybind>
+    <keybind key="W-q">
+      <action name="Close" />
+    </keybind>
+    <keybind key="W-f">
+      <action name="ToggleFullscreen" />
+    </keybind>
+    <keybind key="W-m">
+      <action name="ToggleMaximize" />
+    </keybind>
+
+    <!-- 编辑 (macOS 风格: Win → Ctrl) -->
+    <keybind key="W-c">
+      <action name="Execute" command="wtype -M Ctrl c -m Ctrl" />
+    </keybind>
+    <keybind key="W-v">
+      <action name="Execute" command="wtype -M Ctrl v -m Ctrl" />
+    </keybind>
+    <keybind key="W-C-v">
+      <action name="Execute" command="~/.config/labwc/scripts/clipboard-history" />
+    </keybind>
+    <keybind key="A-C-v">
+      <action name="Execute" command="~/.config/labwc/scripts/clipboard-history" />
+    </keybind>
+    <keybind key="F13">
+      <action name="Execute" command="~/.config/labwc/scripts/clipboard-history" />
+    </keybind>
+    <keybind key="W-x">
+      <action name="Execute" command="wtype -M Ctrl x -m Ctrl" />
+    </keybind>
+    <keybind key="W-z">
+      <action name="Execute" command="wtype -M Ctrl z -m Ctrl" />
+    </keybind>
+    <keybind key="W-s">
+      <action name="Execute" command="wtype -M Ctrl s -m Ctrl" />
+    </keybind>
+
+    <!-- 剪贴板历史 (Alt+V) -->
+    <keybind key="A-v">
+      <action name="Execute" command="~/.config/cliphist/cliphist-fuzzel" />
+    </keybind>
+
+    <!-- 截图 -->
+    <keybind key="W-S-a">
+      <action name="Execute" command="~/.config/labwc/scripts/omarchy-capture-screenshot region copy" />
+    </keybind>
+
+    <!-- Voxtype voice input -->
+    <keybind key="A-a">
+      <action name="Execute" command="voxtype record toggle" />
+    </keybind>
+    <keybind key="F9">
+      <action name="Execute" command="voxtype record toggle" />
+    </keybind>
+    <keybind key="F24" onRelease="yes">
+      <action name="Execute" command="voxtype record toggle" />
+    </keybind>
+
+    <!-- 通用: 键盘切换 -->
+    <keybind key="A-S-k">
+      <action name="Execute" command="~/.config/labwc/scripts/keyboard-profile next" />
+    </keybind>
+
+    <!-- 通用: 窗口切换 -->
+    <keybind key="C-Tab">
+      <action name="NextWindow" />
+    </keybind>
+    <keybind key="C-S-Tab">
+      <action name="PreviousWindow" />
+    </keybind>
+
+    <!-- 通用: 工作区切换 -->
+    <keybind key="A-Left">
+      <action name="GoToDesktop" to="left" wrap="yes" />
+    </keybind>
+    <keybind key="A-Right">
+      <action name="GoToDesktop" to="right" wrap="yes" />
+    </keybind>
+    <keybind key="W-1">
+      <action name="GoToDesktop" to="1" />
+    </keybind>
+    <keybind key="W-2">
+      <action name="GoToDesktop" to="2" />
+    </keybind>
+    <keybind key="W-3">
+      <action name="GoToDesktop" to="3" />
+    </keybind>
+    <keybind key="W-4">
+      <action name="GoToDesktop" to="4" />
+    </keybind>
+    <keybind key="W-S-1">
+      <action name="SendToDesktop" to="1" follow="no" />
+    </keybind>
+    <keybind key="W-S-2">
+      <action name="SendToDesktop" to="2" follow="no" />
+    </keybind>
+    <keybind key="W-S-3">
+      <action name="SendToDesktop" to="3" follow="no" />
+    </keybind>
+    <keybind key="W-S-4">
+      <action name="SendToDesktop" to="4" follow="no" />
+    </keybind>
+
+    <!-- 通用: 截图 -->
+    <keybind key="Print">
+      <action name="Execute" command="~/.config/labwc/scripts/omarchy-capture-screenshot smart slurp" />
+    </keybind>
+    <keybind key="A-Print">
+      <action name="Execute" command="~/.config/labwc/scripts/omarchy-capture-screenshot fullscreen save" />
+    </keybind>
+    <keybind key="S-Print">
+      <action name="Execute" command="~/.config/labwc/scripts/omarchy-delayed-screenshot 3 fullscreen" />
+    </keybind>
+    <keybind key="C-S-Print">
+      <action name="Execute" command="~/.config/labwc/scripts/omarchy-capture-screenshot fullscreen copy" />
+    </keybind>
+    <keybind key="W-S-a">
+      <action name="Execute" command="~/.config/labwc/scripts/omarchy-capture-screenshot region copy" />
+    </keybind>
+
+    <!-- 通用: 亮度 -->
+    <keybind key="XF86MonBrightnessUp">
+      <action name="Execute" command="~/.config/labwc/scripts/brightness-control up" />
+    </keybind>
+    <keybind key="XF86MonBrightnessDown">
+      <action name="Execute" command="~/.config/labwc/scripts/brightness-control down" />
+    </keybind>
+
+    <!-- 通用: 音量 -->
+    <keybind key="XF86AudioRaiseVolume">
+      <action name="Execute" command="sh -c 'pactl set-sink-volume @DEFAULT_SINK@ +2% &amp;&amp; quickshell -p ~/.config/quickshell/labwc ipc call volume-helper triggerUpdate'" />
+    </keybind>
+    <keybind key="XF86AudioLowerVolume">
+      <action name="Execute" command="sh -c 'pactl set-sink-volume @DEFAULT_SINK@ -2% &amp;&amp; quickshell -p ~/.config/quickshell/labwc ipc call volume-helper triggerUpdate'" />
+    </keybind>
+    <keybind key="XF86AudioMute">
+      <action name="Execute" command="sh -c 'pactl set-sink-mute @DEFAULT_SINK@ toggle &amp;&amp; quickshell -p ~/.config/quickshell/labwc ipc call volume-helper triggerUpdate'" />
+    </keybind>
+
+  </keyboard>
+
+  <mouse>
+    <default />
+    <context name="Frame">
+      <mousebind button="A-Left" action="Drag">
+        <action name="Move" />
+      </mousebind>
+    </context>
+    <context name="Root">
+      <mousebind button="Right" action="Press">
+        <action name="ShowMenu" menu="root-menu" />
+      </mousebind>
+    </context>
+  </mouse>
+
+  <windowRules>
+    <windowRule identifier="wofi" skipTaskbar="yes" skipWindowSwitcher="yes">
+      <action name="ToggleAlwaysOnTop" />
+      <action name="Raise" />
+      <action name="Focus" />
+    </windowRule>
+    <windowRule identifier="*code*">
+      <serverDecoration>yes</serverDecoration>
+    </windowRule>
+    <windowRule identifier="*firefox*">
+      <serverDecoration>yes</serverDecoration>
+    </windowRule>
+    <windowRule identifier="*chrome*">
+      <serverDecoration>yes</serverDecoration>
+    </windowRule>
+  </windowRules>
+
+  <hotCorner>
+    <topLeft x="1" y="1">
+      <action name="GoToDesktop" to="left" wrap="yes" />
+    </topLeft>
+    <topRight x="1" y="1">
+      <action name="ShowMenu" menu="root-menu" />
+    </topRight>
+  </hotCorner>
+</labwc_config>
