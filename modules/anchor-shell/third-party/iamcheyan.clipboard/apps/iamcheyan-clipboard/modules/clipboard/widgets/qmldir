@@ -1,0 +1,5 @@
+singleton ClipboardStyle 1.0 ClipboardStyle.qml
+singleton Fuzzy 1.0 Fuzzy.qml
+StyledText 1.0 StyledText.qml
+CliphistImage 1.0 CliphistImage.qml
+ClipboardItem 1.0 ClipboardItem.qml

@@ -1,0 +1,30 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# omarchy:summary=Remove FIDO2 authentication from sudo and polkit
+# omarchy:requires-sudo=true
+
+set -e
+
+
+
+echo -e "\e[32mRemoving FIDO2 device from authentication.\n\e[0m"
+
+echo "PAM is configured by your NixOS build, so there is nothing to unpick" >&2
+    echo "in /etc/pam.d. Drop security.pam.u2f and the u2fAuth lines from your" >&2
+    echo "configuration and rebuild. The registration itself is removed below." >&2
+    echo "" >&2
+
+authdir=/etc/fido2
+
+# -d follows symlinks, so a dangling link at /etc/fido2 would survive this and
+# a later setup would install the authfile through it. rm -rf on a symlink
+# removes the link itself, never the directory it points at.
+if [[ -e $authdir || -L $authdir ]]; then
+  echo "Removing FIDO2 configuration..."
+  sudo rm -rf "$authdir"
+fi
+
+echo "Removing FIDO2 packages..."
+omarchy-pkg-drop libfido2 pam-u2f
+
+echo -e "\e[32mFIDO2 authentication has been completely removed.\e[0m"

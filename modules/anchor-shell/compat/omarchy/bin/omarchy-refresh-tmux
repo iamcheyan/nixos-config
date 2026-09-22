@@ -1,0 +1,6 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# omarchy:summary=Overwrite the user tmux config with the Omarchy default and reload tmux.
+
+omarchy-refresh-config tmux/tmux.conf
+omarchy-restart-tmux

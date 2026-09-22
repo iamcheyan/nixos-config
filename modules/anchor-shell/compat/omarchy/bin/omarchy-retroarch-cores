@@ -1,0 +1,23 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# nixarchy:new
+# omarchy:summary=Print the directory RetroArch loads libretro cores from.
+# omarchy:hidden=true
+
+# Upstream hardcodes /usr/lib/libretro. nixpkgs builds RetroArch as a wrapper
+# that carries its cores inside its own store path, so the directory is
+# wherever the retroarch on PATH resolves to -- and differs per core selection.
+set -euo pipefail
+
+rp=$(command -v retroarch 2>/dev/null) || {
+  echo "RetroArch is not installed" >&2
+  exit 1
+}
+dir=$(dirname "$(readlink -f "$rp")")/../lib/retroarch/cores
+if [ -d "$dir" ]; then
+  # realpath so the printed value is the canonical store path.
+  readlink -f "$dir"
+else
+  echo "$dir" # report where it would be, so callers can say so
+  exit 1
+fi

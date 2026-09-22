@@ -1,0 +1,10 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# omarchy:summary=Update user-installed git themes
+
+mapfile -t themes < <(omarchy-theme-extras)
+
+for theme in "${themes[@]}"; do
+  echo "Updating: $(basename "$theme")"
+  git -C "$theme" pull
+done

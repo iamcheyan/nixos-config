@@ -1,0 +1,29 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# omarchy:summary=Configure dictation
+# omarchy:group=voxtype
+
+# Upstream runs `voxtype configure` in a floating terminal. The bar's Dictation
+# indicator calls this on click and renders whether or not voxtype is
+# installed -- omarchy-voxtype-status reports "idle" when it is missing rather
+# than hiding the widget -- so on a machine without it, clicking a blank spot
+# in the bar produced:
+#
+#   bash: line 1: voxtype: command not found
+#
+# On Arch voxtype arrives through the Install menu and is usually present. Here
+# it is opt-in, so say what to do instead of failing.
+set -euo pipefail
+
+if ! command -v voxtype >/dev/null 2>&1; then
+  omarchy-launch-floating-terminal-with-presentation \
+    "echo 'Dictation is not installed.'; \
+     echo; \
+     echo 'Enable it from the menu:  Install > AI > Dictation'; \
+     echo 'or uncomment dictation.enable in ~/.config/nixarchy/apps.nix,'; \
+     echo 'then run nixarchy-apply.'"
+  exit 0
+fi
+
+omarchy-launch-floating-terminal-with-presentation "voxtype configure"
+omarchy-restart-shell

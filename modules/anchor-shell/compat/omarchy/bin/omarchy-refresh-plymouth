@@ -1,0 +1,27 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# omarchy:summary=Refresh the Plymouth boot splash
+
+# Upstream copies its theme into /usr/share/plymouth/themes with sudo and then
+# rebuilds the initramfs with mkinitcpio. Neither step exists here: /usr/share
+# is not writable, there is no mkinitcpio, and the theme is already installed
+# -- boot.plymouth.themePackages carries it and NixOS puts it in the initrd.
+#
+# Reachable from Update > Config > Plymouth, so it says this rather than
+# failing with a cp error about a directory that was never going to exist.
+cat <<'MSG'
+Plymouth is declared on NixOS, not refreshed.
+
+  The Omarchy splash is already installed and selected:
+
+    boot.plymouth.enable = true;          # nixarchy sets these
+    boot.plymouth.themePackages = [ omarchy ];
+    boot.plymouth.theme = "omarchy";
+
+  It is rebuilt with the rest of the system:
+
+    sudo nixos-rebuild switch --flake <your-flake>
+
+  To use a different splash, set boot.plymouth.theme yourself -- nixarchy
+  defaults it, so your value wins with no mkForce needed.
+MSG

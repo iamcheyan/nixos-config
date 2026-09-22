@@ -7,16 +7,16 @@ let
   # migration step away from Nixarchy's packaged Omarchy shell; the current
   # plugins still use NIXARCHY_ROOT for a few helper commands and are kept
   # compatible until those helpers are replaced one by one.
-  quickshellRoot = pkgs.runCommand "quickshell-shell" { } ''
-    cp -r "${./quickshell}"/. "$out/"
+  quickshellRoot = pkgs.runCommand "anchor-shell" { } ''
+    cp -r "${./anchor-shell}"/. "$out/"
   '';
   # Local compatibility copy of the Omarchy runtime.  Keep the original
   # Nixarchy-provided tree available until the migration has been verified.
-  quickshellCompatRoot = pkgs.runCommand "quickshell-omarchy-compat" { } ''
-    cp -r "${./quickshell/compat/omarchy}"/. "$out/"
+  quickshellCompatRoot = pkgs.runCommand "anchor-shell-omarchy-compat" { } ''
+    cp -r "${./anchor-shell/compat/omarchy}"/. "$out/"
   '';
   quickshellLegacyRoot = "${config.programs.nixarchy.package}/share/omarchy";
-  quickshellDevRoot = "/home/tetsuya/nixos-config/modules/quickshell";
+  quickshellDevRoot = "/home/tetsuya/nixos-config/modules/anchor-shell";
 
   # Quickshell's Qt wrapper only exports its own QML modules. The Omarchy
   # right-side widgets use Breeze controls, which import KDE Kirigami; expose
@@ -250,7 +250,7 @@ in
         executable = true;
       };
       home.file.".config/labwc/voxtype-paste.py" = {
-        source = ./quickshell/third-party/hancore.voxtype-enhance/scripts/omarchy-universal-paste.py;
+        source = ./anchor-shell/third-party/hancore.voxtype-enhance/scripts/omarchy-universal-paste.py;
         executable = true;
       };
       xdg.configFile."kanshi/config".source = labwcKanshiConfig;

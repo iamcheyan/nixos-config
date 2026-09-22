@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+device="$(upower -e 2>/dev/null | grep -m1 '/battery_' || true)"
+[ -n "$device" ] || exit 0
+upower -i "$device" 2>/dev/null | awk '
+  /percentage:/ { print "percentage\t" $2 }
+  /energy-full:/ { print "size\t" $2 " " $3 }
+  /charge-cycles:/ { print "cycles\t" $2 }
+  /time to empty:/ { print "time\t" $4 " " $5 }
+  /time to full:/ { print "time\t" $4 " " $5 }
+  /energy-rate:/ { print "rate\t" $2 " " $3 }
+'

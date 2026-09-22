@@ -1,0 +1,40 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# omarchy:summary=Set the Plymouth boot splash colours and logo
+# omarchy:args=<background-hex> <text-hex> <path-to-logo.png>
+
+# Upstream re-themes the boot splash to match the current Omarchy theme: it
+# stages the theme with a recoloured logo, copies it into /usr/share with sudo,
+# rebuilds the initramfs with mkinitcpio, and rewrites the SDDM theme's
+# Main.qml on the way past.
+#
+# None of that can happen on NixOS, and not because anything is missing: the
+# initrd is built from the configuration, so what the splash looks like is
+# decided at rebuild time and cannot be edited from inside a running system.
+# Left alone this produced a cascade -- a cp into a directory that does not
+# exist, then mkinitcpio not found, then a tee into the store.
+#
+# Reachable from Style > Unlock, so it explains rather than fails. Exits
+# non-zero, because the caller asked for something that did not happen.
+set -euo pipefail
+
+cat >&2 <<'MSG'
+The boot splash is built with the system, not set from inside it.
+
+  Omarchy re-themes Plymouth by writing into /usr/share and rebuilding the
+  initramfs. On NixOS the initrd comes from your configuration, so the splash
+  is chosen at rebuild time:
+
+    boot.plymouth.theme = "omarchy";   # nixarchy's default
+    boot.plymouth.themePackages = [ ... ];
+
+  Nixarchy already ships Omarchy's splash and selects it. To use a different
+  one, set boot.plymouth.theme yourself -- it is a mkDefault here, so your
+  value wins -- and:
+
+    sudo nixos-rebuild switch --flake <your-flake>
+
+  Everything else in Style still follows the theme at runtime. It is the boot
+  splash alone that has to be decided in advance.
+MSG
+exit 1

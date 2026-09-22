@@ -1,0 +1,14 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# omarchy:summary=Returns true if external power is connected.
+
+power_supply_path="${OMARCHY_POWER_SUPPLY_PATH:-/sys/class/power_supply}"
+
+for supply in "$power_supply_path"/*; do
+  [[ -r $supply/online && -r $supply/type ]] || continue
+  type=$(<"$supply/type")
+  [[ $type == "Mains" || $type == "USB" ]] || continue
+  [[ $(<"$supply/online") == "1" ]] && exit 0
+done
+
+exit 1

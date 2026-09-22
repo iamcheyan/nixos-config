@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "bar": {
+    "position": "top",
+    "transparent": false,
+    "centerAnchor": "omarchy.clock",
+    "layout": {
+      "left": [
+        {
+          "id": "omarchy.menu"
+        },
+        {
+          "id": "omarchy.workspaces"
+        },
+        {
+          "id": "omarchy.active-window"
+        }
+      ],
+      "center": [
+        {
+          "id": "omarchy.indicators"
+        },
+        {
+          "id": "omarchy.clock",
+          "format": "dddd, d MMMM h:mm AP",
+          "formatAlt": "d MMMM h:mm AP",
+          "verticalFormat": "HH\n—\nmm"
+        },
+        {
+          "id": "omarchy.keyboard-layout"
+        },
+        {
+          "id": "omarchy.weather"
+        },
+        {
+          "id": "omarchy.system-update"
+        }
+      ],
+      "right": [
+        {
+          "id": "iamcheyan.clipboard"
+        },
+        {
+          "id": "omarchy.agents"
+        },
+        {
+          "id": "omarchy.tray"
+        },
+        {
+          "id": "hancore.voxtype-enhance",
+          "middleMouseToggle": true,
+          "recordingAnimation": true
+        },
+        {
+          "id": "omarchy.bluetooth"
+        },
+        {
+          "id": "omarchy.network"
+        },
+        {
+          "id": "omarchy.audio"
+        },
+        {
+          "id": "omarchy.monitor"
+        },
+        {
+          "id": "omarchy.power"
+        }
+      ]
+    }
+  },
+  "plugins": [
+    {
+      "id": "iamcheyan.clipboard"
+    },
+    {
+      "id": "hancore.voxtype-enhance"
+    },
+    {
+      "id": "omarchy.lock"
+    }
+  ],
+  "disabledPlugins": [
+    "omarchy.clipboard",
+    "hancore.overview-workspaces",
+    "iamcheyan.active-window"
+  ]
+}

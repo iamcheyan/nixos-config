@@ -7,7 +7,7 @@
 本仓库的 Quickshell 源码位于：
 
 ```text
-/home/tetsuya/nixos-config/modules/quickshell
+/home/tetsuya/nixos-config/modules/anchor-shell
 ```
 
 正式的 NixOS 配置会把这份目录复制成一个不可变的 Nix store 路径，例如：
@@ -33,7 +33,7 @@
 ## Omarchy 兼容运行时迁移模式
 
 Quickshell 目前还保留 Omarchy 的命令名和目录契约，但运行时副本正在迁移到
-本仓库的 `modules/quickshell/compat/omarchy/`。Labwc 默认继续使用旧的
+本仓库的 `modules/anchor-shell/compat/omarchy/`。Labwc 默认继续使用旧的
 Nixarchy store 副本；验证迁移副本时可以切换到本地兼容副本：
 
 ```bash
@@ -63,7 +63,7 @@ QUICKSHELL_ROOT=/nix/store/<hash>-quickshell-shell
 QUICKSHELL_PLUGINS_DIR=/nix/store/<hash>-quickshell-shell/third-party
 ```
 
-适合日常稳定使用，修改 `modules/quickshell/` 后执行：
+适合日常稳定使用，修改 `modules/anchor-shell/` 后执行：
 
 ```bash
 cd ~/nixos-config
@@ -78,8 +78,8 @@ sudo nixos-rebuild switch --impure --flake .#hx90
 开发模式直接读取 Git 工作树，不需要把源码软链接进 `/nix/store`：
 
 ```text
-QUICKSHELL_ROOT=/home/tetsuya/nixos-config/modules/quickshell
-QUICKSHELL_PLUGINS_DIR=/home/tetsuya/nixos-config/modules/quickshell/third-party
+QUICKSHELL_ROOT=/home/tetsuya/nixos-config/modules/anchor-shell
+QUICKSHELL_PLUGINS_DIR=/home/tetsuya/nixos-config/modules/anchor-shell/third-party
 ```
 
 切换到开发模式：
@@ -113,7 +113,7 @@ Quickshell mode: dev
 不能出现这种混合状态：
 
 ```text
-quickshell -p /home/tetsuya/nixos-config/modules/quickshell
+quickshell -p /home/tetsuya/nixos-config/modules/anchor-shell
 QUICKSHELL_ROOT=/nix/store/<old-hash>-quickshell-shell
 QUICKSHELL_PLUGINS_DIR=/nix/store/<old-hash>-quickshell-shell/third-party
 ```
@@ -137,7 +137,7 @@ tr '\0' '\n' < /proc/$pid/environ | rg '^QUICKSHELL_(ROOT|PLUGINS_DIR|CONFIG)='
 tr '\0' ' ' < /proc/$pid/cmdline
 ```
 
-开发模式应该全部显示 `/home/tetsuya/nixos-config/modules/quickshell`；正式模式应该全部显示同一个 `/nix/store/<hash>-quickshell-shell`。
+开发模式应该全部显示 `/home/tetsuya/nixos-config/modules/anchor-shell`；正式模式应该全部显示同一个 `/nix/store/<hash>-quickshell-shell`。
 
 如果命令行路径和 `QUICKSHELL_*` 环境变量不一致，先停止残留的旧 Quickshell 实例，再通过 `quickshell-mode dev` 或 `quickshell-mode nix` 选择一种模式重新启动。不要同时使用手动 `systemd-run`、labwc autostart 和旧的后台 Quickshell 进程，否则容易出现多个实例和旧环境残留。
 

@@ -1,0 +1,47 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# omarchy:summary=Switch to a Nerd Font, installing it declaratively if needed.
+# omarchy:args=<display-name> <package> <family>
+# omarchy:examples=omarchy install font 'Fira Code' ttf-firacode-nerd 'FiraCode Nerd Font'
+
+# Upstream installs the font and then switches to it:
+#
+#   omarchy-pkg-add <package> && sleep 2 && omarchy-font-set '<family>'
+#
+# The first half cannot work here, and because it is && the second half never
+# ran either -- so the row did nothing at all, even for someone who had already
+# added the font to fonts.packages. Setting a font is just a config change and
+# works fine; only installing one is declarative.
+#
+# So: ask fontconfig first. If the family is there, this is an ordinary font
+# switch. If it is not, hand over to omarchy-pkg-add, which knows the nixpkgs
+# name and which option registers a font.
+set -uo pipefail
+
+name="${1-}"
+package="${2-}"
+family="${3-}"
+
+if [[ -z $name || -z $package || -z $family ]]; then
+  echo "Usage: omarchy-install-font <display-name> <package> <family>" >&2
+  exit 1
+fi
+
+# Captured rather than piped into grep. `fc-list | grep -q` looks obvious and
+# is wrong under `set -o pipefail`: grep -q exits at the first match, fc-list
+# takes SIGPIPE, and the pipeline reports 141 -- so the branch never fired and
+# every font looked uninstalled, including ones fc-list had just listed.
+#
+# -f %{family} rather than matching the whole record: a match anywhere in
+# fc-list output would also fire on a file path that merely contains the name.
+families=$(fc-list -f '%{family}\n' 2>/dev/null || true)
+
+if grep -qiF "$family" <<<"$families"; then
+  echo "$name is already installed; switching to it."
+  exec omarchy-font-set "$family"
+fi
+
+echo "$name is not installed."
+omarchy-pkg-add "$package" || true
+echo "Then pick $name again."
+exit 1

@@ -1,0 +1,123 @@
+# Omarchy's shell for fish.
+#
+# fish is not POSIX, so unlike zsh none of upstream's rc chain can be sourced:
+# `export X=y`, `alias x='y'` and bash's function syntax are all errors here.
+# Hand-translating the lot would mean owning a fork of five files that drift
+# on every Omarchy release, for a shell upstream does not target.
+#
+# So nothing is translated. Everything is *derived* from the same files at
+# shell start, in one bash call:
+#
+#   environment  bash sources envs, prints the result, fish sets it
+#   aliases      bash sources aliases, lists them, fish redefines them
+#   functions    bash names them, fish wraps each one to call back into bash
+#
+# The wrappers are the interesting part: `compress`, `iso2sd`, `tdl` and the
+# rest keep being upstream's bash implementations, running in bash, so they
+# cannot rot against an Omarchy bump. What fish gets is the name.
+#
+# The known limit: a wrapped function runs in its own bash, so one that
+# changes the shell's own state cannot reach back. That is `ga` and `gd` from
+# fns/worktrees, which cd -- they will print where they went and leave fish
+# where it was. Everything else in the chain only touches files and processes.
+#
+# Not carried over: bash's completions and inputrc, as for zsh. fish has its
+# own completion engine and key bindings, and half a port of either is worse
+# than neither.
+
+status is-interactive; or exit 0
+
+if not set -q OMARCHY_PATH
+    set -gx OMARCHY_PATH /nix/store/qa1fnlzxq6mi3ixzhz3zjx9gp7bs66bz-omarchy-4.0.2/share/omarchy
+end
+
+# --- environment, aliases and function names, in one bash ------------------
+# NUL-delimited: alias bodies contain quotes, newlines and $(...), and any
+# line-based split mangles them.
+set -l __omarchy_dump (
+    bash -c '
+        source "$OMARCHY_PATH/default/bash/envs" >/dev/null 2>&1
+        source "$OMARCHY_PATH/default/bash/aliases" >/dev/null 2>&1
+        source "$OMARCHY_PATH/default/bash/functions" >/dev/null 2>&1
+
+        # Only what Omarchy set, not the whole environment: re-exporting PATH
+        # or PWD into fish from a child bash would be actively wrong.
+        for v in EDITOR SUDO_EDITOR BROWSER BAT_THEME MANROFFOPT MANPAGER; do
+            [ -n "${!v}" ] && printf "E %s=%s\0" "$v" "${!v}"
+        done
+
+        # BASH_ALIASES, not `alias -p`: the latter re-quotes bodies the way
+        # *bash* would re-read them, so `ff` comes out wrapped in '\'' and
+        # fish fails to parse the definition. The array holds them raw.
+        for k in "${!BASH_ALIASES[@]}"; do
+            printf "A %s=%s\0" "$k" "${BASH_ALIASES[$k]}"
+        done
+
+        # Functions the chain defines, minus bash internals and the private
+        # helpers upstream prefixes with an underscore.
+        declare -F | awk "{print \$3}" | grep -v "^_" | while IFS= read -r fn; do
+            printf "F %s\0" "$fn"
+        done
+    ' 2>/dev/null | string split0
+)
+
+for entry in $__omarchy_dump
+    set -l kind (string sub -l 1 -- $entry)
+    set -l body (string sub -s 3 -- $entry)
+
+    switch $kind
+        case E
+            set -l name (string split -m1 = -- $body)[1]
+            set -l value (string split -m1 = -- $body)[2]
+            # -gx, not -U: these describe this Omarchy, and a universal
+            # variable would outlive it and survive an uninstall.
+            set -gx $name $value
+
+        case A
+            set -l name (string split -m1 = -- $body)[1]
+            set -l value (string split -m1 = -- $body)[2]
+            # Bodies are raw bash. Most are also valid fish -- `cd ..`, and
+            # fish has taken $(...) since 3.4 and && since 3.0 -- but not all
+            # of them are, and one that is not must not take the rest of the
+            # file down with it.
+            if not alias $name="$value" 2>/dev/null
+                set -a __omarchy_skipped $name
+            end
+
+        case F
+            # Wrap, do not translate. The body stays upstream's bash.
+            #
+            # `bash` is passed as $0 so that "$@" starts at the real first
+            # argument -- without it the function silently loses one.
+            eval "function $body
+                bash -c 'source \"\$OMARCHY_PATH/default/bash/functions\"; $body \"\$@\"' bash \$argv
+            end"
+    end
+end
+
+# An alias fish could not express is worth saying so once, rather than
+# either failing the whole file or pretending it is there.
+if set -q __omarchy_skipped
+    echo "nixarchy: these Omarchy aliases are not valid fish: $__omarchy_skipped" >&2
+    set -e __omarchy_skipped
+end
+
+# --- the tools, in fish ----------------------------------------------------
+# Same guards as upstream's bash init, asking each tool for fish instead.
+if command -q mise
+    mise activate fish | source
+end
+
+if test "$TERM" != dumb; and command -q starship
+    starship init fish | source
+end
+
+if command -q zoxide
+    zoxide init fish | source
+end
+
+# fzf's fish integration, from wherever nixpkgs put it rather than /usr/share.
+if command -q fzf
+    set -l fzf_share (dirname (dirname (realpath (command -v fzf))))/share/fzf
+    test -f $fzf_share/key-bindings.fish; and source $fzf_share/key-bindings.fish; and fzf_key_bindings
+end

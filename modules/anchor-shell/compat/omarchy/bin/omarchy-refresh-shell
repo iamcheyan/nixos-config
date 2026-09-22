@@ -1,0 +1,11 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# omarchy:summary=Reset shell.json to Omarchy defaults
+# omarchy:examples=omarchy refresh shell
+
+set -euo pipefail
+
+omarchy-refresh-config omarchy/shell.json
+omarchy-bar defaults
+
+omarchy-restart-shell

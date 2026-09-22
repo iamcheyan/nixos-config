@@ -22,8 +22,8 @@ config_dir="${QUICKSHELL_ROOT:-${XDG_CONFIG_HOME:-$HOME/.config}/quickshell}"
 mode_file="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/mode"
 runtime_file="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/runtime"
 if [ -r "$mode_file" ] && [ "$(cat "$mode_file")" = dev ] \
-    && [ -f /home/tetsuya/nixos-config/modules/quickshell/shell.qml ]; then
-    config_dir=/home/tetsuya/nixos-config/modules/quickshell
+    && [ -f /home/tetsuya/nixos-config/modules/anchor-shell/shell.qml ]; then
+    config_dir=/home/tetsuya/nixos-config/modules/anchor-shell
 fi
 export QUICKSHELL_ROOT="$config_dir"
 export QUICKSHELL_CONFIG="${QUICKSHELL_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/shell.json}"

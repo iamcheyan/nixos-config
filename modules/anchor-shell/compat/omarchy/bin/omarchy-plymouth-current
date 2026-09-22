@@ -1,0 +1,24 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# omarchy:summary=Show the current Plymouth theme
+
+# Upstream works out which splash is installed by comparing
+# /usr/share/plymouth/themes/omarchy/logo.png against each theme's unlock.png.
+# That file does not exist here -- NixOS puts themes under /etc/plymouth/themes
+# -- so every comparison failed and this printed nothing at all, which the
+# switcher renders as no current selection.
+#
+# The honest answer on NixOS is whatever plymouthd is configured to use, which
+# is a single value written by the rebuild rather than something to deduce from
+# file contents.
+set -uo pipefail
+
+theme=$( (grep -h '^Theme=' /etc/plymouth/plymouthd.conf 2>/dev/null |
+  head -1 | cut -d= -f2) || true)
+
+# "default" is what the switcher expects for Omarchy's own splash, and it is
+# the one nixarchy selects.
+case "$theme" in
+  omarchy | "") echo default ;;
+  *) echo "$theme" ;;
+esac

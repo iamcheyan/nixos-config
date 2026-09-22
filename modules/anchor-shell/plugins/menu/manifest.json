@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "omarchy.menu",
+  "name": "Omarchy menu",
+  "version": "1.0.0",
+  "author": "Omarchy",
+  "description": "Applications launcher button for the Wofi menu",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Omarchy menu",
+    "description": "Launches the Omarchy menu",
+    "category": "Compositor",
+    "allowMultiple": false
+  }
+}
