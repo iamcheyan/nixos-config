@@ -5,7 +5,8 @@
 # omarchy:args=[toggle|stay-awake|allow-idle|status]
 # omarchy:examples=omarchy toggle idle | omarchy toggle idle stay-awake | omarchy-toggle-idle --status
 
-STATE_DIR="$HOME/.local/state/omarchy/indicators"
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
+STATE_DIR="$ANCHOR_SHELL_STATE_DIR/indicators"
 STATE_FILE="$STATE_DIR/stay-awake"
 
 stay_awake_enabled() {

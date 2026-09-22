@@ -12,7 +12,8 @@
 #   --set <name> [lat,lon]  store a location
 #   --clear             return to IP auto-detect
 
-LOC_FILE="$HOME/.local/state/omarchy/settings/weather.json"
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
+LOC_FILE="$ANCHOR_SHELL_STATE_DIR/settings/weather.json"
 COORDS_PATTERN='^(-?[0-9]+(\.[0-9]+)?),(-?[0-9]+(\.[0-9]+)?)$'
 
 case "${1:-}" in

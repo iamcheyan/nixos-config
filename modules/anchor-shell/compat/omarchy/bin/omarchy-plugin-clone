@@ -6,7 +6,8 @@
 
 set -euo pipefail
 
-PLUGINS_DIR="$HOME/.config/omarchy/plugins"
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
+PLUGINS_DIR="$ANCHOR_SHELL_CONFIG_DIR/plugins"
 
 fail() {
   echo "omarchy-plugin-clone: $*" >&2

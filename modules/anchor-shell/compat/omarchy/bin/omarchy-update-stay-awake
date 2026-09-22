@@ -6,10 +6,11 @@
 
 set -e
 
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
 state_dir="${XDG_RUNTIME_DIR:-/tmp/omarchy-$UID}/omarchy-update-stay-awake"
 idle_owner_file="$state_dir/idle-owner"
 inhibit_pid_file="$state_dir/inhibit-pid"
-stay_awake_state="$HOME/.local/state/omarchy/indicators/stay-awake"
+stay_awake_state="$ANCHOR_SHELL_STATE_DIR/indicators/stay-awake"
 
 process_start_time() {
   local process_pid="$1"

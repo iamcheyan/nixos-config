@@ -6,7 +6,8 @@
 # cost an extra wttr.in request when nothing is set; the bare j1 fetch already
 # auto-detects by IP.
 query=""
-if [[ -s "$HOME/.local/state/omarchy/settings/weather.json" ]]; then
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
+if [[ -s "$ANCHOR_SHELL_STATE_DIR/settings/weather.json" ]]; then
   location=$(omarchy-weather-location 2>/dev/null)
   [[ -n $location ]] && query=$(jq -rn --arg location "$location" '$location | @uri')
 fi

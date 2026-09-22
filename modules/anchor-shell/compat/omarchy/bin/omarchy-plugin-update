@@ -9,7 +9,8 @@ set -euo pipefail
 export GIT_TERMINAL_PROMPT=0
 export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -oBatchMode=yes}"
 
-PLUGINS_DIR="$HOME/.config/omarchy/plugins"
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
+PLUGINS_DIR="$ANCHOR_SHELL_CONFIG_DIR/plugins"
 ASSUME_YES=0
 UPDATED_ANY=0
 

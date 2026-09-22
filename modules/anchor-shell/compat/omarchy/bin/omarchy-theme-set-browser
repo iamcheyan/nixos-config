@@ -5,7 +5,8 @@
 
 source "$OMARCHY_PATH/install/helpers/browser-policy.sh"
 
-CHROMIUM_THEME=$HOME/.local/state/omarchy/current/theme/chromium.theme
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
+CHROMIUM_THEME="$ANCHOR_SHELL_STATE_DIR/current/theme/chromium.theme"
 THEME_HEX_COLOR=$BROWSER_POLICY_DEFAULT_COLOR
 
 if [[ -f $CHROMIUM_THEME ]]; then

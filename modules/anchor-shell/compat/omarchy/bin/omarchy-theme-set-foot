@@ -3,7 +3,8 @@
 # omarchy:summary=Apply current Omarchy theme colors to running Foot terminals
 # omarchy:hidden=true
 
-colors_toml=$HOME/.local/state/omarchy/current/theme/colors.toml
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
+colors_toml="$ANCHOR_SHELL_STATE_DIR/current/theme/colors.toml"
 
 if [[ ! -f $colors_toml ]] || ! pgrep -x foot >/dev/null; then
   exit 0

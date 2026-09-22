@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Path overrides only. Command names and historical behavior stay intact.
+ANCHOR_SHELL_CONFIG_DIR="${ANCHOR_SHELL_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/omarchy}"
+ANCHOR_SHELL_STATE_DIR="${ANCHOR_SHELL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/omarchy}"

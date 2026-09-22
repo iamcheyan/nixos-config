@@ -18,7 +18,8 @@ while IFS= read -r manifest; do
   paths+=("$manifest")
 done < <(find "$OMARCHY_PATH/shell/plugins" -mindepth 2 -maxdepth 4 -type f \( -name manifest.json -o -name '*.manifest.json' \) | sort)
 
-user_dir="$HOME/.config/omarchy/plugins"
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
+user_dir="$ANCHOR_SHELL_CONFIG_DIR/plugins"
 if [[ -d $user_dir ]]; then
   while IFS= read -r manifest; do
     paths+=("$manifest")

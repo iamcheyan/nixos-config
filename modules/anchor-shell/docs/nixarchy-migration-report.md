@@ -114,6 +114,12 @@ Labwc 首次启动时会把不存在的布局、主题、锁屏设置、通知�
 原有数据。Quickshell 的 `mode`、`runtime`、用户插件目录和配置文件也已经
 改为 Anchor Shell 命名空间；旧路径只作为读取和一次性迁移来源保留。
 
+兼容命令仍保留原来的 `omarchy-*` 名称、参数和调用方式。剪贴板、天气、主题、
+切换状态和用户插件管理等共享命令只改变内部可变数据路径，读取
+`ANCHOR_SHELL_CONFIG_DIR` / `ANCHOR_SHELL_STATE_DIR`；变量未设置时仍回退到旧的
+Omarchy 路径。这样后续迁移新插件时仍可沿用原插件接口，也不会改变 Hyprland
+会话的旧目录。
+
 ## 4. 当前运行时依赖关系
 
 Labwc 当前的实际关系如下：
@@ -191,6 +197,8 @@ Nixarchy 目前仍在系统配置中，因为 Hyprland/Omarchy 会话尚未迁�
 - 当前用户状态目录已切换到 `~/.local/state/anchor-shell/`；
 - Anchor Shell 插件注册器只扫描仓库插件和 `~/.config/anchor-shell/plugins/`，
   不扫描 Hyprland 的 `~/.config/omarchy/plugins/`。
+- 共享 `omarchy-*` 兼容命令通过 Anchor Shell 路径变量读写剪贴板、天气、主题和
+  用户插件数据；命令名称和参数保持不变。
 
 ## 8. 回滚方式
 

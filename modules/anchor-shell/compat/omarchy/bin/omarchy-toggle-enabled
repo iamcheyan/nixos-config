@@ -3,4 +3,5 @@
 # omarchy:summary=Check if a toggle is enabled (flag file exists)
 # omarchy:args=<flag-name>
 
-[[ -f "$HOME/.local/state/omarchy/toggles/$1" ]]
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
+[[ -f "$ANCHOR_SHELL_STATE_DIR/toggles/$1" ]]

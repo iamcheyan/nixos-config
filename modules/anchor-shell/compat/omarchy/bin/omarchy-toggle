@@ -10,7 +10,8 @@ fi
 
 FLAG_NAME="$1"
 ACTION="${2:-toggle}"
-FLAG="$HOME/.local/state/omarchy/toggles/$FLAG_NAME"
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
+FLAG="$ANCHOR_SHELL_STATE_DIR/toggles/$FLAG_NAME"
 
 enable() {
   mkdir -p "$(dirname "$FLAG")"

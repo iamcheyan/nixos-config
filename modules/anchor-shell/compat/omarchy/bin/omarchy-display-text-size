@@ -23,7 +23,8 @@ GKEY_NAME="text-scaling-factor"
 TERM_DEFAULT_PT=9
 SHELL_DEFAULT_PX=12
 
-shell_config="$HOME/.config/omarchy/shell.toml"
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
+shell_config="$ANCHOR_SHELL_CONFIG_DIR/shell.toml"
 
 usage() {
   echo "Usage: omarchy-display-text-size [size|reset]"

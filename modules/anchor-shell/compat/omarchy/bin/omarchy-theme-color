@@ -17,7 +17,8 @@
 # Theme mode precedence: `mode` key, legacy `theme_type` key, a light.mode
 # file beside the colors.toml, background luminance auto-detect, dark.
 
-COLORS_FILE="$HOME/.local/state/omarchy/current/theme/colors.toml"
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
+COLORS_FILE="$ANCHOR_SHELL_STATE_DIR/current/theme/colors.toml"
 OUTPUT=""
 QUERY_KEY=""
 QUERY_FALLBACK=""

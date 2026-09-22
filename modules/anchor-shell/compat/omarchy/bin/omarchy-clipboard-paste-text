@@ -6,6 +6,8 @@
 # omarchy:examples=omarchy clipboard paste text "hello" | omarchy clipboard paste text --shift-insert "hello"
 # omarchy:hidden=true
 
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
+
 use_shift_insert=false
 copy_only=false
 history_index=""
@@ -32,7 +34,7 @@ while (( $# > 0 )); do
 done
 
 copy_history_entry() {
-  local history_path="$HOME/.local/state/omarchy/clipboard-history.json"
+  local history_path="$ANCHOR_SHELL_STATE_DIR/clipboard-history.json"
 
   [[ $history_index =~ ^[0-9]+$ ]] || exit
   jq -e --argjson index "$history_index" '.[$index].type == "text" and (.[$index].text | type == "string")' "$history_path" >/dev/null || exit

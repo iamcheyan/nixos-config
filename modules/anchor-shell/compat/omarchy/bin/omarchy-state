@@ -4,7 +4,8 @@
 # omarchy:args=<set|clear> <state-name-or-pattern>
 # omarchy:hidden=true
 
-STATE_DIR="$HOME/.local/state/omarchy"
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
+STATE_DIR="$ANCHOR_SHELL_STATE_DIR"
 mkdir -p "$STATE_DIR"
 
 COMMAND="$1"

@@ -21,7 +21,8 @@ fi
 # leaves this non-zero, which refuses the URL rather than cloning it.
 omarchy-git-url-check "$REPO_URL" || exit 1
 
-THEMES_DIR="$HOME/.config/omarchy/themes"
+. "${OMARCHY_PATH:-.}/bin/omarchy-paths"
+THEMES_DIR="$ANCHOR_SHELL_CONFIG_DIR/themes"
 
 # Strip user@host: prefix from scp-style SSH URLs so basename sees just the path.
 # git reads a URL as scp-style when a colon appears before any slash, so the path

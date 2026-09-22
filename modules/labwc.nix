@@ -126,6 +126,11 @@ let
     if [ ! -e "$anchor_config_dir/shell.json" ] && [ -f "$legacy_config_dir/shell.json" ]; then
       ${pkgs.coreutils}/bin/cp "$legacy_config_dir/shell.json" "$anchor_config_dir/shell.json"
     fi
+    for subdir in themes backgrounds themed; do
+      if [ ! -e "$anchor_config_dir/$subdir" ] && [ -d "$legacy_omarchy_config_dir/$subdir" ]; then
+        ${pkgs.coreutils}/bin/cp -a "$legacy_omarchy_config_dir/$subdir" "$anchor_config_dir/$subdir"
+      fi
+    done
     for subdir in current notifications settings toggles indicators; do
       if [ ! -e "$anchor_state_dir/$subdir" ] && [ -d "$legacy_omarchy_state_dir/$subdir" ]; then
         ${pkgs.coreutils}/bin/cp -a "$legacy_omarchy_state_dir/$subdir" "$anchor_state_dir/$subdir"
