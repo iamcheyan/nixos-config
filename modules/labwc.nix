@@ -112,8 +112,6 @@ let
     export QUICKSHELL_OMARCHY_LEGACY_ROOT="${quickshellLegacyRoot}"
     export QUICKSHELL_ROOT="${quickshellRoot}"
     export QUICKSHELL_PLUGINS_DIR="${quickshellRoot}/third-party"
-    export QUICKSHELL_ISOLATED_PLUGIN_SCAN=1
-    export QUICKSHELL_ISOLATED_PLUGIN_IDS="iamcheyan.clipboard,hancore.voxtype-enhance,iamcheyan.lock-screen"
     export QUICKSHELL_CONFIG="$HOME/.config/quickshell/shell.json"
     export XDG_CURRENT_DESKTOP=labwc
     export XDG_SESSION_DESKTOP=labwc
@@ -134,7 +132,6 @@ let
       WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP \
       XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS \
       QUICKSHELL_ROOT QUICKSHELL_PLUGINS_DIR QUICKSHELL_CONFIG \
-      QUICKSHELL_ISOLATED_PLUGIN_SCAN QUICKSHELL_ISOLATED_PLUGIN_IDS \
       NIXARCHY_ROOT OMARCHY_PATH
     # Refresh systemd's environment for this session's Wayland socket and
     # restart Fcitx5 through the compositor-neutral helper.
@@ -188,8 +185,6 @@ let
       export PATH="$omarchy_root/bin:${pkgs.coreutils}/bin:${pkgs.bash}/bin:$PATH"
       export QUICKSHELL_ROOT="$quickshell_root"
       export QUICKSHELL_PLUGINS_DIR="$quickshell_root/third-party"
-      export QUICKSHELL_ISOLATED_PLUGIN_SCAN=1
-      export QUICKSHELL_ISOLATED_PLUGIN_IDS="iamcheyan.clipboard,hancore.voxtype-enhance,iamcheyan.lock-screen"
       ${quickshellWithKirigami}/bin/quickshell -n -p "$quickshell_root"
       status=$?
       # A clean exit is also a restart request: labwc -r can tear down the

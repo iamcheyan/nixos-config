@@ -82,6 +82,7 @@
   ],
   "disabledPlugins": [
     "omarchy.clipboard",
+    "omarchy.lock",
     "hancore.overview-workspaces",
     "iamcheyan.active-window"
   ]
