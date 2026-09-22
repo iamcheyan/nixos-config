@@ -2,6 +2,7 @@ import QtQuick
 import QtQml.Models
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 
 import qs.Commons
 
