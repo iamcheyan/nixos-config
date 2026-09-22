@@ -77,12 +77,11 @@
       "id": "hancore.voxtype-enhance"
     },
     {
-      "id": "iamcheyan.lock-screen"
+      "id": "omarchy.lock"
     }
   ],
   "disabledPlugins": [
     "omarchy.clipboard",
-    "omarchy.lock",
     "hancore.overview-workspaces",
     "iamcheyan.active-window"
   ]

@@ -3,12 +3,11 @@
   "id": "omarchy.lock",
   "name": "Lock Screen",
   "version": "1.0.0",
-  "author": "Omarchy",
-  "description": "Quickshell session lock with separate password and fingerprint PAM flows.",
-  "kinds": [
-    "service"
-  ],
+  "author": "iamcheyan",
+  "license": "MIT",
+  "description": "Native Omarchy session locking with the iamcheyan lock-screen interface.",
   "keepLoaded": true,
+  "kinds": ["service"],
   "entryPoints": {
     "service": "Service.qml"
   }

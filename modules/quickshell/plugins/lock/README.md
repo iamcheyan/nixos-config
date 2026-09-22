@@ -301,3 +301,9 @@ omarchy plugin validate .
 ## ライセンス
 
 MIT。詳細は [LICENSE](LICENSE) を参照してください。
+# Repository ownership
+
+This copy is managed by `/home/tetsuya/nixos-config` for the Labwc
+Quickshell session. Its runtime id remains `omarchy.lock` for IPC and
+configuration compatibility, but Labwc does not load the external
+`~/.config/omarchy/plugins/iamcheyan.lock-screen` copy.

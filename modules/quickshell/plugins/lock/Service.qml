@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -9,7 +10,7 @@ Item {
   id: root
 
   property var shell: null
-  property string integrationPath: ""
+  property string omarchyPath: ""
 
   readonly property string home: Quickshell.env("HOME")
   readonly property string stateHome: home + "/.local/state"
@@ -29,6 +30,7 @@ Item {
   property int failedAttempts: 0
   property string backgroundPath: ""
   property int backgroundVersion: 0
+  property int blankDelayMs: 5000
   property string lastEvent: "init"
   property string lastEventAt: ""
   property bool strandedLock: false
@@ -107,6 +109,22 @@ Item {
     if (!fingerprintCheckProc.running) fingerprintCheckProc.running = true
   }
 
+  function loadLockConfig(raw) {
+    var parsed = {}
+    try {
+      parsed = JSON.parse(String(raw || "{}")) || {}
+    } catch (error) {
+      console.warn("omarchy lock: invalid lock-screen.json", error)
+      blankDelayMs = 5000
+      return
+    }
+
+    var seconds = Number(parsed.blankDelaySeconds)
+    blankDelayMs = isFinite(seconds) && seconds >= 0
+      ? Math.round(seconds * 1000)
+      : 5000
+  }
+
   function logEvent(event) {
     lastEvent = event
     lastEventAt = new Date().toISOString()
@@ -170,7 +188,9 @@ Item {
   }
 
   function runBlank() {
-    if (!blankProcess.running) blankProcess.running = true
+    // Keep the only active output alive while WlSessionLock owns the surface.
+    // Turning off the output creates a placeholder screen on this machine.
+    logEvent("blank-skipped: keep-output-alive")
   }
 
   function submitPassword(value) {
@@ -396,6 +416,7 @@ Item {
       root.strandedLockResolved = true
 
       // A lock taken while this was in flight is this shell's own.
+      root.strandedLock = false
       root.strandedLock = exitCode === 0 && !root.locked && !root.lockRequested
       root.recoverStrandedLock()
     }
@@ -413,7 +434,7 @@ Item {
 
   Timer {
     id: idleBlankTimer
-    interval: 5000
+    interval: root.blankDelayMs
     repeat: false
     property double armedAt: 0
     onTriggered: {
@@ -490,12 +511,20 @@ Item {
     onFileChanged: reload()
   }
 
+  FileView {
+    path: root.home + "/.config/omarchy/lock-screen.json"
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.loadLockConfig(text())
+    onLoadFailed: root.blankDelayMs = 5000
+    onFileChanged: reload()
+  }
+
   // No lock before PAM is known good. An answer from before then may be stale --
   // the failsafe can be cleared from a TTY -- so re-ask rather than act on it.
   onPasswordPamConfiguredChanged: {
     if (!passwordPamConfigured) return
 
-    strandedLock = false
     strandedLockResolved = false
     strandedLockRetryTimer.rearm()
     checkStrandedLock()
@@ -512,7 +541,8 @@ Item {
 
     function lock(): string {
       if (!root.passwordPamConfigured) return "missing-pam"
-      if (!root.locked && !root.beginLock()) return "failed"
+      if (root.locked) return "ok"
+      if (!root.beginLock()) return "failed"
       return "ok"
     }
 
@@ -531,6 +561,7 @@ Item {
         passwordPam: root.passwordPamConfigured,
         fingerprint: root.fingerprintConfigured,
         authenticating: root.authenticating,
+        blankDelayMs: root.blankDelayMs,
         lastEvent: root.lastEvent,
         lastEventAt: root.lastEventAt
       })
