@@ -943,11 +943,11 @@
     "shizuka": {
       "flake": false,
       "locked": {
-        "lastModified": 1788691206,
-        "narHash": "sha256-UUn/WBZEdAKU/nlPtqg8IK96YAP3I+Y4pzFhy1ozYKg=",
+        "lastModified": 1790055240,
+        "narHash": "sha256-tCwhpETmAlSiNAhwuvvgdisCfMmp0ChuBR60YbTdJdU=",
         "ref": "main",
-        "rev": "23134e390dcf7bc06abb4bb0758d134e95b17979",
-        "revCount": 13,
+        "rev": "2cc7c60b3a914987ed87fac23d87a5b42bb3a4cd",
+        "revCount": 14,
         "type": "git",
         "url": "https://github.com/iamcheyan/shizuka.git"
       },
