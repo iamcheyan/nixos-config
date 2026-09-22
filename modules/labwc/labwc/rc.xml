@@ -71,10 +71,10 @@
 
     <!-- 编辑 (macOS 风格: Win → Ctrl) -->
     <keybind key="W-c">
-      <action name="Execute" command="wtype -M Ctrl c -m Ctrl" />
+      <action name="Execute" command="~/.config/labwc/scripts/universal-clipboard copy" />
     </keybind>
     <keybind key="W-v">
-      <action name="Execute" command="wtype -M Ctrl v -m Ctrl" />
+      <action name="Execute" command="~/.config/labwc/scripts/universal-clipboard paste" />
     </keybind>
     <keybind key="W-C-v">
       <action name="Execute" command="~/.config/labwc/scripts/clipboard-history" />
@@ -86,7 +86,7 @@
       <action name="Execute" command="~/.config/labwc/scripts/clipboard-history" />
     </keybind>
     <keybind key="W-x">
-      <action name="Execute" command="wtype -M Ctrl x -m Ctrl" />
+      <action name="Execute" command="~/.config/labwc/scripts/universal-clipboard cut" />
     </keybind>
     <keybind key="W-z">
       <action name="Execute" command="wtype -M Ctrl z -m Ctrl" />
