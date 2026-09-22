@@ -30,6 +30,26 @@
 
 ## 两种模式
 
+## Omarchy 兼容运行时迁移模式
+
+Quickshell 目前还保留 Omarchy 的命令名和目录契约，但运行时副本正在迁移到
+本仓库的 `modules/quickshell/compat/omarchy/`。Labwc 默认继续使用旧的
+Nixarchy store 副本；验证迁移副本时可以切换到本地兼容副本：
+
+```bash
+~/.local/bin/quickshell-mode runtime compat
+~/.local/bin/quickshell-mode status
+```
+
+回退到原来的 Nixarchy store 副本：
+
+```bash
+~/.local/bin/quickshell-mode runtime legacy
+```
+
+两种运行时都保留 `NIXARCHY_ROOT`、`OMARCHY_PATH` 和 `omarchy-*` 命名，因此
+现有 QML 与插件不需要立即改名。迁移完成并验证前，不要卸载 Nixarchy/Omarchy。
+
 ### Nix 正式模式
 
 正式模式使用 Nix store 路径：

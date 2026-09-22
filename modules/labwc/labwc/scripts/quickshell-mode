@@ -2,10 +2,23 @@
 set -eu
 
 mode_file="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/mode"
+runtime_file="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/runtime"
 case "${1:-}" in
     dev|nix)
         mkdir -p "$(dirname "$mode_file")"
         printf '%s\n' "$1" > "$mode_file"
+        ;;
+    runtime)
+        case "${2:-}" in
+            compat|legacy)
+                mkdir -p "$(dirname "$runtime_file")"
+                printf '%s\n' "$2" > "$runtime_file"
+                ;;
+            *)
+                printf 'Usage: %s runtime {compat|legacy}\n' "$0" >&2
+                exit 2
+                ;;
+        esac
         ;;
     status)
         if [ -r "$mode_file" ]; then
@@ -13,10 +26,15 @@ case "${1:-}" in
         else
             printf 'Quickshell mode: nix (default)\n'
         fi
+        if [ -r "$runtime_file" ]; then
+            printf 'Omarchy runtime: %s\n' "$(cat "$runtime_file")"
+        else
+            printf 'Omarchy runtime: legacy (default)\n'
+        fi
         exit 0
         ;;
     *)
-        printf 'Usage: %s {dev|nix|status}\n' "$0" >&2
+        printf 'Usage: %s {dev|nix|runtime {compat|legacy}|status}\n' "$0" >&2
         exit 2
         ;;
 esac

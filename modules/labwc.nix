@@ -10,6 +10,12 @@ let
   quickshellRoot = pkgs.runCommand "quickshell-shell" { } ''
     cp -r "${./quickshell}"/. "$out/"
   '';
+  # Local compatibility copy of the Omarchy runtime.  Keep the original
+  # Nixarchy-provided tree available until the migration has been verified.
+  quickshellCompatRoot = pkgs.runCommand "quickshell-omarchy-compat" { } ''
+    cp -r "${./quickshell/compat/omarchy}"/. "$out/"
+  '';
+  quickshellLegacyRoot = "${config.programs.nixarchy.package}/share/omarchy";
   quickshellDevRoot = "/home/tetsuya/nixos-config/modules/quickshell";
 
   # Quickshell's Qt wrapper only exports its own QML modules. The Omarchy
@@ -102,7 +108,8 @@ let
   labwcAutostart = pkgs.writeText "labwc-autostart" ''
     # Labwc starts this file only for the Labwc session.  The regular Omarchy
     # launcher remains responsible for the Hyprland session.
-    export NIXARCHY_ROOT="${config.programs.nixarchy.package}/share/omarchy"
+    export QUICKSHELL_OMARCHY_COMPAT_ROOT="${quickshellCompatRoot}"
+    export QUICKSHELL_OMARCHY_LEGACY_ROOT="${quickshellLegacyRoot}"
     export QUICKSHELL_ROOT="${quickshellRoot}"
     export QUICKSHELL_PLUGINS_DIR="${quickshellRoot}/third-party"
     export QUICKSHELL_CONFIG="$HOME/.config/quickshell/shell.json"
@@ -124,7 +131,8 @@ let
     ${pkgs.systemd}/bin/systemctl --user import-environment \
       WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP \
       XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS \
-      QUICKSHELL_ROOT QUICKSHELL_PLUGINS_DIR QUICKSHELL_CONFIG
+      QUICKSHELL_ROOT QUICKSHELL_PLUGINS_DIR QUICKSHELL_CONFIG \
+      NIXARCHY_ROOT OMARCHY_PATH
     # Refresh systemd's environment for this session's Wayland socket and
     # restart Fcitx5 through the compositor-neutral helper.
     "$HOME/.local/bin/nixarchy-import-session-environment" &
@@ -162,11 +170,19 @@ let
     # launch so `quickshell-mode dev` can switch the source without a rebuild.
     while true; do
       quickshell_root="${quickshellRoot}"
+      omarchy_root="${quickshellLegacyRoot}"
+      if [ -r "$HOME/.config/quickshell/runtime" ] \
+        && [ "$(cat "$HOME/.config/quickshell/runtime")" = compat ]; then
+        omarchy_root="${quickshellCompatRoot}"
+      fi
       if [ -r "$HOME/.config/quickshell/mode" ] \
         && [ "$(cat "$HOME/.config/quickshell/mode")" = dev ] \
         && [ -f "${quickshellDevRoot}/shell.qml" ]; then
         quickshell_root="${quickshellDevRoot}"
       fi
+      export NIXARCHY_ROOT="$omarchy_root"
+      export OMARCHY_PATH="$omarchy_root"
+      export PATH="$omarchy_root/bin:${pkgs.coreutils}/bin:${pkgs.bash}/bin:$PATH"
       export QUICKSHELL_ROOT="$quickshell_root"
       export QUICKSHELL_PLUGINS_DIR="$quickshell_root/third-party"
       ${quickshellWithKirigami}/bin/quickshell -n -p "$quickshell_root"
