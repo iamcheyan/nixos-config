@@ -25,9 +25,15 @@
       <action name="ToggleMaximize" />
     </keybind>
 
-    <!-- 剪贴板 (Super+V) -->
+    <!-- Omarchy-compatible universal clipboard -->
+    <keybind key="W-c">
+      <action name="Execute" command="~/.config/labwc/scripts/universal-clipboard copy" />
+    </keybind>
     <keybind key="W-v">
-      <action name="Execute" command="~/.config/cliphist/cliphist-fuzzel" />
+      <action name="Execute" command="~/.config/labwc/scripts/universal-clipboard paste" />
+    </keybind>
+    <keybind key="W-x">
+      <action name="Execute" command="~/.config/labwc/scripts/universal-clipboard cut" />
     </keybind>
 
 

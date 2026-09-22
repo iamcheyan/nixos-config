@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Omarchy-compatible universal clipboard shortcuts for Labwc/Sway/KDE.
+# Normal applications receive Ctrl+C/V. Terminal applications receive the
+# terminal-safe Ctrl+Insert / Shift+Insert equivalents, matching Omarchy's
+# default/hypr/bindings/clipboard.lua behavior.
+
+action="${1:-}"
+case "$action" in
+  copy|paste|cut) ;;
+  *)
+    printf 'Usage: %s {copy|paste|cut}\n' "$0" >&2
+    exit 2
+    ;;
+esac
+
+qs_bin="$(command -v quickshell 2>/dev/null || true)"
+active_app=""
+if [[ -n "$qs_bin" ]]; then
+  pid="$(quickshell list --all 2>/dev/null | sed -n 's/  Process ID: \([0-9][0-9]*\)/\1/p' | head -n 1)"
+  if [[ "$pid" =~ ^[0-9]+$ ]]; then
+    active_app="$(quickshell ipc --pid "$pid" call shell activeAppId 2>/dev/null || true)"
+  fi
+fi
+
+active_app="${active_app,,}"
+is_terminal=false
+if [[ "$active_app" =~ (foot|kitty|alacritty|ghostty|wezterm|konsole|gnome-terminal|xfce4-terminal|xterm|terminal) ]]; then
+  is_terminal=true
+fi
+
+case "$action:$is_terminal" in
+  copy:true)  exec wtype -M ctrl -k Insert -m ctrl ;;
+  paste:true) exec wtype -M shift -k Insert -m shift ;;
+  cut:*)      exec wtype -M ctrl x -m ctrl ;;
+  copy:*)     exec wtype -M ctrl c -m ctrl ;;
+  paste:*)    exec wtype -M ctrl v -m ctrl ;;
+esac

@@ -17,6 +17,9 @@
   导出 `NIXARCHY_ROOT`、`OMARCHY_PATH` 和原有 `omarchy-*` 命名。
 - `quickshell-topbar`：可供 Labwc、Sway、KDE Wayland 复用的通用启动入口。
   应用启动会优先使用 `uwsm-app`，没有该命令时回退到普通 argv 启动。
+- Omarchy 的统一复制/粘贴逻辑已迁入
+  `modules/labwc/labwc/scripts/universal-clipboard`，保留终端使用
+  Ctrl+Insert/Shift+Insert、普通应用使用 Ctrl+C/V 的行为。
 
 ## 当前仍保留的外部接线
 

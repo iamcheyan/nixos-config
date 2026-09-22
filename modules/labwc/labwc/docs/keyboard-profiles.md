@@ -28,6 +28,13 @@ Therefore the physical shortcuts are:
 
 Control remains Control in every profile.
 
+The `Command/Super+C`, `V`, and `X` bindings use
+`~/.config/labwc/scripts/universal-clipboard`. It asks the running Quickshell
+for the focused application ID. Normal applications receive Ctrl+C/V; terminal
+applications receive Ctrl+Insert/Shift+Insert, matching Omarchy's universal
+clipboard behavior. Clipboard history remains on `Command/Super+Ctrl+V` and
+`F13`.
+
 ## Profile definitions
 
 ### Mac JIS
