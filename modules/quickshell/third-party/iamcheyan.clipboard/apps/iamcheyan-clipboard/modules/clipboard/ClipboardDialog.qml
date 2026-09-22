@@ -75,7 +75,9 @@ Item {
         // can briefly be 0 right after show — that would clamp the panel to
         // the left edge (clamp(0-460-4, 4, 4) = 4). Fall back to the screen
         // geometry; onWidthChanged re-places once the real width arrives.
-        const w = Math.max(width, screen?.width ?? 0) || 1280;
+        const w = Math.max(width, screen?.width ?? 0);
+        if (w <= 0)
+            return;
         menuCard.x = clamp(w - menuWidth - barRightMargin, barRightMargin,
             Math.max(barRightMargin, w - menuWidth - barRightMargin));
         menuCard.y = barHeight + barTopGap

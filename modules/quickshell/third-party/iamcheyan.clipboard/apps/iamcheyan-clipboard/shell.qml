@@ -317,8 +317,8 @@ ShellRoot {
             right: true
         }
 
-        implicitWidth: screen?.width ?? 1280
-        implicitHeight: screen?.height ?? 720
+        implicitWidth: screen?.width ?? 0
+        implicitHeight: screen?.height ?? 0
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.namespace: "quickshell:clipboard"
         WlrLayershell.layer: WlrLayer.Overlay
