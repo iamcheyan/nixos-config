@@ -66,7 +66,6 @@ pkill -x qs 2>/dev/null || true
 for _pid in $(ps -eo pid=,comm= | awk '$2 ~ /quickshell/ {print $1}'); do
     [ "$_pid" = "$$" ] || kill "$_pid" 2>/dev/null || true
 done
-pkill -x waybar 2>/dev/null || true
 "$HOME/.config/labwc/scripts/quickshell" \
     >"${XDG_RUNTIME_DIR:-/tmp}/quickshell-labwc.log" 2>&1 &
 _qs_pid=$!

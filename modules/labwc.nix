@@ -83,7 +83,6 @@ let
   labwcEnvironment = ./labwc/labwc/environment;
   labwcKeyboardEnvironment = ./labwc/labwc/environment.d/90-keyboard.env;
   labwcKeybinds = ./labwc/labwc/keybinds;
-  labwcWaybar = ./labwc/waybar;
   labwcWofi = ./labwc/wofi;
   labwcFuzzel = ./labwc/fuzzel;
   labwcMako = ./labwc/mako;
@@ -209,7 +208,6 @@ in
       swayidle
       swaylock
       swaybg
-      waybar
       wdisplays
       wl-clipboard
       wofi
@@ -233,16 +231,6 @@ in
         executable = true;
       };
       xdg.configFile."kanshi/config".source = labwcKanshiConfig;
-      # Keep Waybar's root available for the Sway module, which generates its
-      # own ~/.config/waybar/config.  Linking the whole directory here would
-      # collide with that generated file in Home Manager.
-      xdg.configFile."waybar/icons".source = "${labwcWaybar}/icons";
-      xdg.configFile."waybar/labwc".source = "${labwcWaybar}/labwc";
-      xdg.configFile."waybar/niri".source = "${labwcWaybar}/niri";
-      xdg.configFile."waybar/scripts".source = "${labwcWaybar}/scripts";
-      xdg.configFile."waybar/sway".source = "${labwcWaybar}/sway";
-      xdg.configFile."waybar/sway-wsl".source = "${labwcWaybar}/sway-wsl";
-      xdg.configFile."waybar/style.css".source = "${labwcWaybar}/style.css";
       xdg.configFile."wofi".source = labwcWofi;
       xdg.configFile."fuzzel".source = labwcFuzzel;
       xdg.configFile."mako".source = labwcMako;

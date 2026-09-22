@@ -10,7 +10,6 @@
 ~/.config/labwc/
 ├── rc.xml                    # 主配置文件（由 scripts/keybind-profile 自动生成，请勿直接编辑）
 ├── menu.xml                  # 右键上下文菜单与系统面板菜单定义
-├── autostart                 # 启动脚本（管理壁纸、输入法、Waybar 及屏幕缩放检测）
 ├── environment               # 环境变设置量（声明主题、光标、Wayland 支持等）
 │
 ├── scripts/                  # 状态栏、菜单及快捷键调用的核心脚本目录
@@ -18,7 +17,6 @@
 │   ├── keyboard-profile      # 物理键盘布局配置（Mac JIS / 标准 PC）
 │   ├── keyboard-menu         # 生成键盘切换管道菜单 (Pipe Menu)
 │   ├── launcher              # 呼出/隐藏应用启动器 (wofi)
-│   ├── waybar                # 检查并启动 Waybar 顶栏
 │   ├── workspace-overview    # 模拟按键呼出工作区总览 (W-Space)
 │   ├── output-info           # 在 wofi 弹窗中显示屏幕输出信息
 │   │
@@ -35,9 +33,9 @@
 │   ├── scale                 # 应用屏幕缩放比例 ( wlr-randr )
 │   ├── scale-menu            # 生成屏幕缩放选项管道菜单 ( Pipe Menu )
 │   ├── theme-switch          # 菜单调用的窗口装饰主题切换器 ( wofi )
-│   ├── reload                # 重载合成器配置，并重置壁纸和 Waybar
+│   ├── reload                # 重载合成器配置，并重置壁纸和 Quickshell
 │   ├── system-menu           # 托盘或快捷键调用的系统关机/重载菜单 ( fuzzel )
-│   ├── power-restart         # 快速重启 labwc/waybar 的微型菜单 ( fuzzel )
+│   ├── power-restart         # 快速重启 labwc/Quickshell 的微型菜单 ( fuzzel )
 │   └── wsl-boot              # 专门用于 WSL 下嵌套启动 labwc 的脚本
 │
 ├── keybinds/                 # 供拼装脚本读取的快捷键 XML 片段
@@ -58,7 +56,6 @@
     ├── display-scale.md      # 屏幕缩放实现与调试文档
     ├── keyboard-profiles.md  # 键盘配置文件切换原理文档
     ├── hot-corner.md         # 热角配置与行为说明书
-    ├── waybar-style-customization.md # Waybar 样式与图标微调文档
     └── directory-structure.md# 本目录结构说明文档 (本文档)
 ```
 

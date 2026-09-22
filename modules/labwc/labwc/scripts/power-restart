@@ -13,7 +13,6 @@ case "$choice" in
     "Restart quickshell")
         pkill -x qs 2>/dev/null || true
         pkill -x quickshell 2>/dev/null || true
-        pkill -x waybar 2>/dev/null || true
         "$HOME/.config/labwc/scripts/quickshell" \
             >"${XDG_RUNTIME_DIR:-/tmp}/quickshell-labwc.log" 2>&1 &
         ;;

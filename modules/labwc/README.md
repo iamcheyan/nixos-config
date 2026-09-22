@@ -13,14 +13,13 @@ modules/labwc/
 ├── labwc/                     # Labwc 核心配置文件与脚本
 │   ├── rc.xml                 # 窗口管理器核心配置（快捷键、窗口规则、主题、平铺逻辑）
 │   ├── menu.xml               # 桌面右键 Openbox 风格系统菜单
-│   ├── autostart              # 会话登录自动启动脚本（守护进程与服务）
 │   ├── environment            # Wayland 桌面全局环境变量
 │   ├── environment.d/         # 环境变量片段（如 90-keyboard.env 键盘配置）
 │   ├── keybinds/              # 快捷键预设配置片段
 │   ├── scripts/               # Labwc 专属辅助与控制脚本
 │   │   ├── set-wallpaper      # 桌面壁纸渲染与启动脚本（调用 swaybg）
 │   │   ├── wallpaper          # Wofi 交互式壁纸选择器（检索 ~/wallpapers）
-│   │   ├── reload             # 桌面与顶栏热重载脚本（带进程守护）
+│   │   ├── reload             # Labwc 与 Quickshell 热重载脚本（带进程守护）
 │   │   ├── quickshell         # Quickshell 顶栏与面板统一拉起入口
 │   │   ├── quickshell-mode    # Quickshell 运行模式切换（dev/nix）
 │   │   ├── system-menu        # 关机、重启、挂起、注销等系统电源控制
@@ -48,10 +47,6 @@ modules/labwc/
 │   └── config                 # 桌面通知样式（圆角、透明度、超时与颜色）
 ├── fuzzel/                    # Fuzzel 极简启动器配置
 │   └── fuzzel.ini             # 备用极速启动器配色与字体
-└── waybar/                    # Waybar 备用顶栏配置
-    ├── icons/                 # 顶栏专用矢量/位图图标
-    ├── labwc/                 # 针对 Labwc 的 Waybar 布局备用方案
-    └── sway/                  # 针对 Sway 会话的 Waybar 布局
 ```
 
 ---

@@ -12,8 +12,6 @@
 - **config-wallpaper** - 壁纸选择器布局（4列网格，800px 宽）
 - **style-wallpaper.css** - 壁纸选择器样式
 
-- **config-waybar** - Waybar 风格布局（单列，1200px 宽，大图标）
-- **style-waybar.css** - Waybar 风格样式
 
 ## 🎨 如何切换样式
 
@@ -29,19 +27,12 @@ mv config-wallpaper config  # 使用壁纸布局
 wofi --conf ~/.config/wofi/config-wallpaper --style ~/.config/wofi/style-wallpaper.css
 ```
 
-### 方法 3: 修改 Niri 快捷键
-在 `~/.config/niri/config.kdl` 中修改：
-```kdl
-Mod+D { spawn "wofi" "--conf" "~/.config/wofi/config-waybar" "--style" "~/.config/wofi/style-waybar.css"; }
-```
-
 ## 📐 配置对比
 
 | 配置 | 宽度 | 高度 | 列数 | 图标大小 | 用途 |
 |------|------|------|------|----------|------|
 | config | 500px | 400px | 1 | 默认 | 应用启动器 |
 | config-wallpaper | 800px | 600px | 4 | 150px | 壁纸/图片选择 |
-| config-waybar | 1200px | 600px | 1 | 1050px | 大图标显示 |
 
 ## 🎨 颜色主题
 

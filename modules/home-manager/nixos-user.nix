@@ -16,7 +16,6 @@ in
     inputs.nixarchy.homeManagerModules.nixarchy
     inputs.chatgpt-desktop-linux.homeManagerModules.default
     ./hyprland.nix
-    ./sway.nix
   ];
 
   home.stateVersion = "26.05";
