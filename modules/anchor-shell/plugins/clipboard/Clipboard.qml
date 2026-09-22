@@ -17,7 +17,9 @@ Item {
   property bool clearConfirmOpen: false
   property var history: []
 
-  property string historyPath: Quickshell.env("HOME") + "/.local/state/omarchy/clipboard-history.json"
+  property string historyPath: (Quickshell.env("ANCHOR_SHELL_STATE_DIR")
+      || ((Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/anchor-shell"))
+      + "/clipboard-history.json"
   property string captureScript: root.integrationPath + "/shell/plugins/clipboard/capture.sh"
   // Shares the [menu] surface tokens — themes that style the menu also
   // style the clipboard. Selected-row colors composed in the

@@ -3,7 +3,7 @@
 # private user state directory, and emits the JSON entry for diagnostics.
 set -o pipefail
 
-state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/labwc"
+state_dir="${ANCHOR_SHELL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/anchor-shell}"
 image_dir="$state_dir/clipboard-images"
 history_path="$state_dir/clipboard-history.json"
 mkdir -p "$image_dir"

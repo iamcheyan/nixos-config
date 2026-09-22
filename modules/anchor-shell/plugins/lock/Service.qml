@@ -13,10 +13,11 @@ Item {
   property string omarchyPath: ""
 
   readonly property string home: Quickshell.env("HOME")
-  readonly property string stateHome: home + "/.local/state"
+  readonly property string stateHome: Quickshell.env("ANCHOR_SHELL_STATE_DIR")
+      || ((Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")) + "/anchor-shell")
   readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME")
   readonly property string labwcBackgroundState: stateHome + "/labwc/wallpaper"
-  readonly property string omarchyBackgroundLink: stateHome + "/omarchy/current/background"
+  readonly property string omarchyBackgroundLink: stateHome + "/current/background"
   // Select the primary interaction surface from the live output geometry.
   // There are no monitor-name assumptions here: when an output disappears,
   // the remaining output becomes interactive as soon as the compositor
@@ -539,7 +540,9 @@ Item {
   }
 
   FileView {
-    path: root.home + "/.config/omarchy/lock-screen.json"
+    path: (Quickshell.env("ANCHOR_SHELL_CONFIG_DIR")
+      || ((Quickshell.env("XDG_CONFIG_HOME") || (root.home + "/.config")) + "/anchor-shell"))
+      + "/lock-screen.json"
     watchChanges: true
     printErrors: false
     onLoaded: root.loadLockConfig(text())

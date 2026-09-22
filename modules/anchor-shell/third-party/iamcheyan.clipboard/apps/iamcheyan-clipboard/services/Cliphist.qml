@@ -11,7 +11,9 @@ Singleton {
     property var nativeEntries: []
     property string lastPasteEntry: ""
     property double lastPasteAt: 0
-    readonly property string historyPath: (Quickshell.env("XDG_STATE_HOME") || ((Quickshell.env("HOME") || "") + "/.local/state")) + "/labwc/clipboard-history.json"
+    readonly property string historyPath: (Quickshell.env("ANCHOR_SHELL_STATE_DIR")
+        || ((Quickshell.env("XDG_STATE_HOME") || ((Quickshell.env("HOME") || "") + "/.local/state")) + "/anchor-shell"))
+        + "/clipboard-history.json"
     readonly property string pasteFileTool: Qt.resolvedUrl("../../../backend/clipboard-paste-file").toString().replace("file://", "")
     readonly property string pasteTextTool: Qt.resolvedUrl("../../../backend/clipboard-paste-text").toString().replace("file://", "")
     readonly property string pathPasteTool: Qt.resolvedUrl("../../../bin/iamcheyan-clipboard-paste-path").toString().replace("file://", "")

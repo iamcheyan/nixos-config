@@ -38,6 +38,21 @@ Labwc autostart
         └── QUICKSHELL_ROOT → Anchor Shell
 ```
 
+## Nixarchy 脱钩进度
+
+Labwc/Anchor Shell 的第一阶段脱钩已经完成：
+
+- Labwc 不再使用 `config.programs.nixarchy.package` 作为运行时或回退路径；
+- Omarchy 兼容命令和 shell 运行时来自本仓库的 `compat/omarchy/`；
+- Labwc 使用独立的 `anchor-fcitx5.service`，不再启动或重启
+  `omarchy-fcitx5.service`；
+- Telegram Desktop 等普通应用通过标准 `environment.systemPackages` 声明，
+  不再依赖 `programs.nixarchy.apps`。
+
+Nixarchy 暂时仍保留在系统中，因为 Hyprland/Omarchy 会话仍使用它自己的
+模块、包和服务。后续移除 Nixarchy 前，还需要迁移 Hyprland 的系统接线、主题
+服务、用户模块以及 `nixarchy-apps.nix` 的剩余选项。这个阶段不会修改那些配置。
+
 开发模式由 `~/.config/quickshell/mode` 选择，内容为 `dev` 时使用仓库源码；
 其他情况使用 Nix 构建副本。切换模式的入口仍保留原来的命令名：
 
@@ -72,7 +87,20 @@ Hyprland/Omarchy 继续使用它自己的 `~/.config/omarchy/plugins/`。Anchor 
 
 ## 配置与状态
 
-当前迁移采用“源码先迁移、用户状态后隔离”的顺序。现阶段仍兼容读取：
+当前迁移采用“源码先迁移、用户状态再隔离”的顺序。Anchor Shell 现在使用：
+
+```text
+~/.config/anchor-shell/shell.json
+~/.config/anchor-shell/shell.toml
+~/.config/anchor-shell/lock-screen.json
+~/.local/state/anchor-shell/...
+```
+
+Labwc 第一次启动时会在目标文件不存在的情况下，从旧的用户文件复制布局、
+主题、锁屏设置和相关状态；复制是非破坏性的，旧路径不会被删除或覆盖。
+因此现有布局、主题和历史数据可以平滑迁移。
+
+旧路径只作为一次性迁移来源保留：
 
 ```text
 ~/.config/quickshell/shell.json
@@ -81,15 +109,7 @@ Hyprland/Omarchy 继续使用它自己的 `~/.config/omarchy/plugins/`。Anchor 
 ~/.local/state/omarchy/...
 ```
 
-这样可以先切换源码而不丢失现有布局、主题和历史数据。下一阶段会把 Anchor
-Shell 自己的可写状态迁移到独立命名空间：
-
-```text
-~/.config/anchor-shell/
-~/.local/state/anchor-shell/
-```
-
-迁移状态完成后，Anchor Shell 将不再读取或写入 Omarchy 的用户状态目录；
+迁移后 Anchor Shell 不再读取或写入 Omarchy 的用户状态目录；
 Hyprland/Omarchy 的配置和历史数据会保持原样。
 
 ## 与 Hyprland/Omarchy 的隔离原则

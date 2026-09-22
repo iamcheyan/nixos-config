@@ -22,13 +22,15 @@ ShellRoot {
 
   property string home: Quickshell.env("HOME")
 
-  // The shell source is owned by this repository. NIXARCHY_ROOT remains a
-  // temporary compatibility path for helpers that have not been ported yet.
+  // The shell source and user data are owned by this repository. The historical
+  // NIXARCHY_ROOT name remains only as a compatibility interface for helpers.
   property string integrationPath: Quickshell.env("NIXARCHY_ROOT")
   readonly property string shellPath: Quickshell.env("QUICKSHELL_ROOT") || Quickshell.shellDir
   readonly property string firstPartyPluginsDir: shellPath + "/plugins"
   readonly property string defaultsPath: shellPath + "/shell.json"
-  readonly property string userConfigPath: Quickshell.env("QUICKSHELL_CONFIG") || home + "/.config/quickshell/shell.json"
+  readonly property string userConfigPath: Quickshell.env("QUICKSHELL_CONFIG")
+      || ((Quickshell.env("ANCHOR_SHELL_CONFIG_DIR")
+          || ((Quickshell.env("XDG_CONFIG_HOME") || (home + "/.config")) + "/anchor-shell")) + "/shell.json")
 
   // Bundled fallback so the shell can start even when the default shell.json is
   // missing or unreadable. The bar config here mirrors the on-disk defaults
