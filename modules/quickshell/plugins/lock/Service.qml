@@ -15,7 +15,28 @@ Item {
   readonly property string home: Quickshell.env("HOME")
   readonly property string stateHome: home + "/.local/state"
   readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME")
-  readonly property string currentBackgroundLink: stateHome + "/omarchy/current/background"
+  readonly property string labwcBackgroundState: stateHome + "/labwc/wallpaper"
+  readonly property string omarchyBackgroundLink: stateHome + "/omarchy/current/background"
+  // Select the primary interaction surface from the live output geometry.
+  // There are no monitor-name assumptions here: when an output disappears,
+  // the remaining output becomes interactive as soon as the compositor
+  // exposes it at the primary position.
+  function choosePrimaryScreenName() {
+    var screens = Quickshell.screens || []
+    var fallback = null
+
+    for (var i = 0; i < screens.length; i++) {
+      var screen = screens[i]
+      if (!screen || !screen.name || screen.width <= 0 || screen.height <= 0) continue
+
+      if (!fallback || screen.y < fallback.y || (screen.y === fallback.y && screen.x < fallback.x))
+        fallback = screen
+    }
+
+    return fallback ? fallback.name : ""
+  }
+
+  readonly property string primaryScreenName: choosePrimaryScreenName()
 
   property bool lockRequested: false
   property bool pendingSessionLock: false
@@ -288,6 +309,8 @@ Item {
       LockView {
         id: lockView
         anchors.fill: parent
+        lockScreen: lockSurface.screen
+        interactive: lockSurface.screen && lockSurface.screen.name === root.primaryScreenName
         backgroundPath: root.backgroundPath
         backgroundVersion: root.backgroundVersion
         fingerprintConfigured: root.fingerprintConfigured
@@ -325,6 +348,7 @@ Item {
       failureMessage: ""
       failedAttempts: 0
       inputEnabled: false
+      interactive: false
       loadBackground: root.previewVisible
       passwordText: ""
     }
@@ -382,7 +406,10 @@ Item {
 
   Process {
     id: readlinkProc
-    command: ["readlink", "-f", root.currentBackgroundLink]
+    // Labwc records the wallpaper selected by the user here. Keep the
+    // Omarchy link as a compatibility fallback for sessions that do not use
+    // the Labwc wallpaper helper.
+    command: ["bash", "-c", "set -eu; state=\"$1\"; fallback=\"$2\"; if [ -r \"$state\" ]; then wallpaper=$(cat \"$state\"); if [ -f \"$wallpaper\" ]; then printf '%s\\n' \"$wallpaper\"; exit 0; fi; fi; readlink -f \"$fallback\" 2>/dev/null || true", "lock-background", root.labwcBackgroundState, root.omarchyBackgroundLink]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {

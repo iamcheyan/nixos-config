@@ -18,12 +18,9 @@ FocusScope {
   property bool loadBackground: false
   property string passwordText: ""
   property bool passwordVisible: false
+  property var lockScreen: null
+  property bool interactive: true
 
-  readonly property var avatarCandidates: [
-    "file:///var/lib/AccountsService/icons/" + (Quickshell.env("USER") || ""),
-    "file://" + (Quickshell.env("HOME") || "") + "/.face",
-    "file://" + (Quickshell.env("HOME") || "") + "/.face.icon"
-  ]
   readonly property var avatarPaths: [
     "/var/lib/AccountsService/icons/" + (Quickshell.env("USER") || ""),
     (Quickshell.env("HOME") || "") + "/.face",
@@ -31,36 +28,43 @@ FocusScope {
   ]
   property int avatarIndex: 0
   property bool avatarLoaded: false
-  property bool avatarCandidateAvailable: false
-  readonly property string avatarSource: avatarIndex < avatarCandidates.length
-    && avatarCandidateAvailable ? avatarCandidates[avatarIndex] : ""
+  readonly property string avatarSource: avatarIndex < avatarPaths.length
+    ? root.localFileUrl(avatarPaths[avatarIndex]) : ""
 
   signal submitPassword(string password)
   signal passwordTextEdited(string password)
   signal clearFailureRequested()
   signal wakeRequested()
 
-  property string timeText: Qt.formatDateTime(new Date(), "HH:mm")
-  property string dateText: Qt.formatDateTime(new Date(), "dddd, MMMM d")
-
-  focus: inputEnabled
-  onInputEnabledChanged: if (inputEnabled) forceActiveFocus()
-  onAvatarIndexChanged: {
-    avatarCandidateAvailable = false
-    avatarLoaded = false
-    avatarProbe.reload()
+  // Use a file URL so the cache-busting query is not interpreted as part of
+  // the local filename.
+  function fileUrl(path) {
+    if (!path) return ""
+    var encoded = String(path).split("/").map(encodeURIComponent).join("/")
+    return "file://" + encoded + "?v=" + backgroundVersion
   }
 
-  FileView {
-    id: avatarProbe
-    path: root.avatarIndex < root.avatarPaths.length ? root.avatarPaths[root.avatarIndex] : ""
-    printErrors: false
-    onLoaded: root.avatarCandidateAvailable = true
-    onLoadFailed: {
-      root.avatarCandidateAvailable = false
-      if (root.avatarIndex + 1 < root.avatarCandidates.length)
-        root.avatarIndex += 1
-    }
+  function localFileUrl(path) {
+    if (!path) return ""
+    var encoded = String(path).split("/").map(encodeURIComponent).join("/")
+    return "file://" + encoded
+  }
+
+  // Keep the lock screen aligned with the bar clock's configured format:
+  // `dddd, d MMMM h:mm AP`, split into the requested two lines.
+  readonly property string dateFormat: "dddd, d MMMM"
+  readonly property string timeFormat: "h:mm AP"
+  property string timeText: Qt.formatDateTime(new Date(), root.timeFormat)
+  property string timeMainText: Qt.formatDateTime(new Date(), "h:mm")
+  property string meridiemText: Qt.formatDateTime(new Date(), "AP")
+  property string dateText: Qt.formatDateTime(new Date(), root.dateFormat)
+
+  focus: interactive && inputEnabled
+  onInputEnabledChanged: if (interactive && inputEnabled) forceActiveFocus()
+  onInteractiveChanged: if (interactive && inputEnabled) Qt.callLater(forceActiveFocus)
+  onLockScreenChanged: if (interactive && inputEnabled) Qt.callLater(forceActiveFocus)
+  onAvatarIndexChanged: {
+    avatarLoaded = false
   }
 
   function cancelPasswordInput() {
@@ -77,8 +81,10 @@ FocusScope {
     running: true
     triggeredOnStart: true
     onTriggered: {
-      root.timeText = Qt.formatDateTime(new Date(), "HH:mm")
-      root.dateText = Qt.formatDateTime(new Date(), "dddd, MMMM d")
+      root.timeText = Qt.formatDateTime(new Date(), root.timeFormat)
+      root.timeMainText = Qt.formatDateTime(new Date(), "h:mm")
+      root.meridiemText = Qt.formatDateTime(new Date(), "AP")
+      root.dateText = Qt.formatDateTime(new Date(), root.dateFormat)
     }
   }
 
@@ -104,6 +110,7 @@ FocusScope {
 
   MouseArea {
     anchors.fill: parent
+    enabled: root.interactive
     acceptedButtons: Qt.LeftButton
     onPressed: {
       root.wakeRequested()
@@ -112,27 +119,16 @@ FocusScope {
     }
   }
 
+  Rectangle { anchors.fill: parent; color: "#101014" }
+
   Image {
     id: background
     anchors.fill: parent
-    source: root.loadBackground && root.backgroundPath.length > 0
-      ? root.backgroundPath + "?v=" + root.backgroundVersion : ""
+    source: root.loadBackground ? root.fileUrl(root.backgroundPath) : ""
     fillMode: Image.PreserveAspectCrop
     asynchronous: true
     cache: false
     smooth: true
-    visible: false
-  }
-
-  Rectangle { anchors.fill: parent; color: "#101014" }
-
-  MultiEffect {
-    anchors.fill: parent
-    source: background
-    blurEnabled: background.status === Image.Ready
-    blur: 1.0
-    blurMax: 32
-    saturation: -0.05
   }
 
   Rectangle { anchors.fill: parent; color: "#000000"; opacity: 0.30 }
@@ -144,18 +140,31 @@ FocusScope {
     spacing: 2
 
     Text {
-      anchors.horizontalCenter: parent.horizontalCenter
       text: root.dateText
       color: "#a0ffffff"
       font.pixelSize: 15
+      anchors.horizontalCenter: parent.horizontalCenter
     }
 
-    Text {
+    Row {
       anchors.horizontalCenter: parent.horizontalCenter
-      text: root.timeText
-      color: "#f5ffffff"
-      font.pixelSize: Math.min(96, Math.max(68, root.height * 0.11))
-      font.weight: Font.Light
+      spacing: 6
+
+      Text {
+        id: mainTime
+        text: root.timeMainText
+        color: "#f5ffffff"
+        font.pixelSize: Math.min(96, Math.max(68, root.height * 0.11))
+        font.weight: Font.Light
+      }
+
+      Text {
+        text: root.meridiemText
+        color: "#f5ffffff"
+        font.pixelSize: 24
+        font.weight: Font.Light
+        anchors.baseline: mainTime.baseline
+      }
     }
   }
 
@@ -204,7 +213,7 @@ FocusScope {
             if (status === Image.Ready) root.avatarLoaded = true
             else if (status === Image.Error || status === Image.Null) {
               root.avatarLoaded = false
-              if (root.avatarIndex + 1 < root.avatarCandidates.length)
+              if (root.avatarIndex + 1 < root.avatarPaths.length)
                 root.avatarIndex += 1
             }
           }
@@ -240,7 +249,7 @@ FocusScope {
 
     Text {
       anchors.horizontalCenter: parent.horizontalCenter
-      visible: !root.passwordVisible
+      visible: root.interactive && !root.passwordVisible
       text: "Click or press Space"
       color: "#80ffffff"
       font.pixelSize: 13

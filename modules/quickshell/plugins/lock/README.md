@@ -96,6 +96,33 @@ fullscreen screenshots. Screenshots use Omarchy's normal destination, usually
 omarchy plugin validate .
 ```
 
+## Labwc shortcut reload note
+
+In the Labwc session, `Super+Ctrl+L` is bound in
+`modules/labwc/labwc/rc.xml` to
+`~/.config/labwc/scripts/lock-screen`, which calls this plugin's `lock` IPC
+target. `Fn+L` emits the same chord through keyd.
+
+After changing Labwc keybindings, do not rely on `labwc -r` from an arbitrary
+terminal: that command only sends `SIGHUP` to the PID in its `LABWC_PID`
+environment variable. If that variable is absent, it exits successfully
+without reloading the running compositor, leaving stale bindings active (in
+this case the legacy `omarchy-system-lock` binding).
+
+Reload the actual compositor explicitly instead:
+
+```sh
+kill -HUP "$(pgrep -xo labwc)"
+```
+
+Then verify the intended binding and lock IPC before declaring the change
+complete:
+
+```sh
+rg -n -C 1 'W-C-l|lock-screen' ~/.config/labwc/rc.xml
+quickshell ipc --pid "$(quickshell list --all | awk '/Process ID:/ {print $3; exit}')" call lock status
+```
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
@@ -210,6 +237,31 @@ cp your-avatar.png ~/.face
 
 ```sh
 omarchy plugin validate .
+```
+
+## Labwc 快捷键重载注意事项
+
+Labwc 会话中，`Super+Ctrl+L` 在
+`modules/labwc/labwc/rc.xml` 中绑定到
+`~/.config/labwc/scripts/lock-screen`，该脚本调用本插件的 `lock` IPC
+入口；`Fn+L` 则由 keyd 发出同一组合键。
+
+修改 Labwc 快捷键后，不要在任意终端中只执行 `labwc -r`：该命令仅向其环境变量
+`LABWC_PID` 指定的 PID 发送 `SIGHUP`。若该变量不存在，命令仍会成功退出，却不会
+重载正在运行的合成器，旧绑定会继续生效（本次即错误地继续执行旧
+`omarchy-system-lock` 链）。
+
+应显式重载实际运行的 Labwc：
+
+```sh
+kill -HUP "$(pgrep -xo labwc)"
+```
+
+随后确认运行时绑定和锁屏 IPC，再认定修改已生效：
+
+```sh
+rg -n -C 1 'W-C-l|lock-screen' ~/.config/labwc/rc.xml
+quickshell ipc --pid "$(quickshell list --all | awk '/Process ID:/ {print $3; exit}')" call lock status
 ```
 
 ## 许可证
