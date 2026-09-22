@@ -21,10 +21,12 @@ BarWidget {
   readonly property string outputName:
     hostScreen ? String(hostScreen.name || "") : ""
   readonly property string runtimeDir:
-    Quickshell.env("XDG_RUNTIME_DIR") || ("/run/user/" + (Quickshell.env("UID") || "1000"))
-  readonly property string stateDir: runtimeDir + "/labwc"
+    Quickshell.env("XDG_RUNTIME_DIR") || ""
+  readonly property string stateDir:
+    root.runtimeDir !== "" ? root.runtimeDir + "/labwc" : ""
   readonly property string statePath:
-    root.labwcSession && root.outputName !== "" ? (root.stateDir + "/workspace-" + root.outputName) : ""
+    root.labwcSession && root.stateDir !== "" && root.outputName !== ""
+      ? (root.stateDir + "/workspace-" + root.outputName) : ""
   readonly property string gotoPath:
     root.statePath !== "" ? (root.statePath + ".goto") : ""
   property int labwcCurrent: 1
