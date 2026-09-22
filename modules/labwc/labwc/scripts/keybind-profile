@@ -91,7 +91,7 @@ cat >> "$rc_file" << 'FOOTER'
 
     <!-- MINILA-R Fn+L (keyd emits Ctrl+Super+L): lock screen -->
     <keybind key="W-C-l">
-      <action name="Execute" command="omarchy-system-lock" />
+      <action name="Execute" command="~/.config/labwc/scripts/lock-screen" />
     </keybind>
 
     <!-- 通用: 窗口切换 -->

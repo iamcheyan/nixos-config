@@ -1,0 +1,9 @@
+#!/bin/sh
+# Lock the active Quickshell instance on the current Wayland display.
+# This deliberately avoids omarchy-shell, whose path selection is tied to
+# the Hyprland compatibility shell.
+set -eu
+
+pid="$(quickshell list --all 2>/dev/null | awk '/Process ID:/ {print $3; exit}')"
+[ -n "$pid" ] || exit 1
+exec quickshell ipc --pid "$pid" call lock lock
