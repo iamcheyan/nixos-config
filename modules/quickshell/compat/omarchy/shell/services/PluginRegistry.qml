@@ -668,8 +668,7 @@ QtObject {
     // First-party bar widgets can also carry sibling manifests such as
     // widgets/Clock.manifest.json so multiple widgets can live in one source
     // directory without wrapper folders.
-    // Hyprland keeps its mutable Omarchy plugins and its vendored compatibility
-    // plugins in separate roots; both belong to this compatibility shell.
+    // Third-party plugins stay at the top level of ~/.config/omarchy/plugins.
     var script = ""
       + "emit_manifest() { local kind=\"$1\"; local manifest=\"$2\"; local sub; "
       + "  if [[ ${manifest##*/} == \"manifest.json\" ]]; then sub=\"${manifest%/manifest.json}\"; else sub=\"$(dirname -- \"$manifest\")\"; fi; "
@@ -681,19 +680,16 @@ QtObject {
       + "  [[ -d \"$dir\" ]] || return 0; "
       + "  while IFS= read -r manifest; do emit_manifest firstparty \"$manifest\"; done < <(find \"$dir\" -mindepth 2 -maxdepth 3 -type f \\( -name manifest.json -o -name '*.manifest.json' \\) | sort); "
       + "}; "
-      + "scan_thirdparty() { "
-      + "  for dir in \"$@\"; do "
-      + "    [[ -d \"$dir\" ]] || continue; "
-      + "    for sub in \"$dir\"/*/; do "
-      + "      [[ -f \"$sub/manifest.json\" ]] || continue; "
-      + "      emit_manifest thirdparty \"$sub/manifest.json\"; "
-      + "    done; "
+      + "scan_thirdparty() { local dir=\"$1\"; "
+      + "  [[ -d \"$dir\" ]] || return 0; "
+      + "  for sub in \"$dir\"/*/; do "
+      + "    [[ -f \"$sub/manifest.json\" ]] || continue; "
+      + "    emit_manifest thirdparty \"$sub/manifest.json\"; "
       + "  done; "
       + "}; "
       + "scan_firstparty \"$0\"; "
-      + "scan_thirdparty \"$@\""
-    var bundledThirdPartyDir = registry.firstPartyDir ? (registry.firstPartyDir + "/../third-party") : ""
-    scanProcess.command = ["bash", "-c", script, registry.firstPartyDir, registry.pluginsDir, bundledThirdPartyDir]
+      + "scan_thirdparty \"$1\""
+    scanProcess.command = ["bash", "-c", script, registry.firstPartyDir, registry.pluginsDir]
     scanProcess.running = true
   }
 
