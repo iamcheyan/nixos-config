@@ -9,6 +9,11 @@ QtObject {
 
   property string home: Quickshell.env("HOME")
   property string pluginsDir: Quickshell.env("QUICKSHELL_PLUGINS_DIR") || home + "/.config/quickshell/plugins"
+  // Labwc owns a separate Quickshell tree.  In that session do not discover
+  // mutable Omarchy plugin checkouts: Hyprland's compatibility shell has its
+  // own registry and remains responsible for ~/.config/omarchy/plugins.
+  property bool isolatedPluginScan: Quickshell.env("QUICKSHELL_ISOLATED_PLUGIN_SCAN") === "1"
+  property string isolatedPluginIds: Quickshell.env("QUICKSHELL_ISOLATED_PLUGIN_IDS") || ""
 
   // Set by shell.qml at startup so we can also scan bundled first-party plugins.
   property string firstPartyDir: ""
@@ -565,6 +570,11 @@ QtObject {
         manifest.__isFirstParty = (currentKind === "firstparty")
         var validated = validateManifest(manifest, currentSource + "/manifest.json")
         if (validated) {
+          var allowed = String(registry.isolatedPluginIds || "").split(",")
+          if (currentKind === "thirdparty" && registry.isolatedPluginScan
+              && registry.isolatedPluginIds !== "" && allowed.indexOf(validated.id) === -1) {
+            return
+          }
           if (currentKind === "firstparty") firstParty[validated.id] = validated
           else thirdParty[validated.id] = validated
         }
@@ -662,7 +672,8 @@ QtObject {
   function rescan() {
     if (scanning) return
     scanning = true
-    // $0 = first-party dir, $1 = third-party dir. Some bash versions need the explicit -- separator.
+    // $1 = first-party dir and the remaining arguments are third-party roots.
+    // Keep a dummy $0 because bash reserves it for the script name.
     // First-party plugins may be grouped one level deeper, e.g. panels/audio
     // or services/battery.
     // First-party bar widgets can also carry sibling manifests such as
@@ -689,13 +700,16 @@ QtObject {
       + "    done; "
       + "  done; "
       + "}; "
-      + "scan_firstparty \"$0\"; "
-      + "shift; "
+      + "scan_firstparty \"$1\"; shift; "
       + "scan_thirdparty \"$@\""
     var thirdPartyDir = registry.firstPartyDir ? (registry.firstPartyDir + "/../third-party") : ""
     var omarchyPlugins = registry.home + "/.config/omarchy/plugins"
     var quickshellPlugins = registry.home + "/.config/quickshell/plugins"
-    scanProcess.command = ["bash", "-c", script, registry.firstPartyDir, registry.pluginsDir, omarchyPlugins, quickshellPlugins, thirdPartyDir]
+    // The default remains backwards-compatible for the Omarchy shell.  The
+    // Labwc launcher opts into the isolated two-root scan explicitly.
+    scanProcess.command = registry.isolatedPluginScan
+      ? ["bash", "-c", script, "plugin-scan", registry.firstPartyDir, registry.pluginsDir]
+      : ["bash", "-c", script, "plugin-scan", registry.firstPartyDir, omarchyPlugins, quickshellPlugins, thirdPartyDir]
     scanProcess.running = true
   }
 
