@@ -28,7 +28,8 @@
   </desktops>
 
   <windowSwitcher>
-    <osd show="yes" style="thumbnail" preview="yes" outlines="yes" output="cursor" />
+    <osd show="yes" style="thumbnail" preview="yes" outlines="yes" output="cursor"
+      thumbnailLabelFormat="%W — %T" />
     <fields>
       <field content="icon" width="15%" />
       <field content="title" width="85%" />
@@ -54,10 +55,16 @@
 
     <!-- 窗口管理 -->
     <keybind key="W-Tab">
-      <action name="NextWindow" />
+      <action name="NextWindow" workspace="current" output="all" />
     </keybind>
     <keybind key="W-S-Tab">
-      <action name="PreviousWindow" />
+      <action name="PreviousWindow" workspace="current" output="all" />
+    </keybind>
+    <keybind key="A-Tab">
+      <action name="NextWindow" workspace="all" output="all" />
+    </keybind>
+    <keybind key="A-S-Tab">
+      <action name="PreviousWindow" workspace="all" output="all" />
     </keybind>
     <keybind key="W-q">
       <action name="Close" />

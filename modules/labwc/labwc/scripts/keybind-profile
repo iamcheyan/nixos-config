@@ -66,7 +66,8 @@ cat > "$rc_file" << HEADER
   </desktops>
 
   <windowSwitcher>
-    <osd show="yes" style="thumbnail" preview="yes" outlines="yes" output="cursor" />
+    <osd show="yes" style="thumbnail" preview="yes" outlines="yes" output="cursor"
+      thumbnailLabelFormat="%W — %T" />
     <fields>
       <field content="icon" width="15%" />
       <field content="title" width="85%" />
@@ -89,6 +90,12 @@ cat >> "$rc_file" << 'FOOTER'
     </keybind>
 
     <!-- 通用: 窗口切换 -->
+    <keybind key="A-Tab">
+      <action name="NextWindow" workspace="all" output="all" />
+    </keybind>
+    <keybind key="A-S-Tab">
+      <action name="PreviousWindow" workspace="all" output="all" />
+    </keybind>
     <keybind key="C-Tab">
       <action name="NextWindow" />
     </keybind>
