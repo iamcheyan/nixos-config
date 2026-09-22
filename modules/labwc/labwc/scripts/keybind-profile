@@ -89,6 +89,11 @@ cat >> "$rc_file" << 'FOOTER'
       <action name="Execute" command="~/.config/labwc/scripts/keyboard-profile next" />
     </keybind>
 
+    <!-- MINILA-R Fn+L (keyd emits Ctrl+Super+L): lock screen -->
+    <keybind key="W-C-l">
+      <action name="Execute" command="omarchy-system-lock" />
+    </keybind>
+
     <!-- 通用: 窗口切换 -->
     <keybind key="A-Tab">
       <action name="NextWindow" workspace="all" output="all" />

@@ -75,12 +75,14 @@
     },
     {
       "id": "hancore.voxtype-enhance"
+    },
+    {
+      "id": "iamcheyan.lock-screen"
     }
   ],
   "disabledPlugins": [
     "omarchy.clipboard",
     "hancore.overview-workspaces",
-    "iamcheyan.active-window",
-    "iamcheyan.lock-screen"
+    "iamcheyan.active-window"
   ]
 }
