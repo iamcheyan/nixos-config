@@ -245,6 +245,7 @@ in
     # Desktop shell / input method / voice
     fish
     librime
+    telegram-desktop
     voxtype-onnx
 
     # Linux system utilities, compilers & sandboxing

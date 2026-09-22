@@ -18,15 +18,27 @@ if [ -z "$qs_bin" ]; then
     exit 127
 fi
 
+anchor_config_dir="${ANCHOR_SHELL_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/anchor-shell}"
+legacy_config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell"
 config_dir="${QUICKSHELL_ROOT:-${XDG_CONFIG_HOME:-$HOME/.config}/quickshell}"
-mode_file="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/mode"
-runtime_file="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/runtime"
+mode_file="$anchor_config_dir/mode"
+runtime_file="$anchor_config_dir/runtime"
+[ -r "$mode_file" ] || mode_file="$legacy_config_dir/mode"
+[ -r "$runtime_file" ] || runtime_file="$legacy_config_dir/runtime"
+mkdir -p "$anchor_config_dir" "${ANCHOR_SHELL_PLUGINS_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/anchor-shell/plugins}"
+if [ ! -e "$anchor_config_dir/shell.json" ] && [ -f "$legacy_config_dir/shell.json" ]; then
+    cp "$legacy_config_dir/shell.json" "$anchor_config_dir/shell.json"
+fi
 if [ -r "$mode_file" ] && [ "$(cat "$mode_file")" = dev ] \
     && [ -f /home/tetsuya/nixos-config/modules/anchor-shell/shell.qml ]; then
     config_dir=/home/tetsuya/nixos-config/modules/anchor-shell
 fi
 export QUICKSHELL_ROOT="$config_dir"
-export QUICKSHELL_CONFIG="${QUICKSHELL_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/shell.json}"
+export ANCHOR_SHELL_CONFIG_DIR="$anchor_config_dir"
+export ANCHOR_SHELL_STATE_DIR="${ANCHOR_SHELL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/anchor-shell}"
+export ANCHOR_SHELL_PLUGINS_DIR="${ANCHOR_SHELL_PLUGINS_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/anchor-shell/plugins}"
+export QUICKSHELL_PLUGINS_DIR="$ANCHOR_SHELL_PLUGINS_DIR"
+export QUICKSHELL_CONFIG="${QUICKSHELL_CONFIG:-$anchor_config_dir/shell.json}"
 export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
 export QML2_IMPORT_PATH="/run/current-system/sw/lib/qt-6/qml${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
 export QML_IMPORT_PATH="/run/current-system/sw/lib/qt-6/qml${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"

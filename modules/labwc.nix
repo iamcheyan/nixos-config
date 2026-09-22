@@ -10,12 +10,12 @@ let
   quickshellRoot = pkgs.runCommand "anchor-shell" { } ''
     cp -r "${./anchor-shell}"/. "$out/"
   '';
-  # Local compatibility copy of the Omarchy runtime.  Keep the original
-  # Nixarchy-provided tree available until the migration has been verified.
+  # Local compatibility copy of the historical Omarchy runtime. Labwc uses
+  # this repository-owned tree directly; it must not fall back to the
+  # Nixarchy-provided package used by the separate Hyprland session.
   quickshellCompatRoot = pkgs.runCommand "anchor-shell-omarchy-compat" { } ''
     cp -r "${./anchor-shell/compat/omarchy}"/. "$out/"
   '';
-  quickshellLegacyRoot = "${config.programs.nixarchy.package}/share/omarchy";
   quickshellDevRoot = "/home/tetsuya/nixos-config/modules/anchor-shell";
 
   # Quickshell's Qt wrapper only exports its own QML modules. The Omarchy
@@ -109,10 +109,42 @@ let
     # Labwc starts this file only for the Labwc session.  The regular Omarchy
     # launcher remains responsible for the Hyprland session.
     export QUICKSHELL_OMARCHY_COMPAT_ROOT="${quickshellCompatRoot}"
-    export QUICKSHELL_OMARCHY_LEGACY_ROOT="${quickshellLegacyRoot}"
+    anchor_config_dir="''${XDG_CONFIG_HOME:-$HOME/.config}/anchor-shell"
+    anchor_state_dir="''${XDG_STATE_HOME:-$HOME/.local/state}/anchor-shell"
+    anchor_plugins_dir="$anchor_config_dir/plugins"
+    legacy_config_dir="''${XDG_CONFIG_HOME:-$HOME/.config}/quickshell"
+    legacy_omarchy_config_dir="''${XDG_CONFIG_HOME:-$HOME/.config}/omarchy"
+    legacy_omarchy_state_dir="''${XDG_STATE_HOME:-$HOME/.local/state}/omarchy"
+    ${pkgs.coreutils}/bin/mkdir -p "$anchor_config_dir" "$anchor_plugins_dir" "$anchor_state_dir"
+    # Migrate user-owned state once, without deleting or changing the legacy
+    # tree.  The old files remain available to the Hyprland session.
+    for file in shell.json shell.toml lock-screen.json; do
+      if [ ! -e "$anchor_config_dir/$file" ] && [ -f "$legacy_omarchy_config_dir/$file" ]; then
+        ${pkgs.coreutils}/bin/cp "$legacy_omarchy_config_dir/$file" "$anchor_config_dir/$file"
+      fi
+    done
+    if [ ! -e "$anchor_config_dir/shell.json" ] && [ -f "$legacy_config_dir/shell.json" ]; then
+      ${pkgs.coreutils}/bin/cp "$legacy_config_dir/shell.json" "$anchor_config_dir/shell.json"
+    fi
+    for subdir in current notifications settings toggles indicators; do
+      if [ ! -e "$anchor_state_dir/$subdir" ] && [ -d "$legacy_omarchy_state_dir/$subdir" ]; then
+        ${pkgs.coreutils}/bin/cp -a "$legacy_omarchy_state_dir/$subdir" "$anchor_state_dir/$subdir"
+      fi
+    done
+    for file in clipboard-history.json clipboard-theme.json; do
+      if [ ! -e "$anchor_state_dir/$file" ] && [ -f "$legacy_omarchy_state_dir/$file" ]; then
+        ${pkgs.coreutils}/bin/cp "$legacy_omarchy_state_dir/$file" "$anchor_state_dir/$file"
+      fi
+    done
+    if [ ! -e "$anchor_state_dir/clipboard-images" ] && [ -d "$legacy_omarchy_state_dir/clipboard-images" ]; then
+      ${pkgs.coreutils}/bin/cp -a "$legacy_omarchy_state_dir/clipboard-images" "$anchor_state_dir/clipboard-images"
+    fi
+    export ANCHOR_SHELL_CONFIG_DIR="$anchor_config_dir"
+    export ANCHOR_SHELL_STATE_DIR="$anchor_state_dir"
+    export ANCHOR_SHELL_PLUGINS_DIR="$anchor_plugins_dir"
     export QUICKSHELL_ROOT="${quickshellRoot}"
-    export QUICKSHELL_PLUGINS_DIR="${quickshellRoot}/third-party"
-    export QUICKSHELL_CONFIG="$HOME/.config/quickshell/shell.json"
+    export QUICKSHELL_PLUGINS_DIR="$anchor_plugins_dir"
+    export QUICKSHELL_CONFIG="$anchor_config_dir/shell.json"
     export XDG_CURRENT_DESKTOP=labwc
     export XDG_SESSION_DESKTOP=labwc
     export QT_QUICK_CONTROLS_STYLE=Basic
@@ -126,16 +158,16 @@ let
     "$HOME/.config/labwc/scripts/set-wallpaper" wayland >/dev/null 2>&1 &
 
     # Labwc does not necessarily activate graphical-session.target itself.
-    # Reuse the declarative NixOS/Home Manager service instead of launching a
-    # second unmanaged fcitx5 process from this script.
+    # Reuse the Labwc-owned declarative service instead of launching an
+    # unmanaged fcitx5 process from this script.
     ${pkgs.systemd}/bin/systemctl --user import-environment \
       WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP \
       XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS \
+      ANCHOR_SHELL_CONFIG_DIR ANCHOR_SHELL_STATE_DIR ANCHOR_SHELL_PLUGINS_DIR \
       QUICKSHELL_ROOT QUICKSHELL_PLUGINS_DIR QUICKSHELL_CONFIG \
       NIXARCHY_ROOT OMARCHY_PATH
-    # Refresh systemd's environment for this session's Wayland socket and
-    # restart Fcitx5 through the compositor-neutral helper.
-    "$HOME/.config/labwc/scripts/nixarchy-import-session-environment" &
+    # Refresh the Labwc-owned Fcitx5 service for this session's Wayland socket.
+    ${pkgs.systemd}/bin/systemctl --user restart --no-block anchor-fcitx5.service &
 
     # Win+Space opens Wofi's desktop-entry launcher in Labwc. Keep power actions
     # there, and expose Hibernate only when the kernel supports `disk`.
@@ -159,18 +191,11 @@ let
 
     ${pkgs.mako}/bin/mako &
 
-    # Preserve the user's mutable shell layout while moving it out of the
-    # compositor-specific config directory.
-    ${pkgs.coreutils}/bin/mkdir -p "$HOME/.config/quickshell"
-    if [ ! -e "$HOME/.config/quickshell/shell.json" ] && [ -f "$HOME/.config/labwc/shell.json" ]; then
-      ${pkgs.coreutils}/bin/cp "$HOME/.config/labwc/shell.json" "$HOME/.config/quickshell/shell.json"
-    fi
-
     # Supervise only unexpected Quickshell exits.  Re-read the mode on every
     # launch so `quickshell-mode dev` can switch the source without a rebuild.
     while true; do
       quickshell_root="${quickshellRoot}"
-      omarchy_root="${quickshellLegacyRoot}"
+      omarchy_root="${quickshellCompatRoot}"
       if [ -r "$HOME/.config/quickshell/runtime" ] \
         && [ "$(cat "$HOME/.config/quickshell/runtime")" = compat ]; then
         omarchy_root="${quickshellCompatRoot}"
@@ -200,6 +225,21 @@ in
 
   config = lib.mkIf cfg.enable {
     programs.labwc.enable = true;
+
+    # This service is owned by the compositor-neutral Labwc integration. The
+    # Hyprland session keeps its historical omarchy-fcitx5 service separately.
+    systemd.user.services.anchor-fcitx5 = {
+      description = "Fcitx5 input method for Anchor Shell sessions";
+      after = [ "graphical-session.target" ];
+      partOf = [ "graphical-session.target" ];
+      unitConfig.ConditionEnvironment = "WAYLAND_DISPLAY";
+      serviceConfig = {
+        ExecStart = "${config.i18n.inputMethod.package}/bin/fcitx5";
+        Restart = "always";
+        RestartSec = 2;
+        Type = "simple";
+      };
+    };
 
     environment.systemPackages = with pkgs; [
       quickshellWithKirigami
