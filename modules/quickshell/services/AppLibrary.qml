@@ -79,11 +79,11 @@ Item {
     var id = String(desktopId || "")
     if (!id) return
     root.beginLaunchFeedback(name)
-    // Start gtk-launch inside a scope under app-graphical.slice so apps do not
-    // inherit wayland-wm@.service. Keeping gtk-launch as the desktop-entry
-    // resolver supports IDs with spaces and entries that UWSM rejects.
+    // Start gtk-launch inside UWSM when it exists. Plain Sway/Labwc/KDE
+    // sessions do not necessarily provide uwsm-app, so the same launcher
+    // falls back to gtk-launch without changing the desktop-entry resolver.
     // Keep the .desktop suffix or ids like org.telegram.desktop won't resolve.
-    Util.execDetached("uwsm-app -- gtk-launch " + Util.shellQuote(id + ".desktop"))
+    Util.execGraphical(["gtk-launch", id + ".desktop"])
   }
 
   function remove(desktopId, name) {

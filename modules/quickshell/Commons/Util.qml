@@ -63,6 +63,16 @@ QtObject {
     Quickshell.execDetached(["bash", "-lc", 'exec "$@"', "bash"].concat(argv))
   }
 
+  // Launch a graphical application in the compositor's user session when
+  // UWSM is available, while remaining usable from plain Sway/Labwc/KDE
+  // sessions where uwsm-app is not installed. Keep argv isolated from shell
+  // parsing so desktop ids and file paths remain literal.
+  function execGraphical(argv) {
+    Quickshell.execDetached(["bash", "-lc",
+      'if command -v uwsm-app >/dev/null 2>&1; then exec uwsm-app -- "$@"; else exec "$@"; fi',
+      "bash"].concat(argv))
+  }
+
   function isPlainObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value)
   }

@@ -50,6 +50,10 @@ Nixarchy store 副本；验证迁移副本时可以切换到本地兼容副本�
 两种运行时都保留 `NIXARCHY_ROOT`、`OMARCHY_PATH` 和 `omarchy-*` 命名，因此
 现有 QML 与插件不需要立即改名。迁移完成并验证前，不要卸载 Nixarchy/Omarchy。
 
+通用启动入口 `~/.local/bin/quickshell-topbar` 使用同一套路径选择逻辑，保留
+`quickshell-mode` 作为切换模式和查看状态的历史入口。这个启动入口可以被
+Labwc、Sway 或 KDE Wayland 会话复用；它不会要求这些会话都安装 `uwsm-app`。
+
 ### Nix 正式模式
 
 正式模式使用 Nix store 路径：

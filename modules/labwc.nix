@@ -242,6 +242,13 @@ in
         source = ./labwc/labwc/scripts/quickshell-mode;
         executable = true;
       };
+      # Keep a compositor-neutral entry point alongside the historical
+      # quickshell-mode helper. Sway/KDE sessions can call the same launcher
+      # after importing their own Wayland environment.
+      home.file.".local/bin/quickshell-topbar" = {
+        source = ./labwc/labwc/scripts/quickshell;
+        executable = true;
+      };
       home.file.".config/labwc/voxtype-paste.py" = {
         source = ./quickshell/third-party/hancore.voxtype-enhance/scripts/omarchy-universal-paste.py;
         executable = true;
