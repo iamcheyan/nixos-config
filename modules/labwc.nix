@@ -135,7 +135,7 @@ let
       NIXARCHY_ROOT OMARCHY_PATH
     # Refresh systemd's environment for this session's Wayland socket and
     # restart Fcitx5 through the compositor-neutral helper.
-    "$HOME/.local/bin/nixarchy-import-session-environment" &
+    "$HOME/.config/labwc/scripts/nixarchy-import-session-environment" &
 
     # Win+Space opens Wofi's desktop-entry launcher in Labwc. Keep power actions
     # there, and expose Hibernate only when the kernel supports `disk`.
