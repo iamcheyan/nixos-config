@@ -242,8 +242,16 @@ in
     firefox
     nautilus
 
+    # KDE applications used from Labwc need their dark widget style, color
+    # scheme, and icon theme available outside a Plasma session as well.
+    kdePackages.breeze
+    kdePackages.breeze-icons
+
     # Desktop shell / input method / voice
     fish
+    # Henri desktop-icons uses Gio/GLib through PyGObject for safe file and
+    # trash operations. Keep the dependency in the declarative system path.
+    (python3.withPackages (ps: [ ps.pygobject3 ]))
     librime
     telegram-desktop
     voxtype-onnx
