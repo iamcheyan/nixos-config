@@ -43,6 +43,17 @@ export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
 export QML2_IMPORT_PATH="/run/current-system/sw/lib/qt-6/qml${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
 export QML_IMPORT_PATH="/run/current-system/sw/lib/qt-6/qml${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
 
+# Labwc's autostart provides the isolated Python environment used by the
+# desktop-icons helper.  Reloads are often launched from a terminal instead
+# of the session autostart, so recover the same value when it is not inherited.
+if [ -z "${ANCHOR_SHELL_PYTHON:-}" ] && [ -r "$HOME/.config/labwc/autostart" ]; then
+    anchor_shell_python=$(sed -n 's/.*ANCHOR_SHELL_PYTHON="\([^"]*\)".*/\1/p' \
+        "$HOME/.config/labwc/autostart" | head -1)
+    if [ -n "$anchor_shell_python" ]; then
+        export ANCHOR_SHELL_PYTHON="$anchor_shell_python"
+    fi
+fi
+
 # The compatibility runtime keeps the historical Omarchy names while the
 # source is migrated into this repository.  Legacy remains the default until
 # the copied runtime has been verified in the running session.

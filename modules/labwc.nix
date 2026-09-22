@@ -17,6 +17,9 @@ let
     cp -r "${./anchor-shell/compat/omarchy}"/. "$out/"
   '';
   quickshellDevRoot = "/home/tetsuya/nixos-config/modules/anchor-shell";
+  # Henri desktop-icons uses Gio/GLib through PyGObject. Keep its interpreter
+  # isolated instead of changing the system's generic python3 selection.
+  anchorShellPython = pkgs.python3.withPackages (ps: [ ps.pygobject3 ]);
 
   # Quickshell's Qt wrapper only exports its own QML modules. The Omarchy
   # right-side widgets use Breeze controls, which import KDE Kirigami; expose
@@ -141,12 +144,18 @@ let
         ${pkgs.coreutils}/bin/cp "$legacy_omarchy_state_dir/$file" "$anchor_state_dir/$file"
       fi
     done
+    if [ ! -e "$anchor_state_dir/desktop-icon-positions.json" ] \
+      && [ -f "$legacy_omarchy_config_dir/desktop-icon-positions.json" ]; then
+      ${pkgs.coreutils}/bin/cp "$legacy_omarchy_config_dir/desktop-icon-positions.json" \
+        "$anchor_state_dir/desktop-icon-positions.json"
+    fi
     if [ ! -e "$anchor_state_dir/clipboard-images" ] && [ -d "$legacy_omarchy_state_dir/clipboard-images" ]; then
       ${pkgs.coreutils}/bin/cp -a "$legacy_omarchy_state_dir/clipboard-images" "$anchor_state_dir/clipboard-images"
     fi
     export ANCHOR_SHELL_CONFIG_DIR="$anchor_config_dir"
     export ANCHOR_SHELL_STATE_DIR="$anchor_state_dir"
     export ANCHOR_SHELL_PLUGINS_DIR="$anchor_plugins_dir"
+    export ANCHOR_SHELL_PYTHON="${anchorShellPython}/bin/python3"
     export QUICKSHELL_ROOT="${quickshellRoot}"
     export QUICKSHELL_PLUGINS_DIR="$anchor_plugins_dir"
     export QUICKSHELL_CONFIG="$anchor_config_dir/shell.json"
@@ -170,6 +179,7 @@ let
       XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS \
       ANCHOR_SHELL_CONFIG_DIR ANCHOR_SHELL_STATE_DIR ANCHOR_SHELL_PLUGINS_DIR \
       QUICKSHELL_ROOT QUICKSHELL_PLUGINS_DIR QUICKSHELL_CONFIG \
+      ANCHOR_SHELL_PYTHON \
       NIXARCHY_ROOT OMARCHY_PATH
     # Refresh the Labwc-owned Fcitx5 service for this session's Wayland socket.
     ${pkgs.systemd}/bin/systemctl --user restart --no-block anchor-fcitx5.service &

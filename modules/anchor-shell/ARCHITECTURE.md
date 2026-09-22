@@ -18,6 +18,53 @@ modules/anchor-shell/plugins/      当前使用的 first-party 插件
 modules/anchor-shell/third-party/  已迁入并由本仓库管理的第三方插件
 modules/anchor-shell/compat/       为兼容原有 Omarchy 命名和脚本保留的副本
 modules/anchor-shell/docs/         迁移、验证和插件说明
+
+# 具体源码位置
+
+```text
+/home/tetsuya/nixos-config/modules/anchor-shell/
+├── shell.qml              Quickshell 入口
+├── Commons/               颜色、样式等公共组件
+├── Ui/                    通用界面组件
+├── services/              应用、插件、状态等公共服务
+├── plugins/               当前使用的官方/自有插件
+│   ├── bar/               顶栏和顶栏小组件
+│   ├── clipboard/         剪贴板入口
+│   ├── lock/              锁屏插件
+│   ├── notifications/     通知
+│   ├── panels/             网络、电源、蓝牙等面板
+│   └── services/          闲置、夜灯等后台服务
+├── third-party/           已迁移的第三方插件
+│   ├── hancore.voxtype-enhance/
+│   └── iamcheyan.clipboard/
+├── compat/omarchy/        omarchy-* 兼容命令和默认资源
+└── docs/                  架构、迁移和插件文档
+```
+
+## 哪些内容由仓库管理
+
+Git 仓库管理的是源码、默认资源、兼容脚本、Nix 接线和 systemd/Home Manager
+启动文件。主要接线位置是：
+
+```text
+/home/tetsuya/nixos-config/modules/labwc.nix
+/home/tetsuya/nixos-config/modules/desktop.nix
+/home/tetsuya/nixos-config/modules/labwc/labwc/scripts/quickshell
+/home/tetsuya/nixos-config/modules/labwc/labwc/scripts/quickshell-mode
+```
+
+用户自己的布局、主题修改、剪贴板历史和手动安装插件属于运行时数据，不直接
+写进 Nix 源码：
+
+```text
+~/.config/anchor-shell/              用户配置
+~/.config/anchor-shell/plugins/     用户额外插件
+~/.local/state/anchor-shell/        主题、通知、剪贴板等状态
+```
+
+这部分由 Anchor Shell 使用和初始化，但不会因为 NixOS rebuild 自动覆盖。首次
+启动时，如果新目录缺少对应文件，Labwc 会从旧 Omarchy/Quickshell 目录复制，
+不会删除旧目录。
 ```
 
 旧的 `modules/quickshell/` 在迁移完成前保留为回退副本。它不是新的运行时
@@ -53,8 +100,9 @@ Nixarchy 暂时仍保留在系统中，因为 Hyprland/Omarchy 会话仍使用�
 模块、包和服务。后续移除 Nixarchy 前，还需要迁移 Hyprland 的系统接线、主题
 服务、用户模块以及 `nixarchy-apps.nix` 的剩余选项。这个阶段不会修改那些配置。
 
-开发模式由 `~/.config/quickshell/mode` 选择，内容为 `dev` 时使用仓库源码；
-其他情况使用 Nix 构建副本。切换模式的入口仍保留原来的命令名：
+开发模式由 `~/.config/anchor-shell/mode` 选择，内容为 `dev` 时使用仓库源码；
+其他情况使用 Nix 构建副本。旧的 `~/.config/quickshell/mode` 只作为兼容读取
+来源。切换模式的入口仍保留原来的命令名：
 
 ```sh
 quickshell-mode dev
@@ -64,6 +112,77 @@ quickshell-mode status
 
 这些命令名暂时不改，是为了兼容已有脚本和个人工作流；它们的实现和运行源
 已经由本仓库管理。
+
+## 编译后的位置
+
+Nix 构建会把源码复制到不可变的 `/nix/store/`。路径中的哈希会随着源码或依赖
+变化，因此不能把哈希写死。当前系统中对应的主要产物包括：
+
+```text
+/nix/store/...-anchor-shell
+/nix/store/...-anchor-shell-omarchy-compat
+/nix/store/...-home-manager-files
+/nix/store/...-hm_quickshell
+/nix/store/...-hm_quickshellmode
+/nix/store/...-nixos-system-hx90-...
+```
+
+当前系统 generation 可以通过下面命令查看：
+
+```sh
+readlink -f /run/current-system
+nix path-info -r /run/current-system | rg 'anchor-shell|hm_quickshell|home-manager-files'
+```
+
+Home Manager 暴露给用户的入口是符号链接：
+
+```text
+~/.local/bin/quickshell-topbar
+~/.local/bin/quickshell-mode
+~/.config/labwc/autostart
+~/.config/labwc/scripts/quickshell
+~/.config/labwc/scripts/quickshell-mode
+```
+
+这些链接最终指向 `/nix/store/...`，但开发模式启动的 Quickshell 会直接加载：
+
+```text
+/home/tetsuya/nixos-config/modules/anchor-shell/shell.qml
+```
+
+因此“源码位置”和“编译后位置”可能不同，实际运行位置要以实例信息为准：
+
+```sh
+quickshell list --all
+```
+
+## 启动链和运行环境
+
+Labwc 的启动链如下：
+
+```text
+NixOS 配置
+  └── modules/labwc.nix
+      └── ~/.config/labwc/autostart
+          └── ~/.local/bin/quickshell-topbar
+              └── Anchor Shell / Quickshell
+```
+
+当前实例使用的关键环境变量是：
+
+```text
+QUICKSHELL_ROOT              Anchor Shell 源码或 store 副本
+QUICKSHELL_CONFIG            ~/.config/anchor-shell/shell.json
+QUICKSHELL_PLUGINS_DIR       ~/.config/anchor-shell/plugins
+ANCHOR_SHELL_CONFIG_DIR      ~/.config/anchor-shell
+ANCHOR_SHELL_STATE_DIR       ~/.local/state/anchor-shell
+ANCHOR_SHELL_PLUGINS_DIR     ~/.config/anchor-shell/plugins
+OMARCHY_PATH                 modules/anchor-shell/compat/omarchy
+NIXARCHY_ROOT                modules/anchor-shell/compat/omarchy
+```
+
+最后两个变量只是兼容名称；在 Labwc 下指向本仓库的兼容副本，不指向外部
+Nixarchy/Omarchy store 包。
 
 ## 插件加载规则
 

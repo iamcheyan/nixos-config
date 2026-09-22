@@ -219,6 +219,8 @@
       </mousebind>
     </context>
     <context name="Root">
+      <!-- Override Labwc's default Root left-click menu binding. -->
+      <mousebind button="Left" action="Press" />
       <mousebind button="Right" action="Press">
         <action name="ShowMenu" menu="root-menu" />
       </mousebind>
@@ -246,8 +248,5 @@
     <topLeft x="1" y="1">
       <action name="GoToDesktop" to="left" wrap="yes" />
     </topLeft>
-    <topRight x="1" y="1">
-      <action name="ShowMenu" menu="root-menu" />
-    </topRight>
   </hotCorner>
 </labwc_config>
