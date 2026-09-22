@@ -1,0 +1,17 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# omarchy:summary=Ensure default application launchers and mise wrappers are installed.
+
+# Copy .desktop declarations
+mkdir -p ~/.local/share/applications
+cp -f --no-preserve=mode "$OMARCHY_PATH"/applications/*.desktop ~/.local/share/applications/
+
+if omarchy-cmd-present alacritty; then
+  cp -f --no-preserve=mode "$OMARCHY_PATH/default/alacritty/Alacritty.desktop" ~/.local/share/applications/
+fi
+
+if [[ -f "$OMARCHY_PATH/install/user/mise.sh" ]]; then
+  bash "$OMARCHY_PATH/install/user/mise.sh"
+fi
+
+update-desktop-database ~/.local/share/applications

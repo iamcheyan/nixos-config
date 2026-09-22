@@ -1,0 +1,29 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# omarchy:summary=Remove fingerprint authentication from sudo, polkit, and lock screen
+# omarchy:requires-sudo=true
+
+set -e
+
+
+
+remove_lock_fingerprint_pam() {
+  if [[ -f /etc/pam.d/omarchy-lock-fingerprint ]]; then
+    echo "Removing lock screen fingerprint authentication..."
+    sudo rm -f /etc/pam.d/omarchy-lock-fingerprint
+  fi
+}
+
+
+echo -e "\e[32mRemoving fingerprint scanner from authentication.\n\e[0m"
+
+echo "PAM is configured by your NixOS build, so there is nothing to unpick" >&2
+    echo "in /etc/pam.d. Drop the fprintAuth lines and services.fprintd from" >&2
+    echo "your configuration and rebuild." >&2
+    echo "" >&2
+remove_lock_fingerprint_pam
+
+echo "Removing fingerprint packages..."
+omarchy-pkg-drop fprintd libfprint libfprint-git
+
+echo -e "\e[32mFingerprint authentication has been completely removed.\e[0m"

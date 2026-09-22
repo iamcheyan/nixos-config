@@ -1,0 +1,48 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# omarchy:summary=Run pending Omarchy migrations
+
+# Omarchy ships 86 migration scripts that bring an *older* Arch install
+# forward. Twenty-nine use sudo, twelve write under /usr and eight call pacman,
+# so on NixOS they range from meaningless to destructive: there is no /usr to
+# write to, no pacman to call, and the things they migrate -- release channels,
+# keyrings, system config -- are the flake's job here.
+#
+# With no state directory every one of them counts as pending, so this is not
+# academic. Someone running `omarchy migrate` on a machine installed today
+# would have run all 86 as root.
+#
+# --pending answers honestly rather than refusing: nothing IS pending, because
+# nothing here will ever run them. omarchy-bar and omarchy-migrate-notify both
+# ask that way, and an error where they expect a list would be a worse answer
+# than the true one. A bare run is a person, and gets told why.
+set -euo pipefail
+
+case "${1-}" in
+  --pending | --check)
+    # No output, exit 0: the contract for "nothing to do".
+    exit 0
+    ;;
+  -h | --help)
+    echo "Usage: omarchy migrate [--pending]"
+    exit 0
+    ;;
+esac
+
+cat >&2 <<'MSG'
+Migrations are not how a NixOS install moves forward.
+
+  Omarchy's migrations bring an older Arch system up to date -- they run
+  pacman, write under /usr, and edit system config with sudo. None of that
+  is how this machine is built.
+
+  The equivalent here is your flake:
+
+    nix flake update nixarchy      pick up a newer Omarchy
+    omarchy update                 the same thing, from the menu
+
+  Nixarchy pins one Omarchy release, and moving between releases happens by
+  changing that pin and rebuilding -- with the packaging updated to match,
+  which is work migrations cannot do from inside a running system.
+MSG
+exit 1

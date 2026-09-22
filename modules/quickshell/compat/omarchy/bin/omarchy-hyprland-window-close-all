@@ -1,0 +1,12 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# omarchy:summary=Close all open windows
+
+hyprctl clients -j | \
+  jq -r ".[].address" | \
+  while read -r addr; do
+    hyprctl dispatch "hl.dsp.window.close({ window = \"address:$addr\" })" >/dev/null
+  done
+
+# Move to first workspace
+hyprctl dispatch 'hl.dsp.focus({ workspace = "1" })' >/dev/null 2>&1 || hyprctl dispatch workspace 1

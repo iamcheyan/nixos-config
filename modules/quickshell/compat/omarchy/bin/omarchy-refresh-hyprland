@@ -1,0 +1,14 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# omarchy:summary=Overwrite all the user Hyprland Lua configs in ~/.config/hypr with the Omarchy defaults.
+
+omarchy-refresh-config hypr/.luarc.json
+omarchy-refresh-config hypr/autostart.lua
+omarchy-refresh-config hypr/bindings.lua
+omarchy-refresh-config hypr/input.lua
+omarchy-refresh-config hypr/looknfeel.lua
+omarchy-refresh-config hypr/hyprland.lua
+omarchy-refresh-config hypr/monitors.lua
+
+mkdir -p ~/.local/state/omarchy/toggles/hypr
+cp "$OMARCHY_PATH/default/hypr/toggles/flags.lua" ~/.local/state/omarchy/toggles/hypr/

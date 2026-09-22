@@ -1,0 +1,186 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# nixarchy:new
+# omarchy:summary=Ask the default agent to do something about this machine, with the right skill already chosen.
+# omarchy:args=<optimize|security|logs|gpu|disk|backup|install|update|anything> [extra...]
+# omarchy:examples=nixarchy ask logs | nixarchy ask optimize
+
+# The whole point of this file is the prompts, and the one thing they all do:
+# name the skill.
+#
+# A small local model is bad at choosing between nine skills from their
+# descriptions and fine at following one it has been handed. Naming the skill in
+# the prompt moves the hard part -- routing -- from the model to this file,
+# which is why the same menu row that is useful with Claude is also useful with
+# a 4B model on a CPU. It is not a fallback for weak models; it makes every
+# agent more reliable, because the routing is then reviewable and fixable here
+# rather than re-guessed on every invocation.
+#
+# Every prompt also says measure-then-propose. An agent that reaches for a fix
+# before it has read anything is the failure mode these tasks invite, and on a
+# machine whose whole definition is one rebuild from replaced, "show me first"
+# costs a few seconds and saves the afternoon.
+#
+# Nothing here mentions an agent by name. omarchy-agent-prompt launches whichever
+# one the user chose, so these work with Claude, Codex, opencode, pi or a local
+# model, and keep working when they switch.
+
+set -uo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: nixarchy ask <task> [extra words...]
+
+  optimize   Find what is actually slow and propose fixes
+  security   Review what this machine exposes
+  logs       Sweep the system state and explain what is wrong
+  gpu        Work out why the GPU is not being used
+  disk       Find what is filling the disk
+  backup     Get the configuration into version control
+  install    Install or change something, declaratively
+  update     Explain what the last update changed
+  anything   Type your own question
+
+Anything after the task is appended to the prompt:
+
+  nixarchy ask logs since yesterday
+  nixarchy ask install a markdown editor
+USAGE
+}
+
+task=${1:-}
+[[ -z $task || $task == -h || $task == --help ]] && { usage; exit 0; }
+shift
+extra="$*"
+
+if [[ -z $(omarchy-default-agent 2>/dev/null) ]]; then
+  echo "No default agent is set." >&2
+  echo "Choose one with: omarchy default agent <name>" >&2
+  echo "Or open: Setup > Default Agent" >&2
+  exit 1
+fi
+
+# Prepended to every task. Read-first and propose-don't-apply are the two rules
+# that make an agent with shell access on someone's only machine reasonable.
+preamble='You are working on a NixOS machine running Nixarchy. This machine is
+declarative: nothing is installed with a package manager, changes are made by
+editing the configuration and rebuilding, and an imperative install does not
+survive the next rebuild. Read the named skill before doing anything else, and
+follow it. Investigate and report what you find BEFORE changing anything, then
+propose changes and wait for approval. Prefer commands that only read.'
+
+case "$task" in
+  optimize)
+    prompt="$preamble
+
+Use the nixos-performance skill. Work out what is ACTUALLY slow on this machine
+before proposing anything: run the measurement block in that skill -- failed
+units, PSI pressure, memory, disk, thermals, boot time -- and show me the
+numbers. Then propose at most three changes, each justified by a number you
+measured. Do not apply a list of tuning options that were not indicated by the
+measurements."
+    ;;
+  security)
+    prompt="$preamble
+
+Use the nixos-security skill. Review what this machine actually exposes: start
+with 'ss -tlnp' and the live firewall ruleset, and pay attention to whether each
+service is bound to loopback or to the network -- that distinction answers most
+of the question on its own. Then review the configuration for the common
+own-goals that skill lists. Report findings by severity. Do not change the
+firewall or SSH without showing me the change first: locking me out of my own
+machine is the failure mode here."
+    ;;
+  logs)
+    prompt="$preamble
+
+Use the nixos-doctor skill. Run its sweep in order -- failed units, this boot's
+errors at -p err, kernel warnings, disk, memory, and what changed in the last
+generations. Quote the actual log lines you are basing conclusions on; a
+paraphrased error is not evidence. Start at error level, not warning: most
+warnings on a healthy Linux machine are noise, and reporting them as findings
+buries the one line that matters. If everything is fine, say so plainly rather
+than manufacturing findings."
+    ;;
+  gpu)
+    prompt="$preamble
+
+Use the nixos-gpu skill. Identify the hardware first with lspci, then work down
+its three layers in order -- kernel driver, userspace runtime, application
+build -- and tell me which layer is the problem before proposing a fix. Most
+'GPU not working' reports are one specific layer, and skipping to the last one
+is why they go unsolved. Note that a driver change needs a reboot, not just a
+switch."
+    ;;
+  disk)
+    prompt="$preamble
+
+Use the nixos-doctor skill, the 'Disk Full' section. Find what is actually
+taking the space before suggesting anything be deleted. If the Nix store is the
+cause, prefer 'nix store optimise' and a dated garbage collection over
+'nix-collect-garbage -d', which destroys every rollback this machine has. Ask
+before deleting anything. If the space is held by one genuinely large closure,
+say so rather than suggesting a garbage collection that will not help."
+    ;;
+  backup)
+    prompt="$preamble
+
+Use the nixos-config-repo skill. Check whether this machine's configuration is
+committed and pushed anywhere. If it is not, explain what that means -- the
+whole definition of this machine exists on one disk with no history -- and offer
+to run 'nixarchy config repo', which does the setup properly and scans for
+secrets before the first commit. Never commit a plaintext secret."
+    ;;
+  install)
+    prompt="$preamble
+
+Use the nixos skill. I want to install or change: ${extra:-<ask me what>}.
+Pick the highest applicable route: the curated app list first, then
+nixarchy-pkg-add for a plain package, then a flake edit for anything needing
+options. Never install imperatively. Show me the change before rebuilding."
+    ;;
+  update)
+    prompt="$preamble
+
+Use the nixos and nixos-doctor skills. Tell me what changed in the most recent
+system generations, using 'nix profile diff-closures --profile
+/nix/var/nix/profiles/system' as the evidence rather than a changelog. If
+something broke after that update, say that a rollback is one command away and
+what it will and will not restore -- it restores the system, not databases or
+anything else in /var."
+    ;;
+  anything)
+    if [[ -z $extra ]]; then
+      if [ -t 0 ] && command -v gum &>/dev/null; then
+        extra=$(gum input --placeholder "What do you want to know about this machine?" --width 80)
+        [[ -z $extra ]] && exit 0
+      else
+        echo "Usage: nixarchy ask anything <your question>" >&2
+        exit 1
+      fi
+    fi
+    prompt="$preamble
+
+$extra
+
+Pick whichever of this machine's skills fits -- nixos, nixarchy, nixos-gpu,
+nixos-ai, nixos-services, nixos-secrets, nixos-performance, nixos-security,
+nixos-doctor, nixos-config-repo, devenv -- and read it before answering."
+    ;;
+  *)
+    echo "Unknown task: $task" >&2
+    echo >&2
+    usage >&2
+    exit 1
+    ;;
+esac
+
+# Appended for every task but `install`, which already consumed it, and
+# `anything`, which is nothing but the extra.
+if [[ -n $extra && $task != install && $task != anything ]]; then
+  prompt="$prompt
+
+Also: $extra"
+fi
+
+exec omarchy-agent-prompt "$prompt"

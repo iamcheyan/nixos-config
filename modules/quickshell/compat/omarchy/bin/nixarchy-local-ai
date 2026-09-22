@@ -1,0 +1,311 @@
+#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
+
+# nixarchy:new
+# omarchy:summary=Set up the local language model, and check it is actually working.
+# omarchy:args=[--status]
+# omarchy:examples=nixarchy local-ai
+
+# programs.nixarchy.localAi turns the service on and points the agents at it.
+# What it deliberately does NOT do is download the weights: `loadModels` would
+# spend several gigabytes of someone's connection during a rebuild, with no
+# progress and no way to say no. That is this command's job, where there is a
+# terminal to ask in.
+#
+# It is also the only place that can size a model honestly. Nix evaluates before
+# the machine runs, so the flake can read which GPU was *declared* but never how
+# much memory it has. A model larger than VRAM does not fail -- it spills into
+# system RAM and crawls -- so the number has to be read here, at runtime, and
+# said out loud.
+
+set -uo pipefail
+
+status_only=false
+[[ ${1:-} == "--status" ]] && status_only=true
+
+say()  { echo -e "$1"; }
+step() { echo -e "\n\033[1;32m▸\033[0m \033[1m$1\033[0m"; }
+warn() { echo -e "\n\033[1;33m!\033[0m $1"; }
+fail() { echo -e "\n\033[1;31m✗\033[0m $1" >&2; }
+ok()   { echo -e "  \033[32m✓\033[0m $1"; }
+
+# gum confirm answers yes(0), no(1), quit(130) -- and something else when it
+# could not ask at all. Folding the last two into "no" is how an offer silently
+# does nothing; the caller says what an unanswerable question means.
+confirm() { # confirm <prompt> <yes|no when unaskable>
+  local rc
+  if [ -t 0 ] && [ -t 1 ] && command -v gum &>/dev/null; then
+    gum confirm "$1"; rc=$?
+    case $rc in
+      0) return 0 ;;
+      1) return 1 ;;
+      130) exit 130 ;;
+      *) ;;
+    esac
+  fi
+  [ "$2" = yes ]
+}
+
+if ! command -v ollama &>/dev/null; then
+  fail "The local model is not enabled on this machine."
+  say  "Add this to your configuration, then run \033[1mnixarchy apply\033[0m:"
+  say  "\n    programs.nixarchy.localAi.enable = true;\n"
+  say  "It runs a model on this machine for the coding agents, with no account"
+  say  "and no network. See the \033[1mnixos-ai\033[0m skill, or ask your agent."
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# What this machine actually is
+# ---------------------------------------------------------------------------
+
+accel="cpu"
+vram_mb=0
+gpu_name=""
+
+if command -v nvidia-smi &>/dev/null && nvidia-smi -L &>/dev/null; then
+  accel="cuda"
+  gpu_name=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)
+  vram_mb=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -1)
+elif command -v rocminfo &>/dev/null && rocminfo &>/dev/null; then
+  accel="rocm"
+  gpu_name=$(rocminfo 2>/dev/null | grep -m1 -oE 'gfx[0-9a-f]+')
+  # rocm-smi reports bytes; the field name has moved between releases, so this
+  # takes the first number that looks like a memory total rather than trusting
+  # one spelling of it.
+  vram_mb=$(( $(rocm-smi --showmeminfo vram --csv 2>/dev/null | awk -F, 'NR==2 {print $2+0}') / 1024 / 1024 ))
+fi
+
+ram_mb=$(( $(awk '/MemTotal/ {print $2}' /proc/meminfo) / 1024 ))
+
+# Where the weights land, and whether that place is memory.
+#
+# A VM with an ephemeral tmpfs root -- which is what `nix run .#vm` builds --
+# stores the model IN RAM, so a 2.5GB model costs 2.5GB before anything has
+# loaded it, and loading it then wants that much again. The service is OOM-
+# killed while the numbers above still look like they had room:
+#
+#   ollama.service: The kernel OOM killer killed some processes in this unit
+#
+# Worth naming, because every visible figure says it should have worked.
+models_dir=/var/lib/private/ollama
+[ -d "$models_dir" ] || models_dir=/var/lib
+models_fs=$(findmnt -no FSTYPE --target "$models_dir" 2>/dev/null || echo unknown)
+models_on_ram=false
+[[ $models_fs == tmpfs || $models_fs == ramfs ]] && models_on_ram=true
+
+# The budget a model has to fit in. On a GPU that is VRAM; on CPU it is system
+# memory, and not all of it -- a desktop still has to run.
+if [[ $accel == cpu ]]; then
+  budget_mb=$(( ram_mb / 2 ))
+else
+  budget_mb=$vram_mb
+fi
+
+# When the models directory is itself memory, the weights are paid for twice --
+# once to store the file, once to load it -- out of the same pool. Halving the
+# budget is what stops this recommending a model larger than the one the tmpfs
+# warning below tells you to avoid, which is what it did before: the two
+# messages contradicted each other on the same screen.
+$models_on_ram && budget_mb=$(( budget_mb / 2 ))
+
+# Sizes are the Q4 download plus room for the KV cache, which at the 64k context
+# opencode requires is gigabytes on its own and is what actually decides this.
+recommend() {
+  if   (( budget_mb >= 20000 )); then echo "qwen3-coder:30b"
+  elif (( budget_mb >= 11000 )); then echo "qwen3:14b"
+  elif (( budget_mb >=  7000 )); then echo "qwen3:8b"
+  else                                echo "qwen3:4b"
+  fi
+}
+
+# Below this, measured rather than guessed, the skills stop working -- and stop
+# in the way that matters.
+#
+# qwen3:1.7b lists the skills correctly and calls tools correctly, so every
+# mechanical check passes. Asked how to install a package, with the nixos skill
+# right there, it answered:
+#
+#   packages.ripgrep = true;
+#   nix-rebuild-incremental
+#
+# Neither exists. It prefixed that with "using the nixos skill", which is the
+# whole problem: the skills made a wrong answer sound sourced. A model that
+# cannot follow them is worse here than no local model, because the failure
+# arrives wearing the machine's own documentation.
+#
+# 4b is where this is set because that is the smallest tier anything above a toy
+# machine gets recommended. It has NOT been shown to be sufficient -- only that
+# 1.7b is not.
+too_small() {
+  case "$1" in
+    *:0.5b | *:0.6b | *:1.5b | *:1.7b | *:2b | *:3b) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+configured=$(nix eval --raw "${NIXARCHY_FLAKE:-/etc/nixos}#nixosConfigurations.$(hostname).config.programs.nixarchy.localAi.model" 2>/dev/null)
+suggested=$(recommend)
+
+say "\033[1mLocal AI on this machine\033[0m"
+say ""
+if [[ $accel == cpu ]]; then
+  say "  Hardware:   no GPU -- running on the CPU"
+  say "  Memory:     ${ram_mb} MB total, budgeting ${budget_mb} MB for a model"
+else
+  say "  Hardware:   ${gpu_name:-unknown} (${accel})"
+  say "  VRAM:       ${vram_mb} MB"
+fi
+say "  Configured: ${configured:-unknown}"
+say "  Suggested:  ${suggested}"
+
+if [[ $accel == cpu ]]; then
+  warn "\033[1mThis machine has no GPU, and that is the whole story.\033[0m"
+  say  ""
+  say  "  Measured here, not guessed. Eight cores, qwen3:8b, one question asked"
+  say  "  through an agent:"
+  say  ""
+  say  "      500 | 4m59s     the client gave up waiting"
+  say  "      200 | 1m48s"
+  say  "      200 | 8m58s"
+  say  "      200 | 7m28s"
+  say  "      500 | 1m38s     the client gave up waiting"
+  say  ""
+  say  "  Five round trips, twenty-five minutes, no answer. Nothing was"
+  say  "  misconfigured -- the context held and three requests succeeded. An"
+  say  "  agent just needs several turns, and on a CPU each turn is minutes."
+  say  ""
+  say  "  \033[1mUse a hosted agent instead.\033[0m The skills on this machine were"
+  say  "  written for exactly that, and it answers in seconds:"
+  say  ""
+  say  "      \033[1momarchy default agent claude\033[0m"
+  say  ""
+  say  "  Or add a GPU. Then this becomes worth having, and the configuration"
+  say  "  picks the right build on its own -- see the nixos-gpu skill."
+  say  ""
+fi
+
+if $models_on_ram; then
+  warn "Models are stored on a \033[1m${models_fs}\033[0m, which is memory."
+  say  "  The weights will occupy RAM before anything loads them, and loading"
+  say  "  then wants about as much again -- so a model that looks like it fits"
+  say  "  gets the service OOM-killed. This is what an ephemeral-root VM does;"
+  say  "  a real install keeps /var on a disk and does not have the problem."
+  say  "  To try one here anyway, use the smallest model there is:"
+  say  "\n    programs.nixarchy.localAi.model = \"qwen3:1.7b\";\n"
+fi
+
+if too_small "${configured:-$suggested}"; then
+  warn "\033[1m${configured:-$suggested}\033[0m is too small to use this machine's skills."
+  say  "  A model this size lists them and calls tools correctly, and then"
+  say  "  answers from memory anyway -- while saying it used the skill. That is"
+  say  "  worse than no local model: the mistakes arrive looking sourced."
+  say  "\n  Measured on qwen3:1.7b, asked how to install a package with the"
+  say  "  nixos skill available:  packages.ripgrep = true; nix-rebuild-incremental"
+  say  "  Neither of those exists.\n"
+  say  "  Use qwen3:8b if the machine can hold it, or a hosted agent instead:"
+  say  "  \033[1momarchy default agent claude\033[0m\n"
+fi
+
+if [[ -n $configured && $configured != "$suggested" ]]; then
+  warn "Your configuration asks for \033[1m$configured\033[0m; this machine fits"
+  say  "  \033[1m$suggested\033[0m. A model larger than the budget does not fail --"
+  say  "  it spills into system memory and crawls. Change it with:"
+  say  "\n    programs.nixarchy.localAi.model = \"$suggested\";\n"
+fi
+
+# ---------------------------------------------------------------------------
+# Is it up
+# ---------------------------------------------------------------------------
+
+step "Service"
+if systemctl is-active --quiet ollama.service; then
+  ok "ollama.service is running"
+else
+  fail "ollama.service is not running."
+  say  "  systemctl status ollama    journalctl -u ollama -b"
+  exit 1
+fi
+
+host=$(nix eval --raw "${NIXARCHY_FLAKE:-/etc/nixos}#nixosConfigurations.$(hostname).config.programs.nixarchy.localAi.host" 2>/dev/null || echo 127.0.0.1)
+port=$(nix eval --raw "${NIXARCHY_FLAKE:-/etc/nixos}#nixosConfigurations.$(hostname).config.programs.nixarchy.localAi.port" 2>/dev/null || echo 11434)
+api="http://${host}:${port}"
+
+if curl -sf --max-time 5 "$api/api/tags" >/dev/null 2>&1; then
+  ok "answering on $api"
+else
+  fail "not answering on $api"
+  exit 1
+fi
+
+installed=$(curl -sf --max-time 5 "$api/api/tags" 2>/dev/null | jq -r '.models[].name' 2>/dev/null)
+if [[ -n $installed ]]; then
+  ok "models present:"
+  while IFS= read -r m; do echo "      $m"; done <<<"$installed"
+else
+  warn "no models downloaded yet"
+fi
+
+$status_only && exit 0
+
+# ---------------------------------------------------------------------------
+# Pull
+# ---------------------------------------------------------------------------
+
+model=${configured:-$suggested}
+
+if ! grep -qx "$model" <<<"$installed"; then
+  step "Downloading $model"
+  say "  A few gigabytes, once. It is stored outside the Nix store, so a"
+  say "  rollback does not remove it and a rebuild does not re-fetch it.\n"
+
+  if confirm "Download $model now?" yes; then
+    ollama pull "$model" || { fail "Download failed."; exit 1; }
+    ok "$model ready"
+  else
+    say "\nNot downloading. Run this again when you want it."
+    exit 0
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Prove it works, and say how fast
+# ---------------------------------------------------------------------------
+
+step "Testing"
+say "  Asking it something only this machine's skills can answer, so the reply"
+say "  shows whether the model is reachable AND whether the agents' knowledge"
+say "  of NixOS reached it.\n"
+
+resp=$(curl -sf --max-time 180 "$api/api/generate" -d "$(jq -nc \
+  --arg m "$model" \
+  --arg p 'On NixOS, which option chooses whether Ollama uses CUDA or ROCm? Answer in one sentence.' \
+  '{model:$m, prompt:$p, stream:false}')" 2>/dev/null)
+
+if [[ -z $resp ]]; then
+  fail "No answer. The model is installed but did not respond."
+  say  "  journalctl -u ollama -b --no-pager | tail -30"
+  exit 1
+fi
+
+answer=$(jq -r '.response' <<<"$resp" 2>/dev/null | tr -d '\n' | sed 's/  */ /g')
+eval_count=$(jq -r '.eval_count // 0' <<<"$resp")
+eval_ns=$(jq -r '.eval_duration // 0' <<<"$resp")
+tps="?"
+(( eval_ns > 0 )) && tps=$(awk "BEGIN{printf \"%.1f\", $eval_count / ($eval_ns/1000000000)}")
+
+ok "answered at ${tps} tokens/sec"
+say "\n  \033[2m${answer:0:400}\033[0m\n"
+
+if command -v ollama &>/dev/null; then
+  step "Where it runs"
+  ollama ps 2>/dev/null | sed 's/^/  /'
+  say "\n  The PROCESSOR column is the one that matters. Anything short of"
+  say "  100% GPU means the model did not fit and is partly in system memory."
+fi
+
+step "Using it"
+say "  Make it your agent:   \033[1momarchy default agent opencode\033[0m  (or pi)"
+say "  Then ask it anything: \033[1momarchy agent prompt \"why is my disk full\"\033[0m"
+say ""
+say "  It has this machine's skills -- NixOS, GPUs, services, secrets, logs --"
+say "  so it answers about \033[1mthis\033[0m system rather than about Arch."
