@@ -1,0 +1,24 @@
+{
+  // Trimmed stand-in for Omarchy's omarchy-menu.jsonc, shaped like the real
+  // thing: dotted ids imply hierarchy, kind is inferred, and `when` is a shell
+  // condition. Kept in-repo so the suite does not need Omarchy installed.
+  "system": {"icon":"","label":"System","aliases":["power-menu"]},
+  "system.lock": {"icon":"","label":"Lock","action":"omarchy-system-lock"},
+  "system.suspend": {"label":"Suspend","when":"true","action":"systemctl suspend"},
+  "system.hibernate": {"label":"Hibernate","when":"false","action":"systemctl hibernate"},
+
+  "style": {"label":"Style"},
+  "style.theme": {"label":"Theme","description":"change the colour scheme","action":"omarchy-theme-switcher"},
+
+  // Not overridden by the user fixture, so its description survives the merge.
+  "setup": {"label":"Setup"},
+  "setup.dns": {"label":"DNS","description":"pick a resolver","action":"omarchy-dns-set"},
+
+  "install": {"label":"Install"},
+  "install.docker": {"label":"Docker","aliases":["container-runtime"],"action":"omarchy-install-docker"},
+
+  // A submenu carries no action, so it must never surface as a result.
+  "learn": {"label":"Learn"},
+  // A link navigates rather than executing.
+  "learn.docs": {"label":"Docs","target":"https://omarchy.org"},
+}

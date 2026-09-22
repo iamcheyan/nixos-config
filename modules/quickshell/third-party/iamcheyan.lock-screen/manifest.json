@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "iamcheyan.lock-screen",
+  "name": "Lock Screen",
+  "version": "1.0.0",
+  "author": "iamcheyan",
+  "license": "MIT",
+  "description": "Native Omarchy session locking with the iamcheyan lock-screen interface.",
+  "keepLoaded": true,
+  "omarchy": {
+    "clonedFrom": "omarchy.lock"
+  },
+  "kinds": ["service"],
+  "entryPoints": {
+    "service": "Service.qml"
+  }
+}

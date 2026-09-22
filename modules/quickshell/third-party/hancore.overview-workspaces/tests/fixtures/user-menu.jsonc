@@ -1,0 +1,5 @@
+{
+  // Overrides the default entry with the same id, and adds one of its own.
+  "style.theme": {"label":"Colour theme","action":"my-theme-switcher"},
+  "custom.note": {"label":"Note","action":"my-note"},
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "iamcheyan.launcher",
+  "name": "Application Launcher",
+  "version": "0.1.0",
+  "author": "iamcheyan",
+  "license": "MIT",
+  "description": "Native Omarchy application launcher with searchable apps, menu actions, keyboard navigation, pinning, and adaptive layout controls.",
+  "keepLoaded": true,
+  "omarchy": {
+    "clonedFrom": "omarchy.menu"
+  },
+  "kinds": ["menu", "bar-widget"],
+  "entryPoints": {
+    "menu": "Menu.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Application Launcher",
+    "description": "Opens the single-level application launcher",
+    "category": "Compositor",
+    "allowMultiple": false
+  }
+}

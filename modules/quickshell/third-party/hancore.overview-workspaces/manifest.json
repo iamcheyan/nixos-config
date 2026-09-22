@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "hancore.overview-workspaces",
+  "name": "Overview Workspaces",
+  "version": "0.1.12",
+  "author": "HANCORE",
+  "license": "MIT",
+  "description": "Omarchy workspace experience enhancement with live thumbnails, Windows-style MRU ordering, drag-and-drop, and automatic Win-key integration.",
+  "keepLoaded": true,
+  "omarchy": {
+    "clonedFrom": "omarchy.workspaces"
+  },
+  "kinds": ["panel", "bar-widget", "service"],
+  "entryPoints": {
+    "panel": "Overview.qml",
+    "barWidget": "bar/widget.qml",
+    "service": "KeybindingService.qml"
+  },
+  "barWidget": {
+    "displayName": "Workspace ordering",
+    "description": "Configure Optimized order (recommended) or System native order. Optimized order keeps dynamic visual slots, routes Win+number to those slots, and keeps New workspace last.",
+    "category": "Desktop",
+    "allowMultiple": false,
+    "defaultSection": "left"
+  }
+}
