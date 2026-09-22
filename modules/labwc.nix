@@ -20,6 +20,10 @@ let
   # Henri desktop-icons uses Gio/GLib through PyGObject. Keep its interpreter
   # isolated instead of changing the system's generic python3 selection.
   anchorShellPython = pkgs.python3.withPackages (ps: [ ps.pygobject3 ]);
+  anchorAddToDesktop = pkgs.writeShellScriptBin "add-to-desktop" ''
+    exec ${anchorShellPython}/bin/python3 \
+      ${quickshellRoot}/third-party/henri.desktop-icons/bin/add-to-desktop "$@"
+  '';
 
   # Quickshell's Qt wrapper only exports its own QML modules. The Omarchy
   # right-side widgets use Breeze controls, which import KDE Kirigami; expose
@@ -261,6 +265,7 @@ in
       kdePackages.kirigami
       kdePackages.qqc2-desktop-style
       kdePackages.dolphin
+      anchorAddToDesktop
       foot
       fuzzel
       grim
@@ -313,6 +318,10 @@ in
       xdg.configFile."fuzzel".source = labwcFuzzel;
       xdg.configFile."mako".source = labwcMako;
       xdg.configFile."cliphist".source = labwcCliphist;
+      xdg.dataFile."kio/servicemenus/anchor-send-to-desktop.desktop" = {
+        source = ./anchor-shell/third-party/henri.desktop-icons/dolphin/send-to-desktop.desktop;
+        executable = true;
+      };
       home.file.".local/share/themes/BL-Lithium-dark".source =
         ./labwc/labwc/themes/BL-Lithium-dark;
       home.file.".local/share/themes/Adwaita-Labwc-dark".source =

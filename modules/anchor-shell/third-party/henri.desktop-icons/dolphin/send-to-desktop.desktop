@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Service
+Name=Send to Desktop (create shortcut)
+Icon=user-desktop
+X-KDE-ServiceTypes=KonqPopupMenu/Plugin
+MimeType=application/octet-stream;inode/directory;
+Actions=sendToDesktop;
+X-KDE-Priority=TopLevel
+
+[Desktop Action sendToDesktop]
+Name=Send to Desktop (create shortcut)
+Icon=user-desktop
+Exec=add-to-desktop %F
