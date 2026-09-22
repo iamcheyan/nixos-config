@@ -20,6 +20,7 @@ fi
 
 config_dir="${QUICKSHELL_ROOT:-${XDG_CONFIG_HOME:-$HOME/.config}/quickshell}"
 mode_file="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/mode"
+runtime_file="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/runtime"
 if [ -r "$mode_file" ] && [ "$(cat "$mode_file")" = dev ] \
     && [ -f /home/tetsuya/nixos-config/modules/quickshell/shell.qml ]; then
     config_dir=/home/tetsuya/nixos-config/modules/quickshell
@@ -29,6 +30,21 @@ export QUICKSHELL_CONFIG="${QUICKSHELL_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}
 export QT_QUICK_CONTROLS_STYLE="${QT_QUICK_CONTROLS_STYLE:-Basic}"
 export QML2_IMPORT_PATH="/run/current-system/sw/lib/qt-6/qml${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
 export QML_IMPORT_PATH="/run/current-system/sw/lib/qt-6/qml${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
+
+# The compatibility runtime keeps the historical Omarchy names while the
+# source is migrated into this repository.  Legacy remains the default until
+# the copied runtime has been verified in the running session.
+omarchy_root="${NIXARCHY_ROOT:-${OMARCHY_PATH:-}}"
+if [ -r "$runtime_file" ] && [ "$(cat "$runtime_file")" = compat ]; then
+    omarchy_root="${QUICKSHELL_OMARCHY_COMPAT_ROOT:-$config_dir/compat/omarchy}"
+elif [ -n "${QUICKSHELL_OMARCHY_LEGACY_ROOT:-}" ]; then
+    omarchy_root="$QUICKSHELL_OMARCHY_LEGACY_ROOT"
+fi
+if [ -n "$omarchy_root" ] && [ -d "$omarchy_root" ]; then
+    export NIXARCHY_ROOT="$omarchy_root"
+    export OMARCHY_PATH="$omarchy_root"
+    export PATH="$omarchy_root/bin:$PATH"
+fi
 
 if [ -x "$config_dir/run" ]; then
     exec "$config_dir/run"
