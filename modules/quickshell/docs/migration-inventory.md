@@ -39,6 +39,8 @@
 - 58 个实际 `omarchy-*` 兼容命令在仓库副本中均存在；
 - 使用仓库副本启动 Quickshell 的短时 smoke test 通过，完成配置加载和插件扫描；
 - 新系统闭包包含本地 `quickshell-shell`、`quickshell-omarchy-compat` 和启动脚本。
+- 运行时切换会先读取实例 PID，再精确停止单个 Quickshell 实例，兼容不同
+  Quickshell CLI 对 `--newest` 的差异。
 
 ## 下一阶段删除前的验收条件
 

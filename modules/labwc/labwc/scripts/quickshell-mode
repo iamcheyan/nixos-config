@@ -40,8 +40,14 @@ case "${1:-}" in
 esac
 
 # Labwc's autostart supervisor notices the exit and starts the selected root.
+# The CLI's `--newest` selector is not accepted consistently across Quickshell
+# versions, so resolve the actual PID first and stop exactly that instance.
 if command -v quickshell >/dev/null 2>&1; then
-    quickshell kill --newest >/dev/null 2>&1 || true
+    instance_pid="$(quickshell list --all 2>/dev/null | awk '/Process ID:/ {print $3; exit}')"
+    case "$instance_pid" in
+        ''|*[!0-9]*) ;;
+        *) quickshell kill --pid "$instance_pid" >/dev/null 2>&1 || true ;;
+    esac
 fi
 
 printf 'Quickshell mode set to %s; the shell is restarting.\n' "$1"
