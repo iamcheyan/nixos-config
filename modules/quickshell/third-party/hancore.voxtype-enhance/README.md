@@ -105,12 +105,17 @@ The plugin intentionally exposes two output modes:
 
 ### Omarchy universal paste
 
-Voxtype writes the complete transcription to the Wayland clipboard. The plugin then detects the focused Hyprland window using the same terminal-tag policy as Omarchy's `clipboard.lua`:
+Voxtype writes the complete transcription to the Wayland clipboard. The plugin
+then calls the repository-owned `universal-clipboard` entry point, which uses
+the same terminal policy as Omarchy's `clipboard.lua`:
 
 - Omarchy terminal/TUI windows receive `Shift+Insert`;
 - graphical applications receive `Ctrl+V`.
 
-This avoids terminal applications interpreting `Ctrl+V` as a special action, such as an image-paste command. The final shortcut is sent through Hyprland's `hl.dsp.send_key_state` dispatcher with explicit key press and release events.
+This avoids terminal applications interpreting `Ctrl+V` as a special action,
+such as an image-paste command. Labwc/Sway/KDE use the Wayland virtual
+keyboard path; Hyprland retains the existing `hyprctl` fallback when the
+shared entry point is unavailable.
 
 Before output, the plugin records the previous clipboard hash. It sends the shortcut only when Voxtype has produced new non-empty text, so pressing the recording key without speaking does not paste stale clipboard content.
 

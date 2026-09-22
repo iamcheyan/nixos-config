@@ -7,6 +7,7 @@ import json
 import hashlib
 import os
 import pathlib
+import shutil
 import subprocess
 import stat
 import sys
@@ -265,6 +266,39 @@ def send_shortcut(mods: str, key: str, state: str) -> None:
     )
 
 
+def shared_universal_clipboard() -> pathlib.Path | None:
+    """Find the repository-owned universal clipboard entry point."""
+    candidates = []
+    configured = os.environ.get("OMARCHY_UNIVERSAL_CLIPBOARD", "")
+    if configured:
+        candidates.append(pathlib.Path(configured))
+    candidates.append(pathlib.Path.home() / ".config/labwc/scripts/universal-clipboard")
+    installed = shutil.which("omarchy-universal-clipboard")
+    if installed:
+        candidates.append(pathlib.Path(installed))
+    for candidate in candidates:
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
+def paste_via_shared_universal_clipboard() -> bool:
+    """Use the same focus-aware policy as the Cmd/Ctrl+V shortcut."""
+    helper = shared_universal_clipboard()
+    if helper is None:
+        return False
+    try:
+        result = subprocess.run(
+            [str(helper), "paste"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        return False
+    return result.returncode == 0
+
+
 def main() -> None:
     action = sys.argv[1] if len(sys.argv) > 1 else "paste"
     if action == "snapshot":
@@ -273,6 +307,8 @@ def main() -> None:
     if action != "paste" or not clipboard_changed():
         return
     if paste_to_focused_kitty():
+        return
+    if paste_via_shared_universal_clipboard():
         return
     mods, key = ("SHIFT", "Insert") if active_window_is_terminal() else ("CTRL", "V")
     send_shortcut(mods, key, "down")
