@@ -184,6 +184,7 @@ Panel {
     else if (action === "hibernate" && root.hibernateAvailable) Quickshell.execDetached(["systemctl", "hibernate"])
     else if (action === "reboot") Quickshell.execDetached(["systemctl", "reboot"])
     else if (action === "poweroff") Quickshell.execDetached(["systemctl", "poweroff"])
+    else if (action === "reload-labwc") Quickshell.execDetached([Quickshell.env("HOME") + "/.config/labwc/scripts/reload"])
     root.close()
   }
 
@@ -543,6 +544,7 @@ Panel {
             Button { width: (parent.width - parent.columnSpacing) / 2; iconText: "󰍃"; text: "Log Out"; foreground: root.bar.foreground; onClicked: root.runSessionAction("logout") }
             Button { width: (parent.width - parent.columnSpacing) / 2; iconText: "󰒲"; text: "Sleep"; foreground: root.bar.foreground; onClicked: root.runSessionAction("suspend") }
             Button { width: (parent.width - parent.columnSpacing) / 2; iconText: "󰤁"; text: "Hibernate"; foreground: root.bar.foreground; visible: root.hibernateAvailable; onClicked: root.runSessionAction("hibernate") }
+            Button { width: (parent.width - parent.columnSpacing) / 2; iconText: "󰑐"; text: "Reload Labwc"; foreground: root.bar.foreground; onClicked: root.runSessionAction("reload-labwc") }
             Button { width: (parent.width - parent.columnSpacing) / 2; iconText: "󰜉"; text: "Restart"; foreground: root.bar.foreground; onClicked: root.runSessionAction("reboot") }
             Button { width: (parent.width - parent.columnSpacing) / 2; iconText: "󰐥"; text: "Shut Down"; foreground: root.bar.foreground; onClicked: root.runSessionAction("poweroff") }
           }
