@@ -89,7 +89,7 @@ cat >> "$rc_file" << 'FOOTER'
       <action name="Execute" command="~/.config/labwc/scripts/keyboard-profile next" />
     </keybind>
 
-    <!-- MINILA-R Fn+L (keyd emits Ctrl+Super+L): lock screen -->
+    <!-- Standard Omarchy-compatible lock shortcut. -->
     <keybind key="W-C-l">
       <action name="Execute" command="~/.config/labwc/scripts/lock-screen" />
     </keybind>
