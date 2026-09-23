@@ -6,6 +6,7 @@ in
 {
   imports = [
     ./hardware-configuration.nix
+    ../../mir2ei.nix
     ../../modules/workstation.nix
     ../../modules/update-snapshots.nix
     ./nixarchy-apps.nix
@@ -28,6 +29,58 @@ in
     HandleLidSwitch = "suspend";
     HandlePowerKey = "suspend";
     HandleSuspendKey = "suspend";
+  };
+
+  # The Hermes peer runs as a user service and must remain available after
+  # logout and across boots.
+  users.users.tetsuya.linger = true;
+  environment.variables.HERMES_HOME = "/home/tetsuya/.local/share/hermes-peer";
+
+  # Hermes' supported Linux installer maintains its own fixed Python venv.
+  # Declare its system runtime tools here so they remain available on NixOS.
+  environment.systemPackages = with pkgs; [
+    curl
+    ffmpeg
+    git
+    nodejs_24
+    ripgrep
+    xz
+  ];
+
+  # The API server binds only to this host's LAN address. Add a source-limited
+  # iptables allow rule; no unrestricted TCP port is opened.
+  networking.firewall.extraCommands = ''
+    iptables -w -A nixos-fw -s 192.168.3.0/24 -p tcp --dport 8377 -j nixos-fw-accept
+  '';
+  networking.firewall.extraStopCommands = ''
+    iptables -w -D nixos-fw -s 192.168.3.0/24 -p tcp --dport 8377 -j nixos-fw-accept 2>/dev/null || true
+  '';
+
+  # Install/operate Hermes as a private user-level remote API peer. Its
+  # dedicated home keeps the user's existing ~/.hermes data and credentials
+  # separate, and this service starts no messaging platform adapters.
+  home-manager.users.tetsuya = { ... }: {
+    systemd.user.services.hermes-peer = {
+      Unit = {
+        Description = "Hermes remote API peer";
+        After = [ "network-online.target" ];
+      };
+      Service = {
+        Type = "simple";
+        WorkingDirectory = "/home/tetsuya";
+        Environment = [
+          "HERMES_HOME=/home/tetsuya/.local/share/hermes-peer"
+          "API_SERVER_ENABLED=true"
+          "API_SERVER_HOST=192.168.3.188"
+          "API_SERVER_PORT=8377"
+        ];
+        EnvironmentFile = "/home/tetsuya/.config/hermes-peer/api.env";
+        ExecStart = "/home/tetsuya/.local/share/hermes-agent/venv/bin/hermes gateway";
+        Restart = "on-failure";
+        RestartSec = 5;
+      };
+      Install.WantedBy = [ "default.target" ];
+    };
   };
 
   # Keep manual suspend/hibernation available, but do not trigger either one
