@@ -240,7 +240,7 @@ in
     systemd.user.services.anchor-shell-labwc-probe = {
       description = "Anchor Shell for the Labwc session";
       serviceConfig = {
-        ExecStart = "%h/.config/labwc/scripts/quickshell";
+        ExecStart = "${quickshellWithKirigami}/bin/quickshell -n -p ${quickshellRoot}";
         Restart = "always";
         RestartSec = 1;
       };
