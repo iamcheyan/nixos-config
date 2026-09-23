@@ -23,7 +23,7 @@
   # ownership of them.  This keeps activation recoverable on this workstation.
   # Keep older backups intact while avoiding a collision with the existing
   # .gtkrc-2.0.hm-backup-nixos file from the previous activation.
-  home-manager.backupFileExtension = "hm-backup-nixos-v3";
+  home-manager.backupFileExtension = "hm-backup-nixos-v4";
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
