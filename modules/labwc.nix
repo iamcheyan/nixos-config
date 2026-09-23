@@ -218,31 +218,10 @@ let
 
     ${pkgs.mako}/bin/mako &
 
-    # Supervise only unexpected Quickshell exits.  Re-read the mode on every
-    # launch so `quickshell-mode dev` can switch the source without a rebuild.
-    while true; do
-      quickshell_root="${quickshellRoot}"
-      omarchy_root="${quickshellCompatRoot}"
-      if [ -r "$HOME/.config/quickshell/runtime" ] \
-        && [ "$(cat "$HOME/.config/quickshell/runtime")" = compat ]; then
-        omarchy_root="${quickshellCompatRoot}"
-      fi
-      if [ -r "$HOME/.config/quickshell/mode" ] \
-        && [ "$(cat "$HOME/.config/quickshell/mode")" = dev ] \
-        && [ -f "${quickshellDevRoot}/shell.qml" ]; then
-        quickshell_root="${quickshellDevRoot}"
-      fi
-      export NIXARCHY_ROOT="$omarchy_root"
-      export OMARCHY_PATH="$omarchy_root"
-      export PATH="$omarchy_root/bin:${pkgs.coreutils}/bin:${pkgs.bash}/bin:$PATH"
-      export QUICKSHELL_ROOT="$quickshell_root"
-      export QUICKSHELL_PLUGINS_DIR="$quickshell_root/plugins"
-      ${quickshellWithKirigami}/bin/quickshell -n -p "$quickshell_root"
-      status=$?
-      # A clean exit is also a restart request: labwc -r can tear down the
-      # layer-shell client while reloading, and the bar must come back.
-      sleep 1
-    done &
+    # Anchor Shell is supervised by the user systemd service below.  Keep
+    # exactly one owner for the Quickshell process; a second shell here can
+    # race the IPC/layer-shell instance and leave labwc looking black.
+    ${pkgs.systemd}/bin/systemctl --user restart --no-block anchor-shell-labwc-probe.service &
   '';
 in
 {
@@ -255,6 +234,18 @@ in
 
     # This service is owned by the compositor-neutral Labwc integration. The
     # Hyprland session keeps its historical omarchy-fcitx5 service separately.
+    # Anchor Shell owns the Quickshell layer in Labwc.  It is started by
+    # labwc/autostart after the session environment has been imported and is
+    # restarted only by systemd when the process exits.
+    systemd.user.services.anchor-shell-labwc-probe = {
+      description = "Anchor Shell for the Labwc session";
+      serviceConfig = {
+        ExecStart = "%h/.config/labwc/scripts/quickshell";
+        Restart = "always";
+        RestartSec = 1;
+      };
+    };
+
     systemd.user.services.anchor-fcitx5 = {
       description = "Fcitx5 input method for Anchor Shell sessions";
       after = [ "graphical-session.target" ];
