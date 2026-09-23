@@ -114,6 +114,34 @@ class DesktopIndexSecurityTests(unittest.TestCase):
         self.assertNotIn("<", item["name"])
         self.assertNotIn("https://", item["icon"])
 
+    def test_link_desktop_entry_uses_local_image_target_as_preview(self):
+        image = self.desktop / "photo.jpg"
+        image.write_bytes(b"jpeg-placeholder")
+        shortcut = self.write_desktop(
+            "photo.jpg.desktop",
+            "[Desktop Entry]\n"
+            "Type=Link\n"
+            "Name=Photo\n"
+            f"URL={image.as_uri()}\n"
+            "Icon=image-x-generic\n",
+        )
+        item = self.listed(shortcut.name)
+        self.assertEqual(item["kind"], "image")
+        self.assertEqual(item["preview"], str(image.resolve()))
+
+    def test_link_desktop_entry_does_not_preview_remote_image(self):
+        shortcut = self.write_desktop(
+            "remote.desktop",
+            "[Desktop Entry]\n"
+            "Type=Link\n"
+            "Name=Remote\n"
+            "URL=https://example.invalid/photo.jpg\n"
+            "Icon=image-x-generic\n",
+        )
+        item = self.listed(shortcut.name)
+        self.assertEqual(item["kind"], "launcher")
+        self.assertEqual(item["preview"], "")
+
     def test_executable_bit_is_enough_to_trust(self):
         path = self.write_desktop(
             "safe.desktop",
