@@ -837,13 +837,11 @@ remove_retired_default_packages() {
     polkit-gnome
     qt5-remoteobjects
     satty
-    swaybg
     swayosd
     walker-bin
     ttf-jetbrains-mono
     ttf-jetbrains-mono-nerd
     vlc
-    waybar
     wayfreeze
     wayfreeze-git
     wf-recorder
