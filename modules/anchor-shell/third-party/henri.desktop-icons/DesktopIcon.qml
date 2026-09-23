@@ -113,21 +113,45 @@ Item {
             }
         }
 
-        Text {
-            id: labelText
-            visible: !surface.host.isRenamingItem(iconRoot.modelData, surface.screenName)
+        Item {
             width: parent.width
-            text: surface.host.plainText(iconRoot.modelData.name)
-            textFormat: Text.PlainText
-            color: "white"
-            style: Text.Outline
-            styleColor: "#cc000000"
-            font.pixelSize: 12
-            font.family: Style.fontFamily
-            wrapMode: Text.Wrap
-            elide: Text.ElideRight
-            maximumLineCount: 2
-            horizontalAlignment: Text.AlignHCenter
+            height: labelText.implicitHeight + 1
+
+            Text {
+                id: labelShadow
+                visible: !surface.host.isRenamingItem(iconRoot.modelData, surface.screenName)
+                x: 1
+                y: 1
+                width: parent.width
+                text: surface.host.plainText(iconRoot.modelData.name)
+                textFormat: Text.PlainText
+                color: "#b3000000"
+                style: Text.Outline
+                styleColor: "#b3000000"
+                font.pixelSize: 12
+                font.family: Style.fontFamily
+                wrapMode: Text.Wrap
+                elide: Text.ElideRight
+                maximumLineCount: 2
+                horizontalAlignment: Text.AlignHCenter
+            }
+
+            Text {
+                id: labelText
+                visible: !surface.host.isRenamingItem(iconRoot.modelData, surface.screenName)
+                width: parent.width
+                text: surface.host.plainText(iconRoot.modelData.name)
+                textFormat: Text.PlainText
+                color: "white"
+                style: Text.Outline
+                styleColor: "#cc000000"
+                font.pixelSize: 12
+                font.family: Style.fontFamily
+                wrapMode: Text.Wrap
+                elide: Text.ElideRight
+                maximumLineCount: 2
+                horizontalAlignment: Text.AlignHCenter
+            }
         }
     }
 
