@@ -1,15 +1,7 @@
 #!/bin/sh
+# Toggle the Anchor Shell application launcher.
+
 set -eu
-
-# Labwc's application launcher is the first-party Anchor Shell plugin. Resolve
-# the one running Quickshell instance explicitly so this works from a
-# compositor keybind without relying on a default IPC config path.
-pid=$(quickshell list --all 2>/dev/null | awk '/Process ID:/ { print $3; exit }')
-case "$pid" in
-    ''|*[!0-9]*)
-        printf '%s\n' 'Anchor Shell is not running' >&2
-        exit 1
-        ;;
-esac
-
+pid="$(quickshell list --all 2>/dev/null | awk '/Process ID:/ {print $3; exit}')"
+[ -n "$pid" ] || exit 1
 exec quickshell ipc --pid "$pid" call shell toggle launcher '{"menu":"root"}'

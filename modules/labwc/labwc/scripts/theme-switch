@@ -27,7 +27,7 @@ if [ -z "$theme" ]; then
             -printf '%h\n' 2>/dev/null |
         sed 's#/openbox-3$##; s#^.*/##' |
         sort -u |
-            fuzzel --dmenu --prompt "labwc Theme" --no-icons
+        wofi --dmenu --prompt "labwc Theme"
     )"
 fi
 

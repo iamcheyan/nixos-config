@@ -5,9 +5,9 @@ RC="$HOME/.config/labwc/rc.xml"
 cur=$(grep -oP '(?<=<font place="ActiveWindow">[^<]*<size>)[^<]+' "$RC" 2>/dev/null || echo "9")
 
 opts="8\n9\n10\n11\n12\n14\n16"
-chosen=$(printf '%s\n' $opts | fuzzel --dmenu \
-    --prompt "Font Size (current: ${cur})" \
-    --width 32 --lines 7 --no-icons)
+chosen=$(printf '%s\n' $opts | wofi --dmenu \
+    -p "Font Size (current: ${cur})" \
+    -W 200 -H 280 -l 7 -i)
 
 [ -z "$chosen" ] && exit 0
 

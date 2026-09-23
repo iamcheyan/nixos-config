@@ -1,6 +1,6 @@
 #!/bin/sh
 # Usage: scale [value] [output]  - apply directly and persist to kanshi config
-#        scale                   - pick a value via Fuzzel, then persist
+#        scale                   - pick a value via wofi, then persist
 
 _KANSHI_CFG="${XDG_CONFIG_HOME:-$HOME/.config}/kanshi/config"
 
@@ -53,9 +53,9 @@ cur_res=$(printf '%s\n' "$info" | awk -v output="$cur_out" '
 if [ -n "$1" ]; then
     scale="$1"
 else
-    scale=$(printf '%s\n' 1.0 1.25 1.5 2.0 2.5 3.0 | fuzzel --dmenu \
-        --prompt "Scale  ${cur_out}  ${cur_res}  (current: ${cur_scale})" \
-        --width 50 --lines 6 --no-icons)
+    scale=$(printf '%s\n' 1.0 1.25 1.5 2.0 2.5 3.0 | wofi --dmenu \
+        -p "Scale  ${cur_out}  ${cur_res}  (current: ${cur_scale})" \
+        -W 260 -H 260 -l 6 -i)
     [ -z "$scale" ] && exit 0
     scale=$(printf '%s' "$scale" | grep -oE '^[0-9.]+')
 fi
