@@ -5,8 +5,8 @@ Rectangle {
     id: menuBox
 
     required property var host
-    required property var panel
-    visible: panel.menuKind !== ""
+    required property var surface
+    visible: surface.menuKind !== ""
     z: 20
     width: menuCol.implicitWidth + 16
     height: menuCol.implicitHeight + 12
@@ -14,13 +14,13 @@ Rectangle {
     color: Color.popups.background
     border.width: 1
     border.color: Color.popups.border
-    x: Math.min(Math.max(8, menuX), Math.max(8, panel.width - width - 8))
-    y: Math.min(Math.max(8, menuY), Math.max(8, panel.height - height - 8))
+    x: Math.min(Math.max(8, menuX), Math.max(8, surface.width - width - 8))
+    y: Math.min(Math.max(8, menuY), Math.max(8, surface.height - height - 8))
 
     // Bind plugin state onto this item so menu JS never needs the `panel` id.
     property var pluginHost: host
-    property var currentItem: panel.menuItem
-    property string currentScreen: panel.screenName
+    property var currentItem: surface.menuItem
+    property string currentScreen: surface.screenName
     property int closeTick: 0
 
     function activateMenu(action) {
@@ -51,7 +51,7 @@ Rectangle {
         spacing: 2
 
         Repeater {
-            model: panel.menuEntries
+            model: surface.menuEntries
 
             Rectangle {
                 width: menuCol.width
@@ -93,8 +93,8 @@ Rectangle {
     Connections {
         target: menuBox
         function onCloseTickChanged() {
-            panel.menuKind = "";
-            panel.menuItem = null;
+            surface.menuKind = "";
+            surface.menuItem = null;
         }
     }
 }

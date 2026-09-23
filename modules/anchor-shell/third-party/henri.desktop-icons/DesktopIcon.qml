@@ -8,15 +8,15 @@ Item {
     id: iconRoot
 
     required property var host
-    required property var panel
+    required property var surface
     required property var emptyMouse
     required property var modelData
     required property int index
 
-    width: panel.host.cellW
-    height: panel.host.cellH
+    width: surface.host.cellW
+    height: surface.host.cellH
     z: iconMouse.drag.active ? 6 : 2
-    opacity: (panel.host.dragId === iconRoot.modelData.id && panel.host.dragHoverScreen !== "" && panel.host.dragHoverScreen !== panel.screenName) ? 0 : 1
+    opacity: (surface.host.dragId === iconRoot.modelData.id && surface.host.dragHoverScreen !== "" && surface.host.dragHoverScreen !== surface.screenName) ? 0 : 1
     property real pressX: 0
     property real pressY: 0
     property real dragOffsetX: 0
@@ -25,23 +25,23 @@ Item {
     property real lastSceneY: 0
 
     Binding on x {
-        value: panel.posFor(iconRoot.modelData, iconRoot.index).x
+        value: surface.posFor(iconRoot.modelData, iconRoot.index).x
         when: !iconMouse.drag.active
         restoreMode: Binding.RestoreNone
     }
     Binding on y {
-        value: panel.posFor(iconRoot.modelData, iconRoot.index).y
+        value: surface.posFor(iconRoot.modelData, iconRoot.index).y
         when: !iconMouse.drag.active
         restoreMode: Binding.RestoreNone
     }
 
     Rectangle {
-        width: Math.max(panel.host.iconSize + 12, Math.min(parent.width - 8, labelText.implicitWidth + 12))
-        height: Math.min(parent.height - 8, panel.host.iconSize + labelText.paintedHeight + 16)
+        width: Math.max(surface.host.iconSize + 12, Math.min(parent.width - 8, labelText.implicitWidth + 12))
+        height: Math.min(parent.height - 8, surface.host.iconSize + labelText.paintedHeight + 16)
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
         radius: 8
-        property bool selected: panel.host.isSelected(iconRoot.modelData.id) && emptyMouse.activeFocus
+        property bool selected: surface.host.isSelected(iconRoot.modelData.id) && emptyMouse.activeFocus
         color: selected ? Qt.rgba(1, 1, 1, 0.18) : (iconHover.hovered ? Qt.rgba(1, 1, 1, 0.08) : "transparent")
         border.width: selected ? 1 : 0
         border.color: Qt.rgba(1, 1, 1, 0.35)
@@ -57,27 +57,27 @@ Item {
         spacing: 4
 
         Item {
-            width: panel.host.iconSize
-            height: panel.host.iconSize
+            width: surface.host.iconSize
+            height: surface.host.iconSize
             anchors.horizontalCenter: parent.horizontalCenter
 
             Image {
                 id: fallbackGlyph
                 anchors.fill: parent
-                source: panel.host.fallbackIcon(iconRoot.modelData)
+                source: surface.host.fallbackIcon(iconRoot.modelData)
                 fillMode: Image.PreserveAspectFit
                 asynchronous: false
                 cache: false
                 smooth: true
                 visible: iconImage.status === Image.Error
-                sourceSize.width: panel.host.iconIsRaster(source) ? panel.host.iconPixels : 0
-                sourceSize.height: panel.host.iconIsRaster(source) ? panel.host.iconPixels : 0
+                sourceSize.width: surface.host.iconIsRaster(source) ? surface.host.iconPixels : 0
+                sourceSize.height: surface.host.iconIsRaster(source) ? surface.host.iconPixels : 0
             }
 
             Image {
                 id: iconImage
                 anchors.fill: parent
-                source: panel.host.iconSource(iconRoot.modelData)
+                source: surface.host.iconSource(iconRoot.modelData)
                 fillMode: Image.PreserveAspectFit
                 // Pop theme icons are SVG. Qt SVG is not thread-safe, so an
                 // asynchronous decode often comes back blank while the label
@@ -86,12 +86,12 @@ Item {
                 cache: false
                 smooth: true
                 visible: status !== Image.Error
-                sourceSize.width: panel.host.iconIsRaster(source) ? panel.host.iconPixels : 0
-                sourceSize.height: panel.host.iconIsRaster(source) ? panel.host.iconPixels : 0
+                sourceSize.width: surface.host.iconIsRaster(source) ? surface.host.iconPixels : 0
+                sourceSize.height: surface.host.iconIsRaster(source) ? surface.host.iconPixels : 0
             }
 
             Rectangle {
-                visible: panel.host.isUntrustedLauncher(iconRoot.modelData)
+                visible: surface.host.isUntrustedLauncher(iconRoot.modelData)
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 width: 20
@@ -115,9 +115,9 @@ Item {
 
         Text {
             id: labelText
-            visible: !panel.host.isRenamingItem(iconRoot.modelData, panel.screenName)
+            visible: !surface.host.isRenamingItem(iconRoot.modelData, surface.screenName)
             width: parent.width
-            text: panel.host.plainText(iconRoot.modelData.name)
+            text: surface.host.plainText(iconRoot.modelData.name)
             textFormat: Text.PlainText
             color: "white"
             style: Text.Outline
@@ -132,7 +132,7 @@ Item {
     }
 
     Rectangle {
-        visible: panel.host.isRenamingItem(iconRoot.modelData, panel.screenName)
+        visible: surface.host.isRenamingItem(iconRoot.modelData, surface.screenName)
         z: 8
         anchors.left: parent.left
         anchors.right: parent.right
@@ -164,14 +164,14 @@ Item {
                 if (finishing)
                     return;
                 finishing = true;
-                panel.host.commitRename(iconRoot.modelData, text);
+                surface.host.commitRename(iconRoot.modelData, text);
             }
 
             function cancel() {
                 if (finishing)
                     return;
                 finishing = true;
-                panel.host.cancelRename();
+                surface.host.cancelRename();
             }
 
             Keys.onPressed: function (event) {
@@ -187,9 +187,9 @@ Item {
                 if (visible) {
                     finishing = false;
                     ready = false;
-                    text = panel.host.plainText(iconRoot.modelData.name);
+                    text = surface.host.plainText(iconRoot.modelData.name);
                     Qt.callLater(function () {
-                        if (!panel.host.isRenamingItem(iconRoot.modelData, panel.screenName))
+                        if (!surface.host.isRenamingItem(iconRoot.modelData, surface.screenName))
                             return;
                         renameInput.forceActiveFocus();
                         renameInput.selectAll();
@@ -210,7 +210,7 @@ Item {
         id: iconMouse
         anchors.fill: parent
         z: 2
-        enabled: !panel.host.isRenamingItem(iconRoot.modelData, panel.screenName)
+        enabled: !surface.host.isRenamingItem(iconRoot.modelData, surface.screenName)
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         hoverEnabled: true
         preventStealing: true
@@ -221,37 +221,37 @@ Item {
         // Do not clamp the dragged item to this output. The pointer grab
         // must be allowed to cross the virtual desktop so the release
         // handler can transfer the item to the other output.
-        drag.minimumX: -panel.width * 2
-        drag.minimumY: -panel.height * 2
-        drag.maximumX: panel.width * 2
-        drag.maximumY: panel.height * 2
+        drag.minimumX: -surface.width * 2
+        drag.minimumY: -surface.height * 2
+        drag.maximumX: surface.width * 2
+        drag.maximumY: surface.height * 2
         onPressed: function (mouse) {
             iconRoot.pressX = iconRoot.x;
             iconRoot.pressY = iconRoot.y;
             iconRoot.dragOffsetX = mouse.x;
             iconRoot.dragOffsetY = mouse.y;
-            iconRoot.lastSceneX = panel.modelData.x + iconRoot.x + mouse.x;
-            iconRoot.lastSceneY = panel.modelData.y + iconRoot.y + mouse.y;
-            panel.host.selectItem(iconRoot.modelData, mouse.modifiers);
+            iconRoot.lastSceneX = surface.modelData.x + iconRoot.x + mouse.x;
+            iconRoot.lastSceneY = surface.modelData.y + iconRoot.y + mouse.y;
+            surface.host.selectItem(iconRoot.modelData, mouse.modifiers);
             emptyMouse.forceActiveFocus();
             if (mouse.button === Qt.LeftButton)
-                panel.host.beginDrag(iconRoot.modelData, panel.screenName, iconRoot.lastSceneX, iconRoot.lastSceneY, mouse.x, mouse.y);
+                surface.host.beginDrag(iconRoot.modelData, surface.screenName, iconRoot.lastSceneX, iconRoot.lastSceneY, mouse.x, mouse.y);
         }
         onPositionChanged: function (mouse) {
             if (!(mouse.buttons & Qt.LeftButton))
                 return;
-            iconRoot.lastSceneX = panel.modelData.x + iconRoot.x + mouse.x;
-            iconRoot.lastSceneY = panel.modelData.y + iconRoot.y + mouse.y;
-            panel.host.updateDragPointer(iconRoot.lastSceneX, iconRoot.lastSceneY);
+            iconRoot.lastSceneX = surface.modelData.x + iconRoot.x + mouse.x;
+            iconRoot.lastSceneY = surface.modelData.y + iconRoot.y + mouse.y;
+            surface.host.updateDragPointer(iconRoot.lastSceneX, iconRoot.lastSceneY);
         }
-        onCanceled: panel.host.clearDrag()
+        onCanceled: surface.host.clearDrag()
         onReleased: function (mouse) {
             if (mouse.button !== Qt.LeftButton) {
-                panel.host.clearDrag();
+                surface.host.clearDrag();
                 return;
             }
             var itemId = iconRoot.modelData.id;
-            var fromScreen = panel.screenName;
+            var fromScreen = surface.screenName;
             var sceneX = iconRoot.lastSceneX;
             var sceneY = iconRoot.lastSceneY;
             var grabX = iconRoot.dragOffsetX;
@@ -264,58 +264,58 @@ Item {
             // Hide the follow-cursor ghost before any layout change.
             // moveItemToScreen removes this id from the source screen, which
             // destroys this delegate and would skip a clearDrag() after it.
-            panel.host.clearDrag();
+            surface.host.clearDrag();
             if (!wasDragged)
                 return;
-            var targetScreen = panel.host.screenAtPoint(sceneX, sceneY);
+            var targetScreen = surface.host.screenAtPoint(sceneX, sceneY);
             if (targetScreen && String(targetScreen.name || "default") !== fromScreen && Quickshell.screens.length > 1) {
-                panel.host.moveItemToScreen(itemId, fromScreen, String(targetScreen.name || "default"), sceneX - targetScreen.x - grabX, sceneY - targetScreen.y - grabY);
+                surface.host.moveItemToScreen(itemId, fromScreen, String(targetScreen.name || "default"), sceneX - targetScreen.x - grabX, sceneY - targetScreen.y - grabY);
                 return;
             }
-            var target = panel.itemAt(dropX + iconRoot.width / 2, dropY + iconRoot.height / 2, itemId);
-            if (target && panel.host.isTrash(target) && !panel.host.isTrash(iconRoot.modelData)) {
-                panel.host.trashItem(iconRoot.modelData);
+            var target = surface.itemAt(dropX + iconRoot.width / 2, dropY + iconRoot.height / 2, itemId);
+            if (target && surface.host.isTrash(target) && !surface.host.isTrash(iconRoot.modelData)) {
+                surface.host.trashItem(iconRoot.modelData);
                 return;
             }
-            var snapped = panel.snap(dropX, dropY);
-            var grid = panel.host.gridFor(panel.modelData);
+            var snapped = surface.snap(dropX, dropY);
+            var grid = surface.host.gridFor(surface.modelData);
             var sourceCell = DesktopLayout.cellFromPixel(pressX, pressY, grid);
             var targetCell = DesktopLayout.cellFromPixel(snapped.x, snapped.y, grid);
             iconRoot.x = snapped.x;
             iconRoot.y = snapped.y;
-            panel.host.moveItemWithinScreen(fromScreen, itemId, sourceCell, targetCell);
+            surface.host.moveItemWithinScreen(fromScreen, itemId, sourceCell, targetCell);
         }
         onClicked: function (mouse) {
             if (mouse.button === Qt.RightButton) {
-                if (!panel.host.isSelected(iconRoot.modelData.id))
-                    panel.host.selectItem(iconRoot.modelData, 0);
-                panel.openItemMenu(iconRoot.modelData, iconRoot, mouse);
+                if (!surface.host.isSelected(iconRoot.modelData.id))
+                    surface.host.selectItem(iconRoot.modelData, 0);
+                surface.openItemMenu(iconRoot.modelData, iconRoot, mouse);
                 return;
             }
             if (iconMouse.drag.active)
                 return;
             if (Math.abs(iconRoot.x - iconRoot.pressX) > 8 || Math.abs(iconRoot.y - iconRoot.pressY) > 8)
                 return;
-            panel.closeMenu();
+            surface.closeMenu();
         }
         onDoubleClicked: function (mouse) {
             if (mouse.button !== Qt.LeftButton || iconMouse.drag.active)
                 return;
-            panel.closeMenu();
-            panel.host.openOrConfirm(iconRoot.modelData, panel.screenName);
+            surface.closeMenu();
+            surface.host.openOrConfirm(iconRoot.modelData, surface.screenName);
         }
     }
 
     DropArea {
         anchors.fill: parent
         z: 3
-        enabled: panel.host.isTrash(iconRoot.modelData)
+        enabled: surface.host.isTrash(iconRoot.modelData)
         keys: ["text/uri-list"]
-        onEntered: panel.dropping = true
-        onExited: panel.dropping = false
+        onEntered: surface.dropping = true
+        onExited: surface.dropping = false
         onDropped: function (drop) {
-            panel.dropping = false;
-            if (!panel.host.isTrash(iconRoot.modelData))
+            surface.dropping = false;
+            if (!surface.host.isTrash(iconRoot.modelData))
                 return;
             var urls = [];
             if (drop.urls) {
@@ -324,7 +324,7 @@ Item {
             }
             if (urls.length > 0) {
                 drop.acceptProposedAction();
-                panel.host.trashUrls(urls);
+                surface.host.trashUrls(urls);
             }
         }
     }

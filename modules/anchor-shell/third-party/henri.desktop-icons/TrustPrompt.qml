@@ -5,34 +5,34 @@ Rectangle {
   id: trustBox
 
   required property var host
-  required property var panel
+  required property var surface
 
   visible: {
     var item = host.pendingTrust
     if (!item)
       return false
-    if (host.pendingTrustScreen && host.pendingTrustScreen !== panel.screenName)
+    if (host.pendingTrustScreen && host.pendingTrustScreen !== surface.screenName)
       return false
     return true
   }
   z: 21
-  width: Math.min(360, Math.max(280, panel.width - 48))
+  width: Math.min(360, Math.max(280, surface.width - 48))
   height: trustCol.implicitHeight + 24
   radius: 8
   color: Color.popups.background
   border.width: 1
   border.color: Color.popups.border
   x: {
-    var p = panel.trustIconPos()
+    var p = surface.trustIconPos()
     if (!p)
-      return Math.max(8, Math.round(panel.width / 2 - width / 2))
+      return Math.max(8, Math.round(surface.width / 2 - width / 2))
     return Math.min(Math.max(8, Math.round(p.x + host.cellW / 2 - width / 2)),
-                    Math.max(8, panel.width - width - 8))
+                    Math.max(8, surface.width - width - 8))
   }
   y: {
-    var p = panel.trustIconPos()
+    var p = surface.trustIconPos()
     if (!p)
-      return Math.max(8, Math.round(panel.height / 2 - height / 2))
+      return Math.max(8, Math.round(surface.height / 2 - height / 2))
     var above = p.y - height - 8
     if (above >= 8)
       return above

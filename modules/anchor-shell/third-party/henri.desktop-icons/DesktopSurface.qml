@@ -355,7 +355,7 @@ PanelWindow {
 
     DragGhost {
         host: panel.host
-        panel: panel
+        surface: panel
     }
 
     Rectangle {
@@ -432,7 +432,7 @@ PanelWindow {
 
             DesktopIcon {
                 host: panel.host
-                panel: panel
+                surface: panel
                 emptyMouse: emptyMouse
             }
         }
@@ -440,7 +440,7 @@ PanelWindow {
         IconContextMenu {
             id: menuBox
             host: panel.host
-            panel: panel
+            surface: panel
         }
         Connections {
             target: host
@@ -463,7 +463,7 @@ PanelWindow {
         TrustPrompt {
             id: trustBox
             host: panel.host
-            panel: panel
+            surface: panel
         }
     }
 }

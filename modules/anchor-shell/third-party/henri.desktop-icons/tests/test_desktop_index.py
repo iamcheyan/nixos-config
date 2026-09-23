@@ -483,7 +483,7 @@ class QmlSecurityTests(unittest.TestCase):
 
     def test_image_source_uses_safe_helper(self):
         source = self._qml_source()
-        self.assertIn("source: panel.host.iconSource(iconRoot.modelData)", source)
+        self.assertIn("source: surface.host.iconSource(iconRoot.modelData)", source)
         self.assertIn("function safeIconSource(", source)
         self.assertIn("function isBlockedIconUrl(", source)
         self.assertIn("function isLocalFileUrl(", source)
@@ -499,7 +499,7 @@ class QmlSecurityTests(unittest.TestCase):
         self.assertIn("required property var host", surface)
         self.assertNotIn("property var host: host", surface)
         self.assertIn("host: panel.host", surface)
-        self.assertIn("required property var panel", icon)
+        self.assertIn("required property var surface", icon)
         self.assertIn("required property var emptyMouse", icon)
 
 

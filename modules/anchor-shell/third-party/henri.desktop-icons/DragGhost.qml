@@ -5,17 +5,17 @@ Item {
   id: ghost
 
   required property var host
-  required property var panel
+  required property var surface
 
   z: 40
   width: host.cellW
   height: host.cellH
   enabled: false
   visible: host.dragId !== "" && host.dragEntry
-           && host.dragHoverScreen === panel.screenName
-           && host.dragOriginScreen !== panel.screenName
-  x: host.dragSceneX - panel.modelData.x - host.dragGrabX
-  y: host.dragSceneY - panel.modelData.y - host.dragGrabY
+           && host.dragHoverScreen === surface.screenName
+           && host.dragOriginScreen !== surface.screenName
+  x: host.dragSceneX - surface.modelData.x - host.dragGrabX
+  y: host.dragSceneY - surface.modelData.y - host.dragGrabY
   opacity: 0.96
 
   Column {
