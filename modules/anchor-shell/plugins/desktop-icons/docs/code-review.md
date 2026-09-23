@@ -153,19 +153,15 @@ Dolphin 服务菜单仍需要普通路径参数和 `--copy`。
 Trash 图标识别、拖入 Trash 和右键 Trash 菜单是 Windows 风格桌面体验的一部分，
 本轮确认保留，不删除。
 
-### `preview.png` 和上游发布说明
+### 预览图片和上游发布说明
 
-状态：保留（2026-09-23）。
+状态：已清理（2026-09-23）。
 
-`preview.png` 约 1.8 MB，只被 README 使用。如果该目录只作为系统内置模块，
-仍保留该图片和上游安装说明，因为 README 仍是可独立发布的插件说明：
+仓库预览图片只服务于独立发布页，不参与 Anchor Shell 运行时；本地副本不再
+保留该图片。上游仓库和原始插件路径记录在
+[README.md](../README.md) 的“Upstream source and local maintenance”章节中。
 
-- `omarchy plugin add`；
-- `omarchy plugin update`；
-- `omarchy plugin disable`；
-- `omarchy plugin remove`。
-
-`LICENSE` 和 `manifest.json` 应保留。前者用于保留上游许可和归属，后者用于
+`LICENSE` 和 `manifest.json` 继续保留。前者用于保留上游许可和归属，后者用于
 Anchor Shell 插件加载。
 
 ## 结构优化

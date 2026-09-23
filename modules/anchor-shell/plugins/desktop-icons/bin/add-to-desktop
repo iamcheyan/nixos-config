@@ -20,6 +20,7 @@ if _BIN_DIR not in sys.path:
 
 from common import (
     desktop_dir,
+    folder_custom_icon,
     guess_icon,
     is_trusted_application_source,
     unique_dest,
@@ -89,7 +90,7 @@ def read_desktop_name(path: Path) -> str | None:
 
 
 def write_link_desktop(dest: Path, name: str, target: Path) -> None:
-    icon = guess_icon(target)
+    icon = folder_custom_icon(target) or guess_icon(target)
     content = (
         "[Desktop Entry]\n"
         "Type=Link\n"

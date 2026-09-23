@@ -16,8 +16,7 @@ Item {
   readonly property string stateHome: Quickshell.env("ANCHOR_SHELL_STATE_DIR")
       || ((Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")) + "/anchor-shell")
   readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME")
-  readonly property string labwcBackgroundState: stateHome + "/labwc/wallpaper"
-  readonly property string omarchyBackgroundLink: stateHome + "/current/background"
+  readonly property string wallpaperState: stateHome + "/wallpaper"
   // Select the primary interaction surface from the live output geometry.
   // There are no monitor-name assumptions here: when an output disappears,
   // the remaining output becomes interactive as soon as the compositor
@@ -407,10 +406,8 @@ Item {
 
   Process {
     id: readlinkProc
-    // Labwc records the wallpaper selected by the user here. Keep the
-    // Omarchy link as a compatibility fallback for sessions that do not use
-    // the Labwc wallpaper helper.
-    command: ["bash", "-c", "set -eu; state=\"$1\"; fallback=\"$2\"; if [ -r \"$state\" ]; then wallpaper=$(cat \"$state\"); if [ -f \"$wallpaper\" ]; then printf '%s\\n' \"$wallpaper\"; exit 0; fi; fi; readlink -f \"$fallback\" 2>/dev/null || true", "lock-background", root.labwcBackgroundState, root.omarchyBackgroundLink]
+    // All wallpaper producers write the same plain-text state file.
+    command: ["bash", "-c", "set -eu; state=\"$1\"; if [ -r \"$state\" ]; then wallpaper=$(cat \"$state\"); if [ -f \"$wallpaper\" ]; then printf '%s\\n' \"$wallpaper\"; fi; fi", "lock-background", root.wallpaperState]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {

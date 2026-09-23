@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 1 || -z $1 ]]; then
+  printf 'Usage: pin-application DESKTOP-ID\n' >&2
+  exit 2
+fi
+
+desktop_id=${1%.desktop}.desktop
+if [[ $desktop_id == */* || $desktop_id == *\\* ]]; then
+  printf 'Invalid desktop ID: %s\n' "$1" >&2
+  exit 2
+fi
+
+data_home=${XDG_DATA_HOME:-$HOME/.local/share}
+data_dirs="$data_home"
+if [[ -n ${XDG_DATA_DIRS:-} ]]; then
+  data_dirs+=" ${XDG_DATA_DIRS//:/ }"
+else
+  data_dirs+=" /usr/local/share /usr/share"
+fi
+
+for data_dir in $data_dirs; do
+  candidate=$data_dir/applications/$desktop_id
+  if [[ -f $candidate ]]; then
+    exec add-to-desktop "$candidate"
+  fi
+done
+
+printf 'Application not found: %s\n' "$desktop_id" >&2
+exit 1

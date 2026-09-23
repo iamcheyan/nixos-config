@@ -454,6 +454,23 @@ ShellRoot {
       console.warn("summon: plugin not enabled, not summoning:", id)
       return false
     }
+
+    // The application launcher must follow the keyboard-focused output when
+    // invoked by a compositor shortcut. Bar clicks already carry their own
+    // screen name; only fill it in when the caller did not provide one.
+    if (id === "launcher") {
+      var launcherPayload = ({})
+      try { launcherPayload = JSON.parse(String(payloadJson || "{}")) } catch (e) {}
+      if (!launcherPayload.screen && shell.bar
+          && typeof shell.bar.focusedScreenName === "function") {
+        var focusedScreen = shell.bar.focusedScreenName()
+        if (focusedScreen) {
+          launcherPayload.screen = focusedScreen
+          payloadJson = JSON.stringify(launcherPayload)
+        }
+      }
+    }
+
     // Bar widgets take no payload; payloadJson is dropped on this path.
     if (shell.isBarWidgetPanelPlugin(id)) {
       var summoned = shell.bar && typeof shell.bar.summonBarWidget === "function"
@@ -511,6 +528,27 @@ ShellRoot {
 
   function toggle(pluginId, payloadJson) {
     var id = shell.pluginRegistry.resolveEnabledId(pluginId)
+    if (id === "launcher" && isPluginOpen(id)) {
+      var wanted = ""
+      try { wanted = String(JSON.parse(String(payloadJson || "{}")).screen || "") } catch (e) {}
+      if (!wanted && shell.bar && typeof shell.bar.focusedScreenName === "function") {
+        try { wanted = String(shell.bar.focusedScreenName() || "") } catch (e) {}
+      }
+      var loader = panelLoaders[id]
+      var current = loader && loader.item ? String(loader.item.requestedScreenName || "") : ""
+      var currentTarget = loader && loader.item && loader.item.targetScreen
+        ? String(loader.item.targetScreen.name || "") : ""
+      // The launcher is already open but on another output: move it there
+      // instead of just closing (mirrors the clipboard's acceptScreen).
+      // Same-screen toggles still close.
+      if (wanted && wanted !== current && wanted !== currentTarget) {
+        var movePayload = ({ menu: "root", screen: wanted })
+        try { loader.item.open(JSON.stringify(movePayload)) } catch (e) {
+          console.warn("plugin " + id + " open() threw:", e)
+        }
+        return true
+      }
+    }
     return isPluginOpen(id) ? hide(id) : summon(id, payloadJson)
   }
 
@@ -924,6 +962,29 @@ ShellRoot {
     function reloadConfig(): string {
       userConfigFile.reload()
       return "ok"
+    }
+
+    // Labwc root-menu "New File": start filename editing for a desktop
+    // item (e.g. a freshly created empty document) once the index lists it.
+    function renameDesktopItem(id: string): string {
+      var svc = shell.serviceFor ? shell.serviceFor("desktop-icons") : null
+      if (!svc && shell.ensureService) {
+        try { svc = shell.ensureService("desktop-icons") } catch (e) { svc = null }
+      }
+      if (!svc || typeof svc.requestRename !== "function") return "unknown"
+      try { return String(svc.requestRename(id || "")) } catch (e) { return "error" }
+    }
+
+    // Read-only companion for renameDesktopItem: reports the item id
+    // currently in filename-editing mode, or the queued one, or "".
+    function desktopRenameState(): string {
+      var svc = shell.serviceFor ? shell.serviceFor("desktop-icons") : null
+      if (!svc) return ""
+      try {
+        if (svc.renamingId) return String(svc.renamingId)
+        if (svc.pendingRenameId) return "pending:" + String(svc.pendingRenameId)
+      } catch (e) {}
+      return ""
     }
 
     function setPluginEnabled(id: string, enabled: string): string {

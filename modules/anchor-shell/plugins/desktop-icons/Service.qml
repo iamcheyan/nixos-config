@@ -26,12 +26,19 @@ Item {
   readonly property int maxNameLength: 120
   property var pendingTrust: null
   property string pendingTrustScreen: ""
+  // Item id (filename) waiting to enter rename mode once the index picks
+  // it up. Set by the shell IPC route used by Labwc's "New File" menu.
+  property string pendingRenameId: ""
   property string renamingId: ""
   property string renamingScreen: ""
   property bool renameBusy: false
   property string lastWrittenPositions: ""
   property string dragId: ""
   property var dragEntry: null
+  property var dragIds: []
+  property var dragStarts: ({})
+  property real dragDeltaX: 0
+  property real dragDeltaY: 0
   property string dragOriginScreen: ""
   property string dragHoverScreen: ""
   property real dragSceneX: 0
@@ -101,13 +108,99 @@ Item {
   }
 
   function beginDrag(item, screenName, sceneX, sceneY, grabX, grabY) {
+    var id = item && item.id ? String(item.id) : ""
+    var selected = root.selectedIds.indexOf(id) >= 0 ? root.selectedIds.slice() : [id]
+    var ids = []
+    var starts = {}
+    var grid = root.gridFor(root.screenByName(screenName))
+    var visible = root.itemsForScreen(screenName)
+    for (var i = 0; i < selected.length; i++) {
+      var selectedId = String(selected[i])
+      var visibleIndex = -1
+      for (var j = 0; j < visible.length; j++) {
+        if (String(visible[j].id) === selectedId) {
+          visibleIndex = j
+          break
+        }
+      }
+      if (visibleIndex < 0)
+        continue
+      var pixel = DesktopLayout.position(root.layoutState, screenName, selectedId, visibleIndex, grid)
+      var cell = DesktopLayout.cellFromPixel(pixel.x, pixel.y, grid)
+      ids.push(selectedId)
+      starts[selectedId] = {
+        col: cell.col,
+        row: cell.row,
+        x: pixel.x,
+        y: pixel.y
+      }
+    }
+    if (ids.indexOf(id) < 0) {
+      var fallback = root.layoutState.screens[screenName]
+        ? root.layoutState.screens[screenName][id] : null
+      var fallbackGrid = root.gridFor(root.screenByName(screenName))
+      ids = [id]
+      starts = {}
+      starts[id] = fallback
+        ? { col: fallback.col, row: fallback.row,
+            x: fallbackGrid.left + fallback.col * fallbackGrid.cellW,
+            y: fallbackGrid.top + fallback.row * fallbackGrid.cellH }
+        : { col: 0, row: 0, x: 0, y: 0 }
+    }
     root.dragEntry = item || null
     root.dragOriginScreen = screenName || ""
     root.dragHoverScreen = screenName || ""
     root.dragGrabX = grabX
     root.dragGrabY = grabY
-    root.dragId = item && item.id ? String(item.id) : ""
+    root.dragIds = ids
+    root.dragStarts = starts
+    root.dragDeltaX = 0
+    root.dragDeltaY = 0
+    root.dragId = id
     root.updateDragPointer(sceneX, sceneY)
+  }
+
+  function screenByName(name) {
+    var screens = Quickshell.screens || []
+    for (var i = 0; i < screens.length; i++) {
+      if (String(screens[i].name || "default") === String(name || "default"))
+        return screens[i]
+    }
+    return null
+  }
+
+  function isDraggingItem(itemId) {
+    return root.dragId !== "" && root.dragIds.indexOf(String(itemId)) >= 0
+  }
+
+  function updateGroupDrag(deltaX, deltaY) {
+    root.dragDeltaX = deltaX
+    root.dragDeltaY = deltaY
+  }
+
+  function moveDraggedGroup(fromScreen, toScreen, targetCell, anchorId, draggedIds, draggedStarts) {
+    var starts = draggedStarts || root.dragStarts
+    var ids = draggedIds || root.dragIds
+    var anchor = starts[String(anchorId || root.dragId)]
+    if (!anchor)
+      return
+    var deltaCol = targetCell.col - anchor.col
+    var deltaRow = targetCell.row - anchor.row
+    var moves = []
+    for (var i = 0; i < ids.length; i++) {
+      var id = ids[i]
+      var source = starts[id]
+      if (!source)
+        continue
+      moves.push({
+        id: id,
+        targetCell: { col: source.col + deltaCol, row: source.row + deltaRow }
+      })
+    }
+    root.layoutState = DesktopLayout.moveGroup(
+      root.layoutState, fromScreen, toScreen, moves
+    )
+    root.savePositions()
   }
 
   function clearDrag() {
@@ -115,6 +208,10 @@ Item {
     root.dragEntry = null
     root.dragOriginScreen = ""
     root.dragHoverScreen = ""
+    root.dragIds = []
+    root.dragStarts = ({})
+    root.dragDeltaX = 0
+    root.dragDeltaY = 0
   }
 
   // Labwc opens the desktop menu from Alt+Space, at the pointer.
@@ -367,6 +464,56 @@ Item {
 
   function canRename(item) {
     return !!(item && item.path && !root.isTrash(item) && !root.renameBusy)
+  }
+
+  function findItem(itemId) {
+    var id = String(itemId || "")
+    if (!id) return null
+    for (var i = 0; i < root.items.length; i++) {
+      if (String(root.items[i].id || "") === id)
+        return root.items[i]
+    }
+    return null
+  }
+
+  // Screen whose surface actually shows the item. New files are placed by
+  // the layout round-robin, so this must be resolved dynamically instead
+  // of assuming the focused output.
+  function screenShowing(itemId) {
+    var names = root.screenNames()
+    for (var i = 0; i < names.length; i++) {
+      var list = root.itemsForScreen(names[i])
+      for (var j = 0; j < list.length; j++) {
+        if (String(list[j].id || "") === itemId)
+          return names[i]
+      }
+    }
+    return ""
+  }
+
+  function beginRenameOnVisibleScreen(item) {
+    if (!root.canRename(item)) return false
+    var screen = root.screenShowing(item.id)
+      || (root.screenNames().length > 0 ? root.screenNames()[0] : "default")
+    root.beginRename(item, screen)
+    return true
+  }
+
+  // External entry point for "New File": start filename editing for the
+  // given item id as soon as the index lists it.
+  function requestRename(itemId) {
+    var id = String(itemId || "").slice(0, 255)
+    if (!id) return "unknown"
+    if (!root.renamingId) {
+      var item = root.findItem(id)
+      if (item && root.beginRenameOnVisibleScreen(item)) {
+        root.pendingRenameId = ""
+        return "ok"
+      }
+    }
+    root.pendingRenameId = id
+    root.refresh()
+    return "ok"
   }
 
   function isRenamingItem(item, screenName) {
@@ -649,6 +796,14 @@ Item {
       root.itemsJson = next
       root.items = items
       Qt.callLater(root.reconcileLayout)
+      if (root.pendingRenameId && !root.renamingId) {
+        // The layout may not know the new file yet; reconcile first so
+        // screenShowing() finds the surface that will display it.
+        root.reconcileLayout()
+        var pending = root.findItem(root.pendingRenameId)
+        if (pending && root.beginRenameOnVisibleScreen(pending))
+          root.pendingRenameId = ""
+      }
       if (root.pendingTrust && root.pendingTrust.id) {
         var pendingId = root.pendingTrust.id
         var stillUntrusted = false

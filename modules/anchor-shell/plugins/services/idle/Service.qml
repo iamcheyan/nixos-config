@@ -84,7 +84,7 @@ Item {
     root.idledThisCycle = false
     root.screensaverStartedThisCycle = false
     resetScreensaverWindows()
-    runProcess(lockProcess, "lock", root.hyprlandSession ? "omarchy-system-lock" : "swaylock -f -c 000000")
+    runProcess(lockProcess, "lock", root.hyprlandSession ? "omarchy-system-lock" : "~/.config/labwc/scripts/lock-screen")
   }
 
   function startIdleCycle() {

@@ -4,8 +4,8 @@ Windows-style files and shortcuts on the Omarchy wallpaper.
 
 ## Anchor Shell migration note
 
-This copy is managed by Anchor Shell in `modules/anchor-shell/third-party/`.
-It keeps the original plugin ID and command behavior, but stores icon positions
+This copy is managed by Anchor Shell in `modules/anchor-shell/plugins/desktop-icons/`.
+It keeps the local plugin ID and command behavior, but stores icon positions
 under `~/.local/state/anchor-shell/`. The icon layer owns the whole output so
 marquee selection can start from any edge. Empty-wallpaper right-clicks are
 forwarded to Labwc's root menu (`A-space` / `wtype`); right-clicking an icon
@@ -14,7 +14,15 @@ still opens this plugin's item menu.
 Labwc 上出现过的空白图标、框选方向、跨屏拖拽问题，以及不能改回去的约束，记在
 [docs/runtime-troubleshooting.md](docs/runtime-troubleshooting.md)。
 
-![Desktop icons on the wallpaper](preview.png)
+## Upstream source and local maintenance
+
+- Upstream repository: [Henri1130/omarchy-desktop-icons](https://github.com/Henri1130/omarchy-desktop-icons)
+- Upstream plugin directory: repository root, originally published as `desktop-icons`
+- Local maintained copy: `modules/anchor-shell/plugins/desktop-icons/`
+
+This copy includes Anchor Shell/Labwc integration and local multi-monitor behavior.
+Review upstream changes manually before applying them here; the active copy is not
+updated with `omarchy plugin update`.
 
 > [!IMPORTANT]
 > This plugin is for **Omarchy 4 (Quattro)**, where the desktop shell uses
@@ -23,6 +31,7 @@ Labwc 上出现过的空白图标、框选方向、跨屏拖拽问题，以及�
 ## What it does
 
 - Shows `~/Desktop` as icons on every monitor, under windows and the bar
+- Snapshots a folder's Dolphin color icon into a new desktop shortcut; later color changes do not alter the shortcut
 - Double-click an icon to open it; single-click selects it, and dragging moves it (snaps to a grid)
 - Drag on empty wallpaper to draw a selection rectangle; intersecting icons are selected together
 - On multiple monitors, each icon belongs to one monitor and can be dragged across the virtual desktop; its monitor assignment and grid position are remembered
@@ -54,25 +63,9 @@ Then:
 xdg-user-dirs-update
 ```
 
-Review the repository, then add the plugin:
-
-```bash
-omarchy plugin add https://github.com/Henri1130/omarchy-desktop-icons.git
-```
-
-Accept the prompt to enable the plugin during installation.
-
-For an unattended install from a repository you already trust:
-
-```bash
-omarchy plugin add https://github.com/Henri1130/omarchy-desktop-icons.git --enable --yes
-```
-
-Restart the shell once after enabling, so the icon layer is loaded:
-
-```bash
-omarchy restart shell
-```
+The active Anchor Shell copy is loaded from the Nix-managed repository path above.
+The upstream `omarchy plugin add` command is only for installing the standalone
+Omarchy version and is not part of the Anchor Shell runtime.
 
 ### Dolphin context menu
 
@@ -95,24 +88,6 @@ launchers selected in Dolphin and reuses `bin/add-to-desktop`.
 | Change wallpaper | `Super+Ctrl+Space` |
 
 **Pin application** from Applications marks launchers as trusted. **Send to Desktop** and copies of a `.desktop` file only auto-trust when the source is under a real Applications directory. A `.desktop` file that merely appears in `~/Desktop` without the executable bit does not.
-
-## Update
-
-```bash
-omarchy plugin update desktop-icons
-```
-
-## Disable
-
-```bash
-omarchy plugin disable desktop-icons
-```
-
-## Uninstall
-
-```bash
-omarchy plugin remove desktop-icons
-```
 
 ## Validate from source
 

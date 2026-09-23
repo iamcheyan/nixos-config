@@ -229,6 +229,47 @@ function moveOrSwap(state, screenName, id, sourceCell, targetCell) {
   return next
 }
 
+// Move a set of icons as a rigid grid group. A group move is rejected when
+// any destination cell is occupied by an icon outside the group, preventing
+// partial moves and overlaps.
+function moveGroup(state, fromScreen, toScreen, moves) {
+  var next = clone(state)
+  var targetEntries = next.screens[toScreen] || {}
+  var moving = {}
+  var destinations = {}
+
+  for (var i = 0; i < moves.length; i++) {
+    var move = moves[i]
+    moving[String(move.id)] = true
+    destinations[cellKey(move.targetCell.col, move.targetCell.row)] = true
+  }
+
+  for (var targetId in targetEntries) {
+    var target = targetEntries[targetId]
+    if (!moving[targetId] && destinations[cellKey(target.col, target.row)])
+      return clone(state)
+  }
+
+  for (var j = 0; j < moves.length; j++) {
+    var currentId = String(moves[j].id)
+    for (var screen in next.screens) {
+      if (next.screens[screen])
+        delete next.screens[screen][currentId]
+    }
+  }
+  if (!next.screens[toScreen])
+    next.screens[toScreen] = {}
+
+  for (var k = 0; k < moves.length; k++) {
+    var current = moves[k]
+    next.screens[toScreen][String(current.id)] = {
+      col: current.targetCell.col,
+      row: current.targetCell.row
+    }
+  }
+  return next
+}
+
 function moveToScreen(state, id, fromScreen, toScreen, targetCell) {
   var next = clone(state)
   var sourceCell = null

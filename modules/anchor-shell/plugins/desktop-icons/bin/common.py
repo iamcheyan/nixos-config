@@ -4,12 +4,16 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 import gi
 
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
+
+MAX_FOLDER_METADATA_BYTES = 64 * 1024
+THEME_ICON_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")
 
 
 def desktop_dir() -> Path:
@@ -46,6 +50,24 @@ def guess_icon(path: Path) -> str:
     content_type, _uncertain = Gio.content_type_guess(str(path), None)
     icon = Gio.content_type_get_generic_icon_name(content_type) if content_type else None
     return icon or "text-x-generic"
+
+
+def folder_custom_icon(path: Path) -> str:
+    """Read a folder's saved theme icon for snapshotting into a new shortcut."""
+    if not path.is_dir():
+        return ""
+    metadata = path / ".directory"
+    try:
+        if metadata.is_symlink() or not metadata.is_file():
+            return ""
+        if metadata.stat().st_size > MAX_FOLDER_METADATA_BYTES:
+            return ""
+        keyfile = GLib.KeyFile()
+        keyfile.load_from_file(str(metadata), GLib.KeyFileFlags.NONE)
+        icon = keyfile.get_string("Desktop Entry", "Icon").strip()
+    except (GLib.Error, OSError):
+        return ""
+    return icon if THEME_ICON_RE.fullmatch(icon) else ""
 
 
 def is_under(path: Path, root: Path) -> bool:

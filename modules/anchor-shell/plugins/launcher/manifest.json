@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "launcher",
+  "name": "Application Launcher",
+  "version": "0.1.0",
+  "author": "iamcheyan",
+  "license": "MIT",
+  "description": "Simple searchable application launcher for Anchor Shell.",
+  "keepLoaded": true,
+  "kinds": ["menu", "bar-widget"],
+  "entryPoints": {
+    "menu": "Menu.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Application Launcher",
+    "description": "Opens the single-level application launcher",
+    "category": "Compositor",
+    "allowMultiple": false
+  }
+}

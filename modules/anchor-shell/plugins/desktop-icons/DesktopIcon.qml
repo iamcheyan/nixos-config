@@ -15,7 +15,7 @@ Item {
 
     width: surface.host.cellW
     height: surface.host.cellH
-    z: iconMouse.drag.active ? 6 : 2
+    z: iconMouse.drag.active ? 6 : (surface.host.isDraggingItem(modelData.id) ? 5 : 2)
     opacity: (surface.host.dragId === iconRoot.modelData.id && surface.host.dragHoverScreen !== "" && surface.host.dragHoverScreen !== surface.screenName) ? 0 : 1
     property real pressX: 0
     property real pressY: 0
@@ -25,12 +25,16 @@ Item {
     property real lastSceneY: 0
 
     Binding on x {
-        value: surface.posFor(iconRoot.modelData, iconRoot.index).x
+        value: surface.host.isDraggingItem(iconRoot.modelData.id)
+            ? surface.host.dragStarts[iconRoot.modelData.id].x + surface.host.dragDeltaX
+            : surface.posFor(iconRoot.modelData, iconRoot.index).x
         when: !iconMouse.drag.active
         restoreMode: Binding.RestoreNone
     }
     Binding on y {
-        value: surface.posFor(iconRoot.modelData, iconRoot.index).y
+        value: surface.host.isDraggingItem(iconRoot.modelData.id)
+            ? surface.host.dragStarts[iconRoot.modelData.id].y + surface.host.dragDeltaY
+            : surface.posFor(iconRoot.modelData, iconRoot.index).y
         when: !iconMouse.drag.active
         restoreMode: Binding.RestoreNone
     }
@@ -252,7 +256,9 @@ Item {
             iconRoot.dragOffsetY = mouse.y;
             iconRoot.lastSceneX = surface.modelData.x + iconRoot.x + mouse.x;
             iconRoot.lastSceneY = surface.modelData.y + iconRoot.y + mouse.y;
-            surface.host.selectItem(iconRoot.modelData, mouse.modifiers);
+            if (!surface.host.isSelected(iconRoot.modelData.id)
+                || (mouse.modifiers & (Qt.ControlModifier | Qt.ShiftModifier)))
+                surface.host.selectItem(iconRoot.modelData, mouse.modifiers);
             focusItem.forceActiveFocus();
             if (mouse.button === Qt.LeftButton)
                 surface.host.beginDrag(iconRoot.modelData, surface.screenName, iconRoot.lastSceneX, iconRoot.lastSceneY, mouse.x, mouse.y);
@@ -262,6 +268,7 @@ Item {
                 return;
             iconRoot.lastSceneX = surface.modelData.x + iconRoot.x + mouse.x;
             iconRoot.lastSceneY = surface.modelData.y + iconRoot.y + mouse.y;
+            surface.host.updateGroupDrag(iconRoot.x - iconRoot.pressX, iconRoot.y - iconRoot.pressY);
             surface.host.updateDragPointer(iconRoot.lastSceneX, iconRoot.lastSceneY);
         }
         onCanceled: surface.host.clearDrag()
@@ -281,29 +288,47 @@ Item {
             var dropX = iconRoot.x;
             var dropY = iconRoot.y;
             var wasDragged = Math.abs(dropX - pressX) > 8 || Math.abs(dropY - pressY) > 8;
+            var draggedIds = surface.host.dragIds.slice();
+            var draggedStarts = JSON.parse(JSON.stringify(surface.host.dragStarts));
             // Hide the follow-cursor ghost before any layout change.
-            // moveItemToScreen removes this id from the source screen, which
-            // destroys this delegate and would skip a clearDrag() after it.
+            // A cross-screen group move can remove this delegate immediately,
+            // so keep the drag snapshot before clearing the shared drag state.
             surface.host.clearDrag();
             if (!wasDragged)
                 return;
             var targetScreen = surface.host.screenAtPoint(sceneX, sceneY);
             if (targetScreen && String(targetScreen.name || "default") !== fromScreen && Quickshell.screens.length > 1) {
-                surface.host.moveItemToScreen(itemId, fromScreen, String(targetScreen.name || "default"), sceneX - targetScreen.x - grabX, sceneY - targetScreen.y - grabY);
+                var targetName = String(targetScreen.name || "default");
+                var targetGrid = surface.host.gridFor(targetScreen);
+                var targetX = sceneX - targetScreen.x - grabX;
+                var targetY = sceneY - targetScreen.y - grabY;
+                var targetCell = DesktopLayout.cellFromPixel(targetX, targetY, targetGrid);
+                surface.host.moveDraggedGroup(fromScreen, targetName, targetCell, itemId, draggedIds, draggedStarts);
                 return;
             }
             var target = surface.itemAt(dropX + iconRoot.width / 2, dropY + iconRoot.height / 2, itemId);
             if (target && surface.host.isTrash(target) && !surface.host.isTrash(iconRoot.modelData)) {
-                surface.host.trashItem(iconRoot.modelData);
+                var draggedItems = [];
+                for (var selectedIndex = 0; selectedIndex < draggedIds.length; selectedIndex++) {
+                    for (var visibleIndex = 0; visibleIndex < surface.visibleItems.length; visibleIndex++) {
+                        if (surface.visibleItems[visibleIndex].id === draggedIds[selectedIndex])
+                            draggedItems.push(surface.visibleItems[visibleIndex]);
+                    }
+                }
+                var paths = [];
+                for (var draggedIndex = 0; draggedIndex < draggedItems.length; draggedIndex++) {
+                    if (draggedItems[draggedIndex].path && !surface.host.isTrash(draggedItems[draggedIndex]))
+                        paths.push(draggedItems[draggedIndex].path);
+                }
+                surface.host.trashUrls(paths.length ? paths : [iconRoot.modelData.path]);
                 return;
             }
             var snapped = surface.snap(dropX, dropY);
             var grid = surface.host.gridFor(surface.modelData);
-            var sourceCell = DesktopLayout.cellFromPixel(pressX, pressY, grid);
             var targetCell = DesktopLayout.cellFromPixel(snapped.x, snapped.y, grid);
             iconRoot.x = snapped.x;
             iconRoot.y = snapped.y;
-            surface.host.moveItemWithinScreen(fromScreen, itemId, sourceCell, targetCell);
+            surface.host.moveDraggedGroup(fromScreen, fromScreen, targetCell, itemId, draggedIds, draggedStarts);
         }
         onClicked: function (mouse) {
             if (mouse.button === Qt.RightButton) {
