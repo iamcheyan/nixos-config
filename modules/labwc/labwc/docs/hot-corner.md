@@ -42,8 +42,6 @@
 <!-- 显示桌面 -->
 <action name="ToggleShowDesktop" />
 
-<!-- 执行命令 -->
-
 <!-- 弹出菜单 -->
 <action name="ShowMenu" menu="root-menu" />
 

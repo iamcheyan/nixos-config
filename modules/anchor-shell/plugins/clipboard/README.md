@@ -28,7 +28,7 @@ iamcheyan.clipboard
 
 ## 唯一数据流
 
-当前只使用一套 Anchor Shell 状态目录：
+Labwc 当前只使用一套 Anchor Shell 状态目录：
 
 ```text
 ${ANCHOR_SHELL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/anchor-shell}/clipboard-history.json
@@ -60,12 +60,14 @@ ClipboardPanel.qml / bar/widget.qml
 
 ## 与旧实现的关系
 
-仓库以前还存在 `omarchy.clipboard`，它是另一套完整的 UI、watcher 和历史存储实现。当前 Anchor Shell 和兼容层中的旧副本都已移除。
+Labwc 的插件注册表只加载 `modules/anchor-shell/plugins/` 下的插件，因此该会话只运行 `iamcheyan.clipboard`。未引用的旧版 `Clipboard.qml` 重复 UI 已移除。
+
+独立的 Hyprland Omarchy 兼容会话仍保留它自己的 `omarchy.clipboard` 插件副本；它与 Labwc 会话不会同时运行，也不属于这条 Anchor Shell 数据流。Labwc 的快捷键和菜单统一使用 `iamcheyan.clipboard`。
 
 本插件不应再依赖：
 
-- `omarchy.clipboard`；
-- `plugins/clipboard/capture.sh`；
+- `modules/anchor-shell/compat/omarchy/shell/plugins/clipboard/`；
+- 其他 `clipboard-history.json` 或 `clipboard-images/` 状态目录；
 - `~/.local/state/omarchy/clipboard-history.json` 作为运行时主文件；
 - `~/.local/state/labwc/clipboard-history.json` 作为运行时主文件；
 - `cliphist` 作为后台捕获守护进程。
@@ -111,7 +113,7 @@ quickshell ipc --pid <pid> call iamcheyan.clipboard toggleAtCursor
 - 不要把 `cliphist` 选择器重新接回当前主流程；
 - 修改后检查 `ps`，确认只有本插件的 text/image 两个 watcher；
 - 修改后用 Quickshell IPC 测试顶栏按钮、快捷键、文本粘贴和图片粘贴；
-- 兼容层快捷键和命令入口统一调用 `iamcheyan.clipboard`。
+- Labwc 快捷键和命令入口统一调用 `iamcheyan.clipboard`；Omarchy 兼容会话使用自己的独立插件。
 
 ## 运行时检查
 
