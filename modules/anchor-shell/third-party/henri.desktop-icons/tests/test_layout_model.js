@@ -44,6 +44,25 @@ assert.strictEqual(layout.homeOf(moved, "a"), "HDMI2")
 assert.strictEqual(layout.homeOf(moved, "b"), "HDMI1")
 equalJson(moved.screens.HDMI2.a, { col: 1, row: 1 })
 
+const crossScreenSwap = layout.moveToScreen(
+  moved, "a", "HDMI2", "HDMI1", { col: 0, row: 0 }
+)
+assert.strictEqual(layout.homeOf(crossScreenSwap, "a"), "HDMI1")
+assert.strictEqual(layout.homeOf(crossScreenSwap, "b"), "HDMI2")
+equalJson(crossScreenSwap.screens.HDMI1.a, { col: 0, row: 0 })
+equalJson(crossScreenSwap.screens.HDMI2.b, { col: 1, row: 1 })
+
+const crossScreenEmpty = layout.moveToScreen(
+  crossScreenSwap, "b", "HDMI2", "HDMI1", { col: 2, row: 2 }
+)
+assert.strictEqual(layout.homeOf(crossScreenEmpty, "b"), "HDMI1")
+equalJson(crossScreenEmpty.screens.HDMI1.b, { col: 2, row: 2 })
+
+const sameScreenMove = layout.moveToScreen(
+  crossScreenEmpty, "b", "HDMI1", "HDMI1", { col: 0, row: 0 }
+)
+equalJson(sameScreenMove.screens.HDMI1.b, { col: 0, row: 0 })
+
 equalJson(layout.cellFromPixel(120, 160, grid), { col: 1, row: 1 })
 equalJson(layout.pixelFromCell({ col: 1, row: 1 }, grid), { x: 120, y: 152 })
 

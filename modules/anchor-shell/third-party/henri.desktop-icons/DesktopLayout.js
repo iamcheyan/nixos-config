@@ -244,8 +244,19 @@ function moveToScreen(state, id, fromScreen, toScreen, targetCell) {
       break
     }
   }
-  if (targetId)
-    next.screens[toScreen][targetId] = sourceCell
+  if (targetId && targetId !== id) {
+    if (fromScreen !== toScreen) {
+      // A cross-screen drop swaps ownership as well as position. The target
+      // icon must return to the source screen, where the dragged icon came
+      // from; source coordinates are grid cells for that screen.
+      delete next.screens[toScreen][targetId]
+      if (!next.screens[fromScreen])
+        next.screens[fromScreen] = {}
+      next.screens[fromScreen][targetId] = sourceCell
+    } else {
+      next.screens[toScreen][targetId] = sourceCell
+    }
+  }
   next.screens[toScreen][id] = { col: targetCell.col, row: targetCell.row }
   return next
 }
