@@ -9,7 +9,7 @@ PanelWindow {
     required property var modelData
 
     // Repeater delegates with required properties cannot see outer ids.
-    property var host: host
+    required property var host
 
     screen: modelData
     visible: true

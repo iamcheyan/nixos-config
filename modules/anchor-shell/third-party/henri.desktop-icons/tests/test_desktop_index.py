@@ -493,6 +493,15 @@ class QmlSecurityTests(unittest.TestCase):
         self.assertIn('action: "rename"', source)
         self.assertIn('"dolphin", "--select"', source)
 
+    def test_split_components_receive_explicit_service_host(self):
+        surface = (ROOT / "DesktopSurface.qml").read_text(encoding="utf-8")
+        icon = (ROOT / "DesktopIcon.qml").read_text(encoding="utf-8")
+        self.assertIn("required property var host", surface)
+        self.assertNotIn("property var host: host", surface)
+        self.assertIn("host: panel.host", surface)
+        self.assertIn("required property var panel", icon)
+        self.assertIn("required property var emptyMouse", icon)
+
 
 if __name__ == "__main__":
     unittest.main()
