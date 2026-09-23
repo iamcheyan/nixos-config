@@ -15,7 +15,7 @@ printf '%s\n' "$image" > "$state_dir/wallpaper"
 # Publish the same choice for the next SDDM greeter when the private helper
 # is deployed. On systems without Shizuka this remains a no-op.
 if command -v sync-wallpaper-to-sddm >/dev/null 2>&1; then
-\tsync-wallpaper-to-sddm || true
+  sync-wallpaper-to-sddm || true
 fi
 
 # Replace the current background and retain the choice for the next login.
