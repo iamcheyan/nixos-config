@@ -1,15 +1,21 @@
 {
   "schemaVersion": 1,
-  "id": "omarchy.clipboard",
-  "name": "Clipboard",
-  "version": "1.0.0",
-  "author": "Omarchy",
-  "description": "A clipboard manager to view and paste history",
-  "kinds": [
-    "overlay"
-  ],
-  "keepLoaded": true,
+  "id": "iamcheyan.clipboard",
+  "name": "labwc-clipboard",
+  "version": "1.0.2",
+  "author": "iamcheyan",
+  "license": "MIT",
+  "description": "A native labwc clipboard button with a local history and image backend.",
+  "kinds": ["bar-widget", "service"],
   "entryPoints": {
-    "overlay": "Clipboard.qml"
+    "barWidget": "bar/widget.qml",
+    "service": "apps/iamcheyan-clipboard/services/ClipboardCapture.qml"
+  },
+  "barWidget": {
+    "displayName": "labwc-clipboard",
+    "description": "Open the local labwc clipboard history from the top bar.",
+    "category": "Productivity",
+    "allowMultiple": false,
+    "defaultSection": "right"
   }
 }

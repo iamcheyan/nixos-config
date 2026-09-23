@@ -1,12 +1,11 @@
 # Quickshell 插件迁移
 
-当前使用和维护中的用户插件已经纳入本仓库的
-`modules/anchor-shell/third-party/`：
+当前使用和维护中的用户插件已经纳入本仓库的 Anchor Shell 源码树：
 
 - `hancore.overview-workspaces`
-- `hancore.voxtype-enhance`
+- `hancore.voxtype-enhance`（源码位于 `modules/anchor-shell/plugins/voxtype/`）
 - `iamcheyan.active-window`
-- `iamcheyan.clipboard`
+- `iamcheyan.clipboard`（`modules/anchor-shell/plugins/clipboard/`）
 - `iamcheyan.launcher`
 - `iamcheyan.lock-screen`
 

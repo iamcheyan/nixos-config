@@ -2,22 +2,25 @@
 
 ## 目录作用
 
-`modules/anchor-shell/third-party/` 用来存放 Anchor Shell 当前需要集成、但代码最初来自外部项目或第三方插件的完整源码。
+`modules/anchor-shell/third-party/` 用来记录仍按外部来源边界管理的内容。
+当前目录不再存放已迁移插件的源码；已纳入 Anchor Shell 运行时的外部来源插件
+统一位于 `modules/anchor-shell/plugins/`，并在各自 README 中记录上游地址。
 
-这里的“第三方”描述的是代码来源和维护边界，不代表插件没有使用，也不代表这些插件是临时文件。放入本仓库之后，这些代码会随着 NixOS 配置一起被构建和部署，并且可能包含我们为本机 Labwc、Wayland、多显示器和运行时环境做的本地修改。
-
-当前目录中的插件是仓库管理的一部分，不应直接从生成的 `/nix/store` 副本修改。所有修改都应回到本目录的源文件中。
+这里的“第三方”描述的是代码来源和维护边界，不代表插件没有使用，也不代表这些插件是临时文件。
+当前目录保留这个说明文件，避免将“外部来源”误解为“必须继续放在
+`third-party/`”；实际源码位置以插件 README 和 Nix 接线为准。
 
 ## 和其他目录的区别
 
 ### `plugins/`
 
-`modules/anchor-shell/plugins/` 存放 Anchor Shell 的第一方插件，也就是当前项目自己维护、设计和集成的插件。
+`modules/anchor-shell/plugins/` 存放 Anchor Shell 当前统一维护和加载的插件，
+其中既有项目自有插件，也有已经迁移进来的外部来源插件。
 
 这些插件通常具有以下特点：
 
-- 由 Anchor Shell 项目直接维护；
-- 使用 `omarchy.*` 等第一方命名空间；
+- 由 Anchor Shell 项目统一维护和集成；
+- 可以使用 `omarchy.*`，也可以保留上游运行时 ID；
 - 由第一方插件注册逻辑扫描和加载；
 - 代码结构、接口和生命周期由本项目控制。
 
@@ -45,13 +48,12 @@
 
 ## 插件发现和运行方式
 
-当前 Labwc 版 Anchor Shell 的插件注册器会分别扫描：
+当前 Labwc 版 Anchor Shell 的插件注册器会扫描：
 
-1. `modules/anchor-shell/plugins/`：第一方插件；
-2. `modules/anchor-shell/third-party/`：仓库管理的第三方插件；
-3. 用户插件目录：由相应的用户运行时负责。
+1. `modules/anchor-shell/plugins/`：仓库统一维护的插件；
+2. 用户插件目录：由相应的用户运行时负责。
 
-因此，仍放在 `third-party/` 的插件会被读取 `manifest.json`、注册到插件表，并可以提供 bar widget、overlay 或 service 等入口。已经迁移到 `plugins/` 的插件则由第一方扫描路径发现。
+`third-party/` 本身不是当前插件扫描根目录；它只保留来源说明和迁移记录。
 
 需要注意的是，插件的“目录名”和“插件 ID”是两个概念：
 
@@ -85,17 +87,15 @@ Voxtype 语音输入增强插件已经迁移到
 
 ## 为什么不直接全部放进 `plugins/`
 
-从运行机制上说，第三方插件也可以统一放进 `plugins/`。本仓库现在已经将
-需要作为核心运行路径维护的 `iamcheyan.clipboard` 放入 `plugins/`，但仍保留
-`third-party/` 作为外部来源插件的归档和边界。分开存放有几个实际作用：
+从运行机制上说，外部来源插件统一放进 `plugins/` 没有问题。本仓库已经完成
+这次统一迁移，`third-party/` 不再作为源码归档目录。外部来源和本地改动边界
+改由各插件 README 记录，实际作用是：
 
-- 能清楚区分第一方代码和外部来源代码；
-- 避免误以为第三方插件使用了第一方生命周期和接口；
 - 方便记录上游来源、许可证和本地修改；
 - 便于后续同步上游或比较本地 patch；
 - 让代码 review 时能够识别哪些逻辑是项目自身实现，哪些是外部代码的本地适配。
 
-如果项目决定统一目录，建议把它作为一次明确的目录迁移，而不是直接移动文件。至少需要同步检查：
+目录迁移完成后，仍需持续检查：
 
 1. `PluginRegistry.qml` 的扫描根目录；
 2. `modules/labwc.nix` 中的插件路径和环境变量；
@@ -106,8 +106,8 @@ Voxtype 语音输入增强插件已经迁移到
 7. `ARCHITECTURE.md`、迁移文档和插件 README；
 8. 第一方/兼容层是否仍然存在同名插件目录。
 
-桌面图标插件的这次迁移已经完成上述检查；旧 ID `henri.desktop-icons` 不再
-作为运行时配置 ID 使用。
+桌面图标、剪贴板和 Voxtype 插件的迁移已经完成上述检查；旧目录不再作为
+运行时源码来源使用。
 
 当前不再新增第二套剪贴板实现。兼容层的旧命令入口不能重新指向
 `omarchy.clipboard`，必须调用 `iamcheyan.clipboard`，不能和当前 Labwc 的唯一实现混用。

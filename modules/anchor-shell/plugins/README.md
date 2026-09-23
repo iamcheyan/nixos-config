@@ -11,11 +11,23 @@ at startup; other panels, overlays, and menus are loaded on demand.
 User-installed plugins live alongside these conceptually but on disk under
 `~/.config/omarchy/plugins/<plugin-id>/` rather than in this directory.
 
+## Migrated maintained plugins
+
+Some externally originated plugins are maintained as part of the Anchor Shell
+source tree and therefore live under this directory. Their runtime IDs remain
+unchanged for compatibility.
+
+| Plugin | Source directory | Runtime ID |
+|--------|------------------|------------|
+| Voxtype Enhance | `voxtype/` | `hancore.voxtype-enhance` |
+| Clipboard | `clipboard/` | `iamcheyan.clipboard` |
+| Desktop Icons | `desktop-icons/` | `desktop-icons` |
+| Lock Screen | `lock/` | `omarchy.lock` |
+
 | Plugin        | id                        | kinds                   | entry point                           |
 |---------------|---------------------------|-------------------------|---------------------------------------|
 | Bar           | `omarchy.bar`             | `bar`                   | `bar/Bar.qml`                         |
 | Image picker  | `omarchy.image-picker`    | `overlay`               | `image-picker/ImagePicker.qml`        |
-| Clipboard mgr | `omarchy.clipboard`       | `overlay`               | `clipboard/Clipboard.qml`             |
 | Omarchy menu  | `omarchy.menu`            | `menu`, `bar-widget`    | `menu/Menu.qml`, `menu/BarWidget.qml` |
 | Notifications | `omarchy.notifications`   | `service`               | `notifications/Service.qml`           |
 | Audio         | `omarchy.audio`           | `bar-widget`            | `panels/audio/Panel.qml`              |

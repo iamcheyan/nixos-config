@@ -3,4 +3,4 @@
 # omarchy:group=menu
 # omarchy:examples=omarchy menu clipboard
 
-omarchy-shell shell toggle omarchy.clipboard
+omarchy-shell shell toggle iamcheyan.clipboard
