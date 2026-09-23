@@ -487,16 +487,15 @@ Item {
 
   // Route keyboard-summoned panels to the screen containing the active
   // toplevel. ToplevelManager is compositor-neutral and works with Labwc,
-  // Sway, Hyprland, and other wlroots compositors. The singular
-  // activeToplevel.screen is unreliable on some wlroots compositors (Labwc
-  // may leave it empty), so prefer the screens array like the
-  // ActiveWindow widget does.
+  // Sway, Hyprland, and other wlroots compositors.
   function focusedScreenName() {
     var active = ToplevelManager.activeToplevel
     if (active) {
-      var list = active.screens || []
-      if (list.length > 0 && list[0])
-        return String(list[0].name || "")
+      // Labwc may leave the singular screen property unset while the plural
+      // list is populated. Keep the active output available for panel routing.
+      var screens = active.screens || []
+      if (screens.length > 0 && screens[0])
+        return String(screens[0].name || "")
       if (active.screen)
         return String(active.screen.name || "")
     }

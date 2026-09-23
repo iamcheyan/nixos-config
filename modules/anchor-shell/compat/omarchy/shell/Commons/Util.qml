@@ -68,7 +68,11 @@ QtObject {
   }
 
   function canonicalWidgetId(id) {
-    return String(id || "")
+    var key = String(id || "")
+    // Preserve persisted user layouts across the plugin migration.
+    if (key === "launcher") return "omarchy.menu"
+    if (key === "desktop-icons") return "henri.desktop-icons"
+    return key
   }
 
   // Best-effort base64 decode. Returns "" on parse failure rather than
