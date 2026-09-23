@@ -66,6 +66,18 @@ let
       runHook preInstall
       mkdir -p "$out/share/sddm/themes/shizuka"
       cp -r ./* "$out/share/sddm/themes/shizuka/"
+      # Keep Shizuka's optional wallpaper sync helper on the same canonical
+      # state file as Labwc, Anchor Shell, and chezmoi.
+      substituteInPlace "$out/share/sddm/themes/shizuka/scripts/sync-wallpaper-to-sddm.sh" \
+        --replace-fail \
+          'state_home="''${XDG_STATE_HOME:-$HOME/.local/state}"' \
+          'state_file="''${SHIZUKA_WALLPAPER_STATE:-''${ANCHOR_SHELL_STATE_DIR:-''${XDG_STATE_HOME:-$HOME/.local/state}/anchor-shell}/wallpaper}"' \
+        --replace-fail \
+          'background_link="''${SHIZUKA_OMARCHY_BACKGROUND:-$state_home/omarchy/current/background}"' \
+          'background="$(cat "$state_file" 2>/dev/null || true)"' \
+        --replace-fail \
+          'background="$(readlink -f "$background_link" 2>/dev/null || true)"' \
+          ':'
       runHook postInstall
     '';
   };
