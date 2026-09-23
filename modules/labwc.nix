@@ -241,6 +241,19 @@ in
       description = "Anchor Shell for the Labwc session";
       serviceConfig = {
         ExecStart = "${quickshellWithKirigami}/bin/quickshell -n -p ${quickshellRoot}";
+        Environment = [
+          "PATH=/run/current-system/sw/bin:/run/wrappers/bin:/bin"
+          "NIXARCHY_ROOT=${quickshellCompatRoot}"
+          "OMARCHY_PATH=${quickshellCompatRoot}"
+          "QUICKSHELL_ROOT=${quickshellRoot}"
+          "QUICKSHELL_PLUGINS_DIR=${quickshellRoot}/plugins"
+          "QUICKSHELL_CONFIG=%h/.config/anchor-shell/shell.json"
+          "ANCHOR_SHELL_CONFIG_DIR=%h/.config/anchor-shell"
+          "ANCHOR_SHELL_STATE_DIR=%h/.local/state/anchor-shell"
+          "ANCHOR_SHELL_PLUGINS_DIR=%h/.config/anchor-shell/plugins"
+          "XDG_CURRENT_DESKTOP=labwc"
+          "XDG_SESSION_DESKTOP=labwc"
+        ];
         Restart = "always";
         RestartSec = 1;
       };
