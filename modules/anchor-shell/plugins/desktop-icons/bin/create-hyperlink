@@ -1,0 +1,488 @@
+#!/usr/bin/env python3
+"""Create and open Windows-style Internet shortcuts (.url)."""
+
+from __future__ import annotations
+
+import argparse
+import configparser
+import os
+import re
+import sys
+from pathlib import Path
+from urllib.parse import unquote, urlparse
+
+import gi
+
+gi.require_version("Gio", "2.0")
+from gi.repository import Gio, GLib
+
+ALLOWED_SCHEMES = {
+    "http",
+    "https",
+    "ftp",
+    "ftps",
+    "file",
+    "mailto",
+    "smb",
+    "sftp",
+    "nfs",
+}
+SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
+INVALID_FILENAME = re.compile(r'[/\0<>:"\\|?*]')
+DOMAIN_RE = re.compile(
+    r"^(?:www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?"
+    r"(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(?:[/:?#].*)?$"
+)
+IPV4_RE = re.compile(
+    r"^\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?(?:[/?#].*)?$"
+)
+LOCALHOST_RE = re.compile(r"^localhost(?::\d+)?(?:[/?#].*)?$", re.IGNORECASE)
+
+
+def notify(title: str, message: str, error: bool = False) -> None:
+    try:
+        Gio.Subprocess.new(
+            [
+                "notify-send",
+                "-u",
+                "normal" if error else "low",
+                "-i",
+                "dialog-error" if error else "insert-link",
+                title,
+                message,
+            ],
+            Gio.SubprocessFlags.NONE,
+        )
+    except Exception:
+        print(f"{title}: {message}", file=sys.stderr)
+
+
+OPAQUE_SCHEMES = {
+    "javascript",
+    "data",
+    "vbscript",
+    "about",
+    "blob",
+    "chrome",
+    "view-source",
+}
+
+
+def looks_like_url(text: str) -> bool:
+    text = text.strip()
+    if not text:
+        return False
+    if SCHEME_RE.match(text):
+        return True
+    if text.lower().startswith("www."):
+        return True
+    if LOCALHOST_RE.match(text) or IPV4_RE.match(text):
+        return True
+    return bool(DOMAIN_RE.match(text))
+
+
+def with_web_scheme(text: str) -> str:
+    parsed = urlparse(text)
+    scheme = (parsed.scheme or "").lower()
+    if scheme in ALLOWED_SCHEMES:
+        return text
+    if scheme in OPAQUE_SCHEMES or "://" in text:
+        raise ValueError(f"Unsupported link type: {scheme or 'unknown'}")
+    return "https://" + text
+
+
+def sanitize_filename(name: str) -> str:
+    name = name.strip().strip(".")
+    name = INVALID_FILENAME.sub(" ", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    if name.lower().endswith(".url"):
+        name = name[:-4].strip()
+    return name or "Hyperlink"
+
+
+def unique_path(directory: str, name: str) -> str:
+    base = sanitize_filename(name)
+    candidate = os.path.join(directory, base + ".url")
+    if not os.path.exists(candidate):
+        return candidate
+    for index in range(2, 1000):
+        candidate = os.path.join(directory, f"{base} {index}.url")
+        if not os.path.exists(candidate):
+            return candidate
+    raise ValueError("Too many shortcuts with that name.")
+
+
+def suggest_name(target: str) -> str:
+    parsed = urlparse(target)
+    if parsed.scheme == "file":
+        path = unquote(parsed.path or "")
+        return Path(path).name or "Hyperlink"
+
+    path = unquote(parsed.path or "").rstrip("/")
+    if path:
+        last = path.split("/")[-1]
+        if last and last.lower() not in {"index.html", "index.htm", "index.php"}:
+            return last
+
+    host = parsed.hostname or ""
+    if host.lower().startswith("www."):
+        host = host[4:]
+    return host or "Hyperlink"
+
+
+def normalize_target(text: str, relative_to: str | None = None) -> str:
+    text = text.strip().strip("<>").strip('"').strip("'")
+    if not text:
+        raise ValueError("Enter a URL or a file path.")
+
+    if looks_like_url(text):
+        text = with_web_scheme(text)
+        parsed = urlparse(text)
+        scheme = (parsed.scheme or "").lower()
+        if scheme not in ALLOWED_SCHEMES:
+            raise ValueError(f"Unsupported link type: {scheme}")
+        if scheme in {"http", "https"} and not parsed.netloc:
+            raise ValueError("Enter a web address.")
+        if scheme == "file":
+            path = unquote(parsed.path or "")
+            if not path:
+                raise ValueError("The file path is empty.")
+            if not os.path.exists(path):
+                raise ValueError(f"Path not found: {path}")
+        return text
+
+    path = os.path.expanduser(text)
+    if not os.path.isabs(path) and relative_to:
+        path = os.path.join(relative_to, path)
+    path = os.path.abspath(path)
+    if not os.path.exists(path):
+        raise ValueError(f"Path not found: {path}")
+    return Path(path).resolve().as_uri()
+
+
+def write_url_file(path: str, url: str) -> None:
+    if any(ch in url for ch in "\n\r"):
+        raise ValueError("Invalid address.")
+    content = f"[InternetShortcut]\nURL={url}\n"
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(content)
+
+
+def read_url_file(path: str) -> str:
+    raw = Path(path).read_bytes()
+    if raw.startswith(b"\xff\xfe") or raw.startswith(b"\xfe\xff"):
+        text = raw.decode("utf-16")
+    else:
+        text = raw.decode("utf-8-sig")
+
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.read_string(text)
+    for section in parser.sections():
+        if parser.has_option(section, "URL"):
+            url = parser.get(section, "URL").strip()
+            if url:
+                return url
+    raise ValueError("This shortcut has no URL.")
+
+
+def create_link_to_path(target_path: str) -> str:
+    target_path = os.path.abspath(target_path)
+    if not os.path.exists(target_path):
+        raise ValueError(f"Path not found: {target_path}")
+
+    directory = os.path.dirname(target_path)
+    if not os.access(directory, os.W_OK):
+        raise PermissionError(f"Cannot write to {directory}")
+
+    name = f"{os.path.basename(target_path)} - Shortcut"
+    dest = unique_path(directory, name)
+    write_url_file(dest, Path(target_path).resolve().as_uri())
+    return dest
+
+
+def open_target(url: str) -> None:
+    parsed = urlparse(url)
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in ALLOWED_SCHEMES:
+        raise ValueError(f"Unsupported link type: {scheme or 'unknown'}")
+    Gio.AppInfo.launch_default_for_uri(url, None)
+
+
+def run_dialog(directory: str) -> int:
+    if not os.path.isdir(directory):
+        notify("Create Hyperlink", f"Not a folder: {directory}", error=True)
+        return 1
+    if not os.access(directory, os.W_OK):
+        notify("Create Hyperlink", f"Cannot write to {directory}", error=True)
+        return 1
+
+    gi.require_version("Gtk", "4.0")
+    gi.require_version("Adw", "1")
+    gi.require_version("Gdk", "4.0")
+    from gi.repository import Adw, Gdk, Gtk
+
+    class CreateHyperlinkWindow(Adw.ApplicationWindow):
+        def __init__(self, application: Adw.Application):
+            super().__init__(application=application, title="Create Hyperlink")
+            self.set_default_size(560, -1)
+            self.set_resizable(False)
+            self._updating_name = False
+            self._name_from_user = False
+
+            toolbar = Adw.ToolbarView()
+            header = Adw.HeaderBar()
+
+            cancel = Gtk.Button(label="Cancel")
+            cancel.connect("clicked", lambda *_: self.close())
+            header.pack_start(cancel)
+
+            self.create_btn = Gtk.Button(label="Create")
+            self.create_btn.add_css_class("suggested-action")
+            self.create_btn.set_sensitive(False)
+            self.create_btn.connect("clicked", self.on_create)
+            header.pack_end(self.create_btn)
+
+            toolbar.add_top_bar(header)
+
+            self.toasts = Adw.ToastOverlay()
+            clamp = Adw.Clamp(maximum_size=520)
+            clamp.set_margin_top(12)
+            clamp.set_margin_bottom(24)
+            clamp.set_margin_start(16)
+            clamp.set_margin_end(16)
+
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+            desc = Gtk.Label(
+                label="Paste or type a web address. You can also pick a local file.",
+                wrap=True,
+                xalign=0,
+            )
+            desc.add_css_class("dim-label")
+
+            address_label = Gtk.Label(label="_Address", use_underline=True, xalign=0)
+            address_label.add_css_class("heading")
+            self.address_entry = Gtk.Entry()
+            self.address_entry.set_placeholder_text("https://example.com")
+            self.address_entry.set_hexpand(True)
+            self.address_entry.set_input_purpose(Gtk.InputPurpose.URL)
+            self.address_entry.set_input_hints(
+                Gtk.InputHints.NO_EMOJI | Gtk.InputHints.NO_SPELLCHECK
+            )
+            self.address_entry.set_activates_default(True)
+            address_label.set_mnemonic_widget(self.address_entry)
+
+            address_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            paste = Gtk.Button(icon_name="edit-paste-symbolic")
+            paste.set_tooltip_text("Paste URL")
+            paste.add_css_class("flat")
+            paste.set_valign(Gtk.Align.CENTER)
+            paste.connect("clicked", self.on_paste)
+            browse = Gtk.Button(icon_name="folder-open-symbolic")
+            browse.set_tooltip_text("Choose a local file")
+            browse.add_css_class("flat")
+            browse.set_valign(Gtk.Align.CENTER)
+            browse.connect("clicked", self.on_browse)
+            address_row.append(self.address_entry)
+            address_row.append(paste)
+            address_row.append(browse)
+
+            name_label = Gtk.Label(label="_Name", use_underline=True, xalign=0)
+            name_label.add_css_class("heading")
+            self.name_entry = Gtk.Entry()
+            self.name_entry.set_placeholder_text("Shortcut name")
+            self.name_entry.set_hexpand(True)
+            self.name_entry.set_activates_default(True)
+            name_label.set_mnemonic_widget(self.name_entry)
+
+            box.append(desc)
+            box.append(address_label)
+            box.append(address_row)
+            box.append(name_label)
+            box.append(self.name_entry)
+            clamp.set_child(box)
+            self.toasts.set_child(clamp)
+            toolbar.set_content(self.toasts)
+            self.set_content(toolbar)
+            self.set_default_widget(self.create_btn)
+
+            self.address_entry.connect("changed", self.on_address_changed)
+            self.name_entry.connect("changed", self.on_name_changed)
+            self.connect("map", self.on_mapped)
+
+            key = Gtk.EventControllerKey()
+            key.connect("key-pressed", self.on_key)
+            self.add_controller(key)
+
+            self._load_clipboard()
+
+        def on_mapped(self, *_args) -> None:
+            def focus_address() -> bool:
+                self.address_entry.grab_focus()
+                return False
+
+            GLib.idle_add(focus_address)
+
+        def on_key(self, _controller, keyval, _keycode, _state):
+            if keyval == Gdk.KEY_Escape:
+                self.close()
+                return True
+            return False
+
+        def _clipboard_text(self, clipboard, result) -> str:
+            try:
+                text = clipboard.read_text_finish(result)
+            except GLib.Error:
+                return ""
+            if not text:
+                return ""
+            return text.strip().splitlines()[0].strip()
+
+        def _load_clipboard(self) -> None:
+            display = Gdk.Display.get_default()
+            if not display:
+                return
+            display.get_clipboard().read_text_async(None, self._on_clipboard)
+
+        def _on_clipboard(self, clipboard, result) -> None:
+            if self.address_entry.get_text().strip():
+                return
+            text = self._clipboard_text(clipboard, result)
+            if not text:
+                return
+            expanded = os.path.expanduser(text)
+            if looks_like_url(text) or os.path.exists(expanded):
+                self.address_entry.set_text(text)
+                self.address_entry.set_position(-1)
+
+        def on_paste(self, _button) -> None:
+            display = Gdk.Display.get_default()
+            if not display:
+                return
+            display.get_clipboard().read_text_async(None, self._on_paste)
+
+        def _on_paste(self, clipboard, result) -> None:
+            text = self._clipboard_text(clipboard, result)
+            if not text:
+                self.toasts.add_toast(Adw.Toast(title="Clipboard has no text"))
+                return
+            self.address_entry.set_text(text)
+            self.address_entry.set_position(-1)
+            self.address_entry.grab_focus()
+
+        def on_name_changed(self, *_args) -> None:
+            if self._updating_name:
+                return
+            self._name_from_user = bool(self.name_entry.get_text().strip())
+
+        def on_address_changed(self, *_args) -> None:
+            address = self.address_entry.get_text().strip()
+            self.create_btn.set_sensitive(bool(address))
+            if self._name_from_user:
+                return
+            try:
+                url = normalize_target(address, relative_to=directory)
+            except Exception:
+                return
+            self._updating_name = True
+            self.name_entry.set_text(suggest_name(url))
+            self._updating_name = False
+
+        def on_browse(self, _button) -> None:
+            dialog = Gtk.FileDialog(title="Choose a file")
+            folder = Gio.File.new_for_path(directory)
+            dialog.set_initial_folder(folder)
+            dialog.open(self, None, self._on_file_picked)
+
+        def _on_file_picked(self, dialog, result) -> None:
+            try:
+                chosen = dialog.open_finish(result)
+            except GLib.Error:
+                return
+            path = chosen.get_path() if chosen else None
+            if not path:
+                return
+            self.address_entry.set_text(path)
+            self.address_entry.set_position(-1)
+            if not self._name_from_user:
+                self._updating_name = True
+                self.name_entry.set_text(Path(path).name)
+                self._updating_name = False
+
+        def on_create(self, _button) -> None:
+            address = self.address_entry.get_text().strip()
+            name = self.name_entry.get_text().strip()
+            try:
+                url = normalize_target(address, relative_to=directory)
+                if not name:
+                    name = suggest_name(url)
+                path = unique_path(directory, name)
+                write_url_file(path, url)
+            except Exception as error:
+                self.toasts.add_toast(Adw.Toast(title=str(error)))
+                return
+            self.close()
+
+    class App(Adw.Application):
+        def __init__(self):
+            super().__init__(application_id="org.omarchy.create-hyperlink")
+            self.connect("activate", self.on_activate)
+
+        def on_activate(self, app) -> None:
+            existing = app.get_windows()
+            if existing:
+                existing[0].present()
+                return
+            try:
+                win = CreateHyperlinkWindow(app)
+                win.present()
+            except Exception as error:
+                notify("Create Hyperlink", str(error), error=True)
+                app.quit()
+
+    return App().run([])
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Create or open a hyperlink shortcut (.url)."
+    )
+    parser.add_argument(
+        "--directory",
+        help="Folder to create the shortcut in (opens a dialog).",
+    )
+    parser.add_argument(
+        "--link",
+        nargs="+",
+        metavar="PATH",
+        help="Create a shortcut to each local file or folder.",
+    )
+    parser.add_argument(
+        "--open",
+        nargs="+",
+        metavar="FILE",
+        help="Open one or more .url shortcuts.",
+    )
+    args = parser.parse_args(argv)
+
+    try:
+        if args.open:
+            for path in args.open:
+                open_target(read_url_file(path))
+            return 0
+
+        if args.link:
+            created = []
+            for path in args.link:
+                created.append(create_link_to_path(path))
+            return 0 if created else 1
+
+        directory = args.directory or os.getcwd()
+        return run_dialog(directory)
+    except Exception as error:
+        title = "Open Hyperlink" if args.open else "Create Hyperlink"
+        notify(title, str(error), error=True)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

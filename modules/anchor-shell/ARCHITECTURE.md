@@ -27,19 +27,21 @@ modules/anchor-shell/docs/         迁移、验证和插件说明
 ├── Commons/               颜色、样式等公共组件
 ├── Ui/                    通用界面组件
 ├── services/              应用、插件、状态等公共服务
-├── plugins/               当前使用的官方/自有插件
+├── plugins/               当前使用和维护的插件
 │   ├── bar/               顶栏和顶栏小组件
 │   ├── clipboard/         剪贴板入口
+│   ├── voxtype/           语音输入控制插件
 │   ├── lock/              锁屏插件
 │   ├── notifications/     通知
 │   ├── panels/             网络、电源、蓝牙等面板
 │   └── services/          闲置、夜灯等后台服务
-├── third-party/           已迁移的第三方插件
-│   ├── hancore.voxtype-enhance/
-│   └── iamcheyan.clipboard/
+├── third-party/           尚未迁移的第三方插件
 ├── compat/omarchy/        omarchy-* 兼容命令和默认资源
 └── docs/                  架构、迁移和插件文档
 ```
+
+桌面图标插件已迁移到 `plugins/desktop-icons/`，运行时 ID 改为
+`desktop-icons`。
 
 ## 哪些内容由仓库管理
 
@@ -201,6 +203,10 @@ Hyprland/Omarchy 继续使用它自己的 `~/.config/omarchy/plugins/`。Anchor 
 - `omarchy.lock`
 - `iamcheyan.clipboard`
 - `hancore.voxtype-enhance`
+
+Voxtype 的源码目录现为 `modules/anchor-shell/plugins/voxtype/`；为保持现有
+配置和 IPC 兼容，目录名已经改变，但 manifest ID 仍然是
+`hancore.voxtype-enhance`。
 
 这些名称是兼容接口，不代表 Anchor Shell 仍然属于 Omarchy。
 

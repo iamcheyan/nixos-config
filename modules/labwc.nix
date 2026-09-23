@@ -17,12 +17,12 @@ let
     cp -r "${./anchor-shell/compat/omarchy}"/. "$out/"
   '';
   quickshellDevRoot = "/home/tetsuya/nixos-config/modules/anchor-shell";
-  # Henri desktop-icons uses Gio/GLib through PyGObject. Keep its interpreter
+  # Desktop Icons uses Gio/GLib through PyGObject. Keep its interpreter
   # isolated instead of changing the system's generic python3 selection.
   anchorShellPython = pkgs.python3.withPackages (ps: [ ps.pygobject3 ]);
   anchorAddToDesktop = pkgs.writeShellScriptBin "add-to-desktop" ''
     exec ${anchorShellPython}/bin/python3 \
-      ${quickshellRoot}/third-party/henri.desktop-icons/bin/add-to-desktop "$@"
+      ${quickshellRoot}/plugins/desktop-icons/bin/add-to-desktop "$@"
   '';
 
   # Quickshell's Qt wrapper only exports its own QML modules. The Omarchy
@@ -99,7 +99,6 @@ let
   labwcWofi = ./labwc/wofi;
   labwcFuzzel = ./labwc/fuzzel;
   labwcMako = ./labwc/mako;
-  labwcCliphist = ./labwc/cliphist;
 
   # Keep the Philips display as the 1x primary output and render the 4K
   # secondary display at 2x HiDPI.  Positions are in logical pixels, so the
@@ -277,12 +276,9 @@ in
       pavucontrol
       playerctl
       bc
-      cliphist
       slurp
       tesseract
       swaynotificationcenter
-      swayidle
-      swaylock
       swaybg
       wdisplays
       wl-clipboard
@@ -310,16 +306,15 @@ in
         executable = true;
       };
       home.file.".config/labwc/voxtype-paste.py" = {
-        source = ./anchor-shell/third-party/hancore.voxtype-enhance/scripts/omarchy-universal-paste.py;
+        source = ./anchor-shell/plugins/voxtype/scripts/omarchy-universal-paste.py;
         executable = true;
       };
       xdg.configFile."kanshi/config".source = labwcKanshiConfig;
       xdg.configFile."wofi".source = labwcWofi;
       xdg.configFile."fuzzel".source = labwcFuzzel;
       xdg.configFile."mako".source = labwcMako;
-      xdg.configFile."cliphist".source = labwcCliphist;
       xdg.dataFile."kio/servicemenus/anchor-send-to-desktop.desktop" = {
-        source = ./anchor-shell/third-party/henri.desktop-icons/dolphin/send-to-desktop.desktop;
+        source = ./anchor-shell/plugins/desktop-icons/dolphin/send-to-desktop.desktop;
         executable = true;
       };
       home.file.".local/share/themes/BL-Lithium-dark".source =

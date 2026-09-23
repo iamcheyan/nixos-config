@@ -1,0 +1,763 @@
+#!/usr/bin/env python3
+"""List, open, and place items on the Desktop for the Omarchy desktop-icons plugin."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shutil
+import stat
+import subprocess
+import sys
+from pathlib import Path
+from urllib.parse import unquote, urlparse
+
+import gi
+
+gi.require_version("Gio", "2.0")
+from gi.repository import Gio, GLib
+
+_BIN_DIR = str(Path(__file__).resolve().parent)
+if _BIN_DIR not in sys.path:
+    sys.path.insert(0, _BIN_DIR)
+
+from common import (
+    desktop_dir,
+    guess_icon,
+    is_under,
+    trusted_application_dirs,
+    unique_dest,
+)
+
+IMAGE_SUFFIXES = {
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".bmp",
+    ".svg",
+    ".avif",
+    ".jxl",
+}
+
+# Raster-only: SVG/GIF can pull remote resources or do unbounded decode work.
+SAFE_ICON_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+PREVIEW_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+
+MAX_ITEMS = 256
+MAX_PATH_ARGS = 256
+MAX_OUTPUT_BYTES = 256 * 1024
+MAX_NAME_LENGTH = 120
+MAX_ID_LENGTH = 255
+MAX_ICON_LENGTH = 4096
+MAX_DESKTOP_FILE_BYTES = 64 * 1024
+MAX_PREVIEW_BYTES = 4 * 1024 * 1024
+MAX_ICON_FILE_BYTES = 2 * 1024 * 1024
+MAX_ERROR_LENGTH = 240
+
+ALLOWED_URL_SCHEMES = frozenset({"http", "https", "mailto", "file", "trash"})
+THEME_ICON_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")
+HTML_TAG_RE = re.compile(r"<[^>]*>")
+TRUSTED_METADATA_VALUES = frozenset({"true", "yes", "1"})
+REMOTE_OR_INLINE_PREFIXES = (
+    "http:",
+    "https:",
+    "ftp:",
+    "ftps:",
+    "sftp:",
+    "smb:",
+    "nfs:",
+    "dav:",
+    "data:",
+    "qrc:",
+    "image:",
+    "qt:",
+    "mailto:",
+)
+
+
+def plain_text(value: str, max_length: int = MAX_NAME_LENGTH) -> str:
+    text = HTML_TAG_RE.sub(" ", str(value or "").replace("\x00", ""))
+    cleaned = []
+    for ch in text:
+        code = ord(ch)
+        if ch in "<>":
+            cleaned.append(" ")
+        elif ch == "\t" or (32 <= code < 127) or code > 127:
+            cleaned.append(ch)
+        else:
+            cleaned.append(" ")
+    return " ".join("".join(cleaned).split())[:max_length]
+
+
+def _file_size(path: Path) -> int:
+    try:
+        return path.stat().st_size
+    except OSError:
+        return 0
+
+
+def allowed_icon_roots() -> list[Path]:
+    roots = [
+        Path.home(),
+        desktop_dir(),
+        Path("/usr/share/icons"),
+        Path("/usr/share/pixmaps"),
+        Path("/usr/local/share/icons"),
+        Path("/usr/local/share/pixmaps"),
+    ]
+    for raw in os.environ.get("XDG_DATA_DIRS", "").split(":"):
+        if raw.strip():
+            roots.append(Path(raw) / "icons")
+            roots.append(Path(raw) / "pixmaps")
+    return roots
+
+
+def is_allowed_local_image(path: Path, max_bytes: int, suffixes: set[str]) -> bool:
+    try:
+        resolved = path.expanduser().resolve()
+    except OSError:
+        return False
+    text = str(resolved)
+    if not text.startswith("/") or text.startswith("//"):
+        return False
+    if not resolved.is_file():
+        return False
+    if resolved.suffix.lower() not in suffixes:
+        return False
+    try:
+        info = resolved.stat()
+    except OSError:
+        return False
+    if not stat.S_ISREG(info.st_mode) or info.st_size <= 0 or info.st_size > max_bytes:
+        return False
+    return any(is_under(resolved, root) for root in allowed_icon_roots())
+
+
+def sanitize_icon_path(path: Path) -> str:
+    if is_allowed_local_image(path, MAX_ICON_FILE_BYTES, SAFE_ICON_SUFFIXES):
+        return str(path.expanduser().resolve())
+    return ""
+
+
+def sanitize_icon(raw: str) -> str:
+    icon = str(raw or "").strip()
+    if not icon or len(icon) > MAX_ICON_LENGTH:
+        return ""
+    lower = icon.lower()
+    if lower.startswith("file:"):
+        parsed = urlparse(icon)
+        if parsed.scheme.lower() != "file":
+            return ""
+        if parsed.netloc and parsed.netloc.lower() not in {"", "localhost"}:
+            return ""
+        return sanitize_icon_path(Path(unquote(parsed.path)))
+    if any(lower.startswith(prefix) for prefix in REMOTE_OR_INLINE_PREFIXES):
+        return ""
+    if "://" in icon or icon.startswith("//"):
+        return ""
+    if icon.startswith("/") or icon.startswith("~"):
+        return sanitize_icon_path(Path(os.path.expanduser(icon)))
+    if "/" in icon or "\\" in icon or ":" in icon:
+        return ""
+    if THEME_ICON_RE.fullmatch(icon):
+        return icon
+    return ""
+
+
+def allowed_url(url: str) -> bool:
+    text = str(url or "").strip()
+    if not text or len(text) > 2048:
+        return False
+    parsed = urlparse(text)
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in ALLOWED_URL_SCHEMES:
+        return False
+    if scheme == "file":
+        if parsed.netloc and parsed.netloc.lower() not in {"", "localhost"}:
+            return False
+        path = unquote(parsed.path)
+        return bool(path.startswith("/") and not path.startswith("//"))
+    if scheme in {"http", "https"}:
+        return bool(parsed.netloc) and "@" not in parsed.netloc
+    if scheme == "mailto":
+        return bool(parsed.path) and "://" not in parsed.path
+    if scheme == "trash":
+        return True
+    return False
+
+
+def link_preview_path(entry: dict[str, str]) -> Path | None:
+    """Return a safe local image target for a Type=Link desktop entry."""
+    if (entry.get("Type") or "").strip().lower() != "link":
+        return None
+    raw_url = (entry.get("URL") or "").strip()
+    if not raw_url or not allowed_url(raw_url):
+        return None
+    parsed = urlparse(raw_url)
+    if parsed.scheme.lower() != "file":
+        return None
+    try:
+        target = Path(unquote(parsed.path)).expanduser().resolve()
+    except OSError:
+        return None
+    if is_allowed_local_image(target, MAX_PREVIEW_BYTES, PREVIEW_SUFFIXES):
+        return target
+    return None
+
+
+def read_desktop_entry(path: Path) -> dict[str, str]:
+    try:
+        if _file_size(path) > MAX_DESKTOP_FILE_BYTES:
+            return {}
+        keyfile = GLib.KeyFile()
+        keyfile.load_from_file(str(path), GLib.KeyFileFlags.NONE)
+        data = {}
+        for key in ("Name", "Icon", "Type", "URL", "Exec"):
+            try:
+                data[key] = keyfile.get_string("Desktop Entry", key)
+            except GLib.Error:
+                pass
+        return data
+    except GLib.Error:
+        return {}
+
+
+def desktop_trusted_metadata(path: Path) -> bool | None:
+    try:
+        gfile = Gio.File.new_for_path(str(path))
+        info = gfile.query_info(
+            "metadata::trusted", Gio.FileQueryInfoFlags.NONE, None
+        )
+        value = (info.get_attribute_as_string("metadata::trusted") or "").strip().lower()
+        if not value:
+            return None
+        if value in TRUSTED_METADATA_VALUES:
+            return True
+        return False
+    except GLib.Error:
+        return None
+
+
+def is_trusted_desktop(path: Path) -> bool:
+    try:
+        resolved = path.expanduser().resolve()
+    except OSError:
+        return False
+    if not resolved.is_file():
+        return False
+    for directory in trusted_application_dirs():
+        if is_under(resolved, directory):
+            return True
+    try:
+        st = path.lstat()
+    except OSError:
+        return False
+    if stat.S_ISLNK(st.st_mode) or not stat.S_ISREG(st.st_mode):
+        return False
+    if st.st_uid != os.getuid():
+        return False
+    if st.st_mode & 0o111:
+        return True
+    return desktop_trusted_metadata(path) is True
+
+
+def mark_trusted(path: Path) -> None:
+    path = path.expanduser()
+    if not path.exists():
+        raise FileNotFoundError(f"Path not found: {path}")
+    try:
+        st = path.lstat()
+    except OSError as error:
+        raise FileNotFoundError(f"Path not found: {path}") from error
+    if stat.S_ISLNK(st.st_mode):
+        raise PermissionError("Refusing to trust a symlink launcher")
+    if not stat.S_ISREG(st.st_mode):
+        raise PermissionError("Refusing to trust a non-file launcher")
+    if st.st_uid != os.getuid():
+        raise PermissionError("Refusing to trust a launcher owned by another user")
+    path.chmod(st.st_mode | 0o111, follow_symlinks=False)
+    gfile = Gio.File.new_for_path(str(path.resolve()))
+    info = Gio.FileInfo.new()
+    info.set_attribute_string("metadata::trusted", "true")
+    try:
+        gfile.set_attributes_from_info(info, Gio.FileQueryInfoFlags.NONE, None)
+    except GLib.Error:
+        result = subprocess.run(
+            ["gio", "set", str(path), "metadata::trusted", "true"],
+            check=False,
+            capture_output=True,
+        )
+        if result.returncode != 0:
+            raise PermissionError(f"Could not mark launcher trusted: {path.name}")
+    if not is_trusted_desktop(path):
+        raise PermissionError(f"Could not mark launcher trusted: {path.name}")
+
+
+def is_trash_launcher(entry: dict[str, str]) -> bool:
+    url = (entry.get("URL") or "").strip().lower()
+    exec_line = (entry.get("Exec") or "").strip().lower()
+    icon = (entry.get("Icon") or "").strip().lower()
+    name = (entry.get("Name") or "").strip().lower()
+    if url.startswith("trash:"):
+        return True
+    if "trash:///" in exec_line or exec_line.endswith(" trash"):
+        return True
+    if icon in {"user-trash", "user-trash-full", "application-x-trash"}:
+        return True
+    return name in {"trash", "wastebasket", "recycle bin"}
+
+
+def item_for(path: Path) -> dict:
+    name = plain_text(path.name)
+    icon = sanitize_icon(guess_icon(path)) or (
+        "folder" if path.is_dir() else "text-x-generic"
+    )
+    preview = ""
+    kind = "folder" if path.is_dir() else "file"
+    suffix = path.suffix.lower()
+    trusted = True
+
+    if suffix == ".desktop":
+        entry = read_desktop_entry(path)
+        kind = "trash" if is_trash_launcher(entry) else "launcher"
+        trusted = kind == "trash" or is_trusted_desktop(path)
+        name = plain_text(entry.get("Name") or path.stem)
+        fallback = "user-trash" if kind == "trash" else "application-x-executable"
+        icon = sanitize_icon(entry.get("Icon") or "") or fallback
+        target = link_preview_path(entry)
+        if target is not None:
+            preview = str(target)
+            kind = "image"
+    elif suffix == ".url":
+        name = plain_text(path.stem)
+        icon = "text-html"
+        kind = "link"
+    elif suffix in PREVIEW_SUFFIXES and is_allowed_local_image(
+        path, MAX_PREVIEW_BYTES, PREVIEW_SUFFIXES
+    ):
+        preview = str(path.resolve())
+        kind = "image"
+    elif suffix in IMAGE_SUFFIXES:
+        kind = "image"
+
+    return {
+        "id": path.name[:MAX_ID_LENGTH],
+        "name": name or "Item",
+        "path": str(path),
+        "icon": icon,
+        "preview": preview,
+        "isDir": path.is_dir(),
+        "kind": kind,
+        "trusted": trusted,
+    }
+
+
+def encode_payload(payload: dict) -> str:
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+
+def list_items() -> dict:
+    desktop = desktop_dir()
+    items: list[dict] = []
+    truncated = False
+    try:
+        entries = sorted(
+            desktop.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())
+        )
+    except OSError as error:
+        return {"desktop": str(desktop), "items": [], "error": plain_text(str(error), MAX_ERROR_LENGTH)}
+
+    for path in entries:
+        if path.name.startswith("."):
+            continue
+        if len(items) >= MAX_ITEMS:
+            truncated = True
+            break
+        items.append(item_for(path))
+
+    payload: dict = {"desktop": str(desktop), "items": items}
+    if truncated:
+        payload["truncated"] = True
+
+    encoded = encode_payload(payload)
+    while len(encoded.encode("utf-8")) > MAX_OUTPUT_BYTES and items:
+        items.pop()
+        payload["items"] = items
+        payload["truncated"] = True
+        encoded = encode_payload(payload)
+    return payload
+
+
+def path_from_uri(value: str, *, resolve: bool = True) -> Path:
+    text = value.strip().strip("<>")
+    if text.startswith("file://"):
+        parsed = urlparse(text)
+        path = Path(unquote(parsed.path))
+    else:
+        path = Path(os.path.expanduser(text))
+    if resolve:
+        return path.resolve()
+    return path
+
+
+def open_trash() -> None:
+    nautilus = shutil.which("nautilus") or "/usr/bin/nautilus"
+    Gio.Subprocess.new(
+        [nautilus, "--new-window", "trash:///"],
+        Gio.SubprocessFlags.NONE,
+    )
+
+
+def trash_one(path: Path) -> None:
+    path = Path(path).expanduser()
+    if path.as_uri().startswith("trash:"):
+        return
+    if not path.exists() and not path.is_symlink():
+        raise FileNotFoundError(f"Path not found: {path}")
+    if path.suffix.lower() == ".desktop" and is_trash_launcher(read_desktop_entry(path)):
+        return
+    gfile = Gio.File.new_for_path(str(path))
+    try:
+        gfile.trash(None)
+    except GLib.Error as error:
+        raise RuntimeError(f"Could not move to Trash: {error.message}") from error
+
+
+def notify(title: str, message: str, error: bool = False) -> None:
+    try:
+        Gio.Subprocess.new(
+            [
+                "notify-send",
+                "-u",
+                "normal" if error else "low",
+                "-i",
+                "dialog-error" if error else "user-desktop",
+                title,
+                message,
+            ],
+            Gio.SubprocessFlags.NONE,
+        )
+    except Exception:
+        print(f"{title}: {message}", file=sys.stderr)
+
+
+def sanitize_rename_name(name: str, extra_suffix: str = "") -> str:
+    name = str(name or "").replace("\x00", "").strip().strip(".")
+    if "/" in name or "\\" in name:
+        raise ValueError("Invalid name")
+    for ch in '<>:"|?*':
+        name = name.replace(ch, " ")
+    name = " ".join(name.split())
+    if not name or name in {".", ".."}:
+        raise ValueError("Enter a name")
+    limit = MAX_ID_LENGTH - len(extra_suffix)
+    if limit < 1:
+        raise ValueError("Enter a name")
+    if len(name) > limit:
+        name = name[:limit].rstrip()
+    if not name or name in {".", ".."}:
+        raise ValueError("Enter a name")
+    return name + extra_suffix
+
+
+def _desktop_entry_path(path: Path) -> Path:
+    desktop = desktop_dir()
+    path = Path(path).expanduser()
+    if not path.is_absolute():
+        path = desktop / path.name
+    try:
+        parent = path.parent.resolve()
+        desktop_resolved = desktop.resolve()
+    except OSError as error:
+        raise ValueError("Can only rename items on the Desktop") from error
+    if parent != desktop_resolved:
+        raise ValueError("Can only rename items on the Desktop")
+    return parent / path.name
+
+
+def update_desktop_entry_name(path: Path, name: str) -> None:
+    try:
+        keyfile = GLib.KeyFile()
+        keyfile.load_from_file(
+            str(path),
+            GLib.KeyFileFlags.KEEP_COMMENTS | GLib.KeyFileFlags.KEEP_TRANSLATIONS,
+        )
+        keyfile.set_string("Desktop Entry", "Name", name)
+        keyfile.save_to_file(str(path))
+    except GLib.Error:
+        return
+
+
+def rename_item(path: Path, new_name: str) -> Path:
+    path = _desktop_entry_path(path)
+    if not path.exists() and not path.is_symlink():
+        raise FileNotFoundError(f"Path not found: {path.name}")
+    if path.suffix.lower() == ".desktop" and is_trash_launcher(read_desktop_entry(path)):
+        raise ValueError("Cannot rename Trash")
+
+    name = sanitize_rename_name(new_name)
+    suffix = path.suffix
+    if suffix.lower() in {".url", ".desktop"} and not name.lower().endswith(suffix.lower()):
+        name = sanitize_rename_name(name, extra_suffix=suffix)
+
+    dest = path.with_name(name)
+    try:
+        dest_parent = dest.parent.resolve()
+        path_parent = path.parent.resolve()
+    except OSError as error:
+        raise ValueError("Invalid name") from error
+    if dest_parent != path_parent or dest.name != name:
+        raise ValueError("Invalid name")
+
+    if dest.exists() or dest.is_symlink():
+        try:
+            same = os.path.samestat(dest.lstat(), path.lstat())
+        except OSError:
+            same = False
+        if not same:
+            raise ValueError(f"Already exists: {dest.name}")
+        return path
+
+    path.rename(dest)
+    if dest.suffix.lower() == ".desktop" and dest.is_file() and not dest.is_symlink():
+        update_desktop_entry_name(dest, dest.stem)
+    return dest
+
+
+def sanitize_link_url(url: str) -> str:
+    url = (url or "").strip()
+    if not url:
+        raise ValueError("Shortcut has no URL")
+    if url.startswith("/") or url.startswith("~"):
+        url = Path(os.path.expanduser(url)).resolve().as_uri()
+    if not allowed_url(url):
+        parsed = urlparse(url)
+        scheme = (parsed.scheme or "").lower() or "none"
+        raise ValueError(f"Shortcut URL scheme not allowed: {scheme}")
+    return url
+
+
+def open_path(path: Path, *, require_trust: bool = True) -> None:
+    path = path.expanduser()
+    if not path.exists():
+        raise FileNotFoundError(f"Path not found: {path}")
+
+    suffix = path.suffix.lower()
+    if suffix == ".url":
+        helper = next(
+            (
+                candidate
+                for candidate in (
+                    str(Path(__file__).resolve().parent / "create-hyperlink"),
+                    shutil.which("create-hyperlink"),
+                    str(Path.home() / ".local/bin/create-hyperlink"),
+                )
+                if candidate and os.path.isfile(candidate)
+            ),
+            "",
+        )
+        if not helper:
+            raise FileNotFoundError("create-hyperlink is not installed")
+        Gio.Subprocess.new([helper, "--open", str(path)], Gio.SubprocessFlags.NONE)
+        return
+
+    if suffix == ".desktop":
+        entry = read_desktop_entry(path)
+        if is_trash_launcher(entry):
+            open_trash()
+            return
+        if require_trust and not is_trusted_desktop(path):
+            raise PermissionError(
+                f"{path.name} is not a trusted launcher. "
+                "Pin it from Applications, or allow launching from the desktop."
+            )
+        entry_type = (entry.get("Type") or "Application").strip()
+        if entry_type.lower() == "link":
+            url = sanitize_link_url(entry.get("URL") or "")
+            Gio.AppInfo.launch_default_for_uri(url, None)
+            return
+        info = Gio.DesktopAppInfo.new_from_filename(str(path))
+        if info is None:
+            raise ValueError(f"Could not launch {path.name}")
+        info.launch([], None)
+        return
+
+    Gio.AppInfo.launch_default_for_uri(path.resolve().as_uri(), None)
+
+
+def place_one(source: Path, desktop: Path, mode: str) -> Path:
+    source = source.expanduser().resolve()
+    if not source.exists():
+        raise FileNotFoundError(f"Path not found: {source}")
+    if source == desktop:
+        raise ValueError("Cannot place the Desktop folder onto itself")
+    if source.parent == desktop and mode != "link":
+        return source
+
+    if mode == "link" or (
+        mode == "copy"
+        and source.suffix.lower() == ".desktop"
+        and any(is_under(source, directory) for directory in trusted_application_dirs())
+    ):
+        helper = (
+            shutil.which("add-to-desktop")
+            or str(Path(__file__).resolve().parent / "add-to-desktop")
+            or str(Path.home() / ".local/bin/add-to-desktop")
+        )
+        result = subprocess.run(
+            [helper, str(source)],
+            check=False,
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+        out = [line.strip() for line in (result.stdout or "").splitlines() if line.strip()]
+        if out:
+            return Path(out[-1])
+        return desktop / source.name
+
+    dest = unique_dest(desktop, source.name)
+    if mode == "move":
+        shutil.move(str(source), str(dest))
+        return dest
+    if source.is_dir():
+        shutil.copytree(source, dest, dirs_exist_ok=False)
+    else:
+        shutil.copy2(source, dest)
+    return dest
+
+
+def _bounded_paths(values: list[str], flag: str) -> list[str]:
+    if len(values) > MAX_PATH_ARGS:
+        raise ValueError(f"Too many {flag} arguments (max {MAX_PATH_ARGS})")
+    return values
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Desktop icon helper")
+    parser.add_argument("--open", nargs="+", metavar="PATH", help="Open desktop items")
+    parser.add_argument(
+        "--trust",
+        nargs="+",
+        metavar="PATH",
+        help="Mark .desktop launchers as trusted",
+    )
+    parser.add_argument(
+        "--trust-and-open",
+        nargs="+",
+        metavar="PATH",
+        help="Mark .desktop launchers as trusted and open them",
+    )
+    parser.add_argument(
+        "--trash",
+        nargs="+",
+        metavar="PATH",
+        help="Move files to the Trash",
+    )
+    parser.add_argument(
+        "--place",
+        nargs="+",
+        metavar="PATH",
+        help="Copy, move, or pin files onto the Desktop",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=("copy", "move", "link"),
+        default="copy",
+        help="How --place should add items (default: copy)",
+    )
+    parser.add_argument(
+        "--rename",
+        metavar="PATH",
+        help="Rename a Desktop item",
+    )
+    parser.add_argument(
+        "--to",
+        metavar="NAME",
+        help="New name for --rename",
+    )
+    args = parser.parse_args(argv)
+
+    if args.trust_and_open:
+        for raw in _bounded_paths(args.trust_and_open, "--trust-and-open"):
+            target = Path(raw)
+            mark_trusted(target)
+            open_path(target, require_trust=True)
+        return 0
+
+    if args.trust:
+        for raw in _bounded_paths(args.trust, "--trust"):
+            mark_trusted(Path(raw))
+        return 0
+
+    if args.open:
+        for raw in _bounded_paths(args.open, "--open"):
+            open_path(Path(raw))
+        return 0
+
+    if args.trash:
+        for raw in _bounded_paths(args.trash, "--trash"):
+            trash_one(path_from_uri(raw))
+        return 0
+
+    if args.place:
+        desktop = desktop_dir()
+        for raw in _bounded_paths(args.place, "--place"):
+            place_one(path_from_uri(raw), desktop, args.mode)
+        return 0
+
+    if args.rename:
+        try:
+            dest = rename_item(path_from_uri(args.rename, resolve=False), args.to or "")
+        except Exception as error:
+            notify("Desktop", str(error), error=True)
+            print(str(error), file=sys.stderr)
+            return 1
+        sys.stdout.write(encode_payload({"id": dest.name, "path": str(dest)}))
+        sys.stdout.write("\n")
+        return 0
+
+    payload = list_items()
+    sys.stdout.write(encode_payload(payload))
+    sys.stdout.write("\n")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as error:
+        mutating = any(
+            flag in sys.argv
+            for flag in ("--open", "--place", "--trash", "--trust", "--trust-and-open")
+        )
+        if mutating:
+            try:
+                Gio.Subprocess.new(
+                    [
+                        "notify-send",
+                        "-u",
+                        "normal",
+                        "-i",
+                        "dialog-error",
+                        "Desktop",
+                        plain_text(str(error), MAX_ERROR_LENGTH),
+                    ],
+                    Gio.SubprocessFlags.NONE,
+                )
+            except Exception:
+                print(error, file=sys.stderr)
+            raise SystemExit(1)
+        json.dump(
+            {
+                "desktop": str(Path.home() / "Desktop"),
+                "items": [],
+                "error": plain_text(str(error), MAX_ERROR_LENGTH),
+            },
+            sys.stdout,
+        )
+        sys.stdout.write("\n")
+        raise SystemExit(1)

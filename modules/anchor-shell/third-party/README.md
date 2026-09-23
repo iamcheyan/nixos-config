@@ -21,7 +21,10 @@
 - 由第一方插件注册逻辑扫描和加载；
 - 代码结构、接口和生命周期由本项目控制。
 
-例如，`plugins/clipboard/` 是 Omarchy 原生的剪贴板 overlay，插件 ID 是 `omarchy.clipboard`。它和本目录中的 `iamcheyan.clipboard` 不是同一个插件。
+剪贴板插件 `iamcheyan.clipboard` 已迁移到
+`modules/anchor-shell/plugins/clipboard/`。旧的第一方 `omarchy.clipboard`
+实现已经移除；兼容层只保留必要的快捷键和命令入口，并统一转发到
+`iamcheyan.clipboard`。
 
 ### `compat/`
 
@@ -48,63 +51,43 @@
 2. `modules/anchor-shell/third-party/`：仓库管理的第三方插件；
 3. 用户插件目录：由相应的用户运行时负责。
 
-因此，插件放在 `third-party/` 并不会使它失效。它仍然会被读取 `manifest.json`、注册到插件表，并可以提供 bar widget、overlay 或 service 等入口。
+因此，仍放在 `third-party/` 的插件会被读取 `manifest.json`、注册到插件表，并可以提供 bar widget、overlay 或 service 等入口。已经迁移到 `plugins/` 的插件则由第一方扫描路径发现。
 
 需要注意的是，插件的“目录名”和“插件 ID”是两个概念：
 
-- 目录名用于定位源代码，例如 `iamcheyan.clipboard/`；
+- 目录名用于定位源代码，例如 `plugins/clipboard/`；
 - manifest 中的 `id` 用于配置、IPC、快捷键和运行时识别，例如 `iamcheyan.clipboard`。
 
 只改目录名不一定会影响运行，但改插件 ID 会影响所有引用它的配置和 IPC 调用。迁移时必须同时检查 `shell.json`、QML 中的 `moduleName`、IPC target、Labwc 脚本、Nix 路径和文档。
 
 ## 当前目录内容
 
-### `hancore.voxtype-enhance/`
+### Voxtype
 
-Voxtype 语音输入增强插件，提供顶栏控制、模型和语言配置，以及终端感知的 universal paste 行为。
+Voxtype 语音输入增强插件已经迁移到
+`modules/anchor-shell/plugins/voxtype/`。它的运行时 ID 仍是
+`hancore.voxtype-enhance`，因此现有配置和 IPC 兼容。
 
-当前 ID：
+### `iamcheyan.clipboard`
 
-```text
-hancore.voxtype-enhance
-```
+该插件已经迁移到 `modules/anchor-shell/plugins/clipboard/`，不再属于本目录。
+迁移只改变源码目录，不改变 manifest ID `iamcheyan.clipboard`，因此现有
+`shell.json`、IPC、快捷键和状态路径保持兼容。
 
-它目前被 `shell.json` 的顶栏配置启用，同时也出现在 `modules/home-manager/omarchy-plugins.list` 中。其脚本还被 `modules/labwc.nix` 的运行时接线引用，因此不能只删除插件目录。
+### 桌面图标插件迁移
 
-### `iamcheyan.clipboard/`
+桌面图标插件已迁移到
+`modules/anchor-shell/plugins/desktop-icons/`，运行时 ID 改为
+`desktop-icons`。它负责桌面文件展示、文件图标、拖拽、选择、右键菜单、
+多显示器布局和桌面文件操作，并包含 Dolphin“发送到桌面” service menu。
 
-面向当前 Labwc 会话的剪贴板插件，包含：
-
-- 顶栏 clipboard widget；
-- 剪贴板历史面板；
-- 文本和图片条目处理；
-- 后台捕获服务；
-- 多显示器定位和光标位置打开逻辑；
-- Labwc 快捷键和 IPC 集成脚本。
-
-当前 ID：
-
-```text
-iamcheyan.clipboard
-```
-
-这是当前 `shell.json` 中实际启用的 clipboard 插件。它使用 Omarchy/Labwc 的剪贴板状态和图片目录，但并不等于 `plugins/clipboard/` 中的原生 Omarchy 实现。
-
-### `henri.desktop-icons/`
-
-桌面图标插件，负责桌面文件展示、文件图标、拖拽、选择、右键菜单、多显示器布局和桌面文件操作。
-
-当前 ID：
-
-```text
-henri.desktop-icons
-```
-
-它还包含与 Dolphin “发送到桌面”操作相关的 service menu。`modules/labwc.nix` 对该插件的脚本、Python 运行环境和 Dolphin 文件路径存在显式引用，因此迁移目录时必须同步修改 Nix 接线。
+`third-party/` 不再保留该插件副本；Nix 接线位于 `modules/labwc.nix`。
 
 ## 为什么不直接全部放进 `plugins/`
 
-从运行机制上说，第三方插件也可以统一放进 `plugins/`。但目前分开存放有几个实际作用：
+从运行机制上说，第三方插件也可以统一放进 `plugins/`。本仓库现在已经将
+需要作为核心运行路径维护的 `iamcheyan.clipboard` 放入 `plugins/`，但仍保留
+`third-party/` 作为外部来源插件的归档和边界。分开存放有几个实际作用：
 
 - 能清楚区分第一方代码和外部来源代码；
 - 避免误以为第三方插件使用了第一方生命周期和接口；
@@ -123,7 +106,11 @@ henri.desktop-icons
 7. `ARCHITECTURE.md`、迁移文档和插件 README；
 8. 第一方/兼容层是否仍然存在同名插件目录。
 
-尤其是 `plugins/clipboard/` 已经存在 `omarchy.clipboard`。如果要把 `iamcheyan.clipboard` 改名为 `plugins/clipboard/`，必须先处理两个不同实现之间的目录冲突，并确认旧实现是否仍被兼容层使用。
+桌面图标插件的这次迁移已经完成上述检查；旧 ID `henri.desktop-icons` 不再
+作为运行时配置 ID 使用。
+
+当前不再新增第二套剪贴板实现。兼容层的旧命令入口不能重新指向
+`omarchy.clipboard`，必须调用 `iamcheyan.clipboard`，不能和当前 Labwc 的唯一实现混用。
 
 ## 删除插件前的检查清单
 
