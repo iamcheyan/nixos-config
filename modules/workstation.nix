@@ -21,9 +21,9 @@
   };
   # Preserve pre-existing unmanaged GTK files when Home Manager first takes
   # ownership of them.  This keeps activation recoverable on this workstation.
-  # Keep older backups intact while avoiding a collision with the existing
-  # .gtkrc-2.0.hm-backup-nixos file from the previous activation.
-  home-manager.backupFileExtension = "hm-backup-nixos-v4";
+  # Keep older backups intact; v3 and v4 are already occupied by prior
+  # activations on this workstation.
+  home-manager.backupFileExtension = "hm-backup-nixos-v5";
 
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
