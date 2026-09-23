@@ -30,12 +30,25 @@ in
     HandleSuspendKey = "suspend";
   };
 
-  # Keep manual suspend/hibernation available, but do not trigger either one
-  # automatically. The lid and power-button policy above controls that latter
-  # behavior.
+  # Low-latency remote desktop/game streaming for macOS Moonlight clients.
+  # Auto-login is intentional: this is a privately owned workstation and the
+  # remote desktop must have a graphical session available after boot.
+  services.sunshine = {
+    enable = true;
+    autoStart = true;
+    openFirewall = true;
+    capSysAdmin = true;
+  };
+  services.displayManager.autoLogin = {
+    enable = true;
+    user = "tetsuya";
+  };
+
+  # This workstation must not suspend while it is being used remotely.
+  # Keep the policy declarative so a future nixos-rebuild cannot undo it.
   systemd.sleep.settings.Sleep = {
-    AllowSuspend = "yes";
-    AllowHibernation = "yes";
+    AllowSuspend = "no";
+    AllowHibernation = "no";
     AllowHybridSleep = "no";
     AllowSuspendThenHibernate = "no";
     # ACPI S4 poweroff fails on this firmware: xhci 0000:04:00.4 returns EBUSY
