@@ -3,15 +3,7 @@
 `Lock Screen` is an Omarchy lock-screen plugin that keeps Omarchy's
 native locking implementation and replaces only the visual interface.
 
-## Upstream source and local maintenance
-
-- Upstream repository: [iamcheyan/omarchy-lock-screen](https://github.com/iamcheyan/omarchy-lock-screen)
-- Upstream plugin directory: repository root, original plugin ID `iamcheyan.lock-screen`
-- Local maintained copy: `modules/anchor-shell/plugins/lock/`
-
-This copy is maintained with Anchor Shell and includes local wallpaper, Labwc,
-and NixOS integration. Review upstream changes manually before applying them;
-the active copy is not updated with `omarchy plugin update`.
+![Lock Screen preview](preview.png)
 
 ## Features
 
@@ -140,6 +132,8 @@ MIT. See [LICENSE](LICENSE).
 # 中文说明：Lock Screen
 
 `Lock Screen` 是一个 Omarchy 锁屏插件。它保留 Omarchy 原生的锁屏实现，只替换锁屏界面外观。
+
+![Lock Screen 预览](preview.png)
 
 ## 功能
 
@@ -279,6 +273,8 @@ MIT，详见 [LICENSE](LICENSE)。
 # 日本語：Lock Screen
 
 `Lock Screen` は、Omarchy 標準のロック処理を維持したまま、ロック画面の見た目だけを置き換えるプラグインです。
+
+![Lock Screen プレビュー](preview.png)
 
 ## 主な機能
 

@@ -73,7 +73,7 @@ iamcheyan.lock-screen/
 ├── Service.qml       # 尽量与原生 omarchy.lock 保持一致
 ├── LockView.qml      # 唯一的主要自定义文件
 ├── README.md
-└── README.md
+└── preview.png
 ```
 
 `Service.qml` 应以当前系统里的原生文件为基准：

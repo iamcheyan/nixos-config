@@ -17,6 +17,7 @@ Item {
       || ((Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")) + "/anchor-shell")
   readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME")
   readonly property string wallpaperState: stateHome + "/wallpaper"
+  readonly property string legacyOmarchyBackgroundLink: stateHome + "/current/background"
   // Select the primary interaction surface from the live output geometry.
   // There are no monitor-name assumptions here: when an output disappears,
   // the remaining output becomes interactive as soon as the compositor
@@ -406,8 +407,9 @@ Item {
 
   Process {
     id: readlinkProc
-    // All wallpaper producers write the same plain-text state file.
-    command: ["bash", "-c", "set -eu; state=\"$1\"; if [ -r \"$state\" ]; then wallpaper=$(cat \"$state\"); if [ -f \"$wallpaper\" ]; then printf '%s\\n' \"$wallpaper\"; fi; fi", "lock-background", root.wallpaperState]
+    // Read the shared wallpaper state first; consult Omarchy's legacy link
+    // only when the shared state is not available yet.
+    command: ["bash", "-c", "set -eu; state=\"$1\"; fallback=\"$2\"; if [ -r \"$state\" ]; then wallpaper=$(cat \"$state\"); if [ -f \"$wallpaper\" ]; then printf '%s\\n' \"$wallpaper\"; exit 0; fi; fi; legacy=$(readlink -f \"$fallback\" 2>/dev/null || true); if [ -f \"$legacy\" ]; then printf '%s\\n' \"$legacy\"; fi", "lock-background", root.wallpaperState, root.legacyOmarchyBackgroundLink]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
