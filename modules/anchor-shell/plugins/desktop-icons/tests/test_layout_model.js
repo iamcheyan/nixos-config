@@ -8,7 +8,7 @@ const source = fs.readFileSync(sourcePath, "utf8")
   + `\nthis.layout = {\n`
   + [
     "empty", "cellFromPixel", "pixelFromCell", "homeOf", "normalize",
-    "repair", "visibleIds", "position", "moveOrSwap", "moveToScreen"
+    "repair", "visibleIds", "position", "moveOrSwap", "moveToScreen", "moveGroup"
   ].map(name => `${name},`).join("\n")
   + "}\n"
 
@@ -66,6 +66,32 @@ const sameScreenMove = layout.moveToScreen(
   crossScreenEmpty, "b", "HDMI1", "HDMI1", { col: 0, row: 0 }
 )
 equalJson(sameScreenMove.screens.HDMI1.b, { col: 0, row: 0 })
+
+const groupState = layout.normalize(
+  { version: 3, screens: { HDMI1: {
+    a: { col: 0, row: 0 },
+    b: { col: 1, row: 0 },
+    c: { col: 3, row: 0 }
+  } } },
+  items,
+  ["HDMI1", "HDMI2"],
+  grids
+)
+const movedGroup = layout.moveGroup(groupState, "HDMI1", "HDMI2", [
+  { id: "a", targetCell: { col: 0, row: 1 } },
+  { id: "b", targetCell: { col: 1, row: 1 } }
+])
+assert.strictEqual(layout.homeOf(movedGroup, "a"), "HDMI2")
+assert.strictEqual(layout.homeOf(movedGroup, "b"), "HDMI2")
+equalJson(movedGroup.screens.HDMI2.a, { col: 0, row: 1 })
+equalJson(movedGroup.screens.HDMI2.b, { col: 1, row: 1 })
+assert.strictEqual(layout.homeOf(movedGroup, "c"), "HDMI1")
+
+const blockedGroup = layout.moveGroup(groupState, "HDMI1", "HDMI1", [
+  { id: "a", targetCell: { col: 0, row: 2 } },
+  { id: "b", targetCell: { col: 3, row: 0 } }
+])
+equalJson(blockedGroup, groupState)
 
 equalJson(layout.cellFromPixel(120, 160, grid), { col: 1, row: 1 })
 equalJson(layout.pixelFromCell({ col: 1, row: 1 }, grid), { x: 120, y: 152 })

@@ -17,12 +17,15 @@ let
     cp -r "${./anchor-shell/compat/omarchy}"/. "$out/"
   '';
   quickshellDevRoot = "/home/tetsuya/nixos-config/modules/anchor-shell";
-  # Desktop Icons uses Gio/GLib through PyGObject. Keep its interpreter
+  # Henri desktop-icons uses Gio/GLib through PyGObject. Keep its interpreter
   # isolated instead of changing the system's generic python3 selection.
   anchorShellPython = pkgs.python3.withPackages (ps: [ ps.pygobject3 ]);
   anchorAddToDesktop = pkgs.writeShellScriptBin "add-to-desktop" ''
     exec ${anchorShellPython}/bin/python3 \
       ${quickshellRoot}/plugins/desktop-icons/bin/add-to-desktop "$@"
+  '';
+  anchorSetWallpaper = pkgs.writeShellScriptBin "labwc-set-wallpaper" ''
+    exec "$HOME/.config/labwc/scripts/set-wallpaper-image" "$@"
   '';
 
   # Quickshell's Qt wrapper only exports its own QML modules. The Omarchy
@@ -35,9 +38,8 @@ let
     exec ${pkgs.quickshell}/bin/quickshell "$@"
   '');
 
-  # Power actions remain searchable desktop entries in the Anchor Shell
-  # launcher opened by the compositor shortcut. Hibernate is copied only when
-  # the kernel supports it.
+  # Power actions become searchable desktop entries in the Wofi launcher
+  # opened by Win+Space. Hibernate is copied only when the kernel supports it.
   powerDesktopFiles = {
     logout = pkgs.writeText "nixarchy-logout.desktop" ''
       [Desktop Entry]
@@ -97,8 +99,15 @@ let
   labwcEnvironment = ./labwc/labwc/environment;
   labwcKeyboardEnvironment = ./labwc/labwc/environment.d/90-keyboard.env;
   labwcKeybinds = ./labwc/labwc/keybinds;
+  labwcWofi = ./labwc/wofi;
   labwcFuzzel = ./labwc/fuzzel;
   labwcMako = ./labwc/mako;
+  labwcThemeRoot = ./labwc/labwc/themes;
+  labwcThemeNames = builtins.attrNames (lib.filterAttrs
+    (name: type:
+      type == "directory"
+      && builtins.pathExists (labwcThemeRoot + "/${name}/openbox-3/themerc"))
+    (builtins.readDir labwcThemeRoot));
 
   # Keep the Philips display as the 1x primary output and render the 4K
   # secondary display at 2x HiDPI.  Positions are in logical pixels, so the
@@ -187,9 +196,8 @@ let
     # Refresh the Labwc-owned Fcitx5 service for this session's Wayland socket.
     ${pkgs.systemd}/bin/systemctl --user restart --no-block anchor-fcitx5.service &
 
-    # Win+Space opens Anchor Shell's application launcher. Keep power actions
-    # in the desktop-entry database, and expose Hibernate only when the kernel
-    # supports `disk`.
+    # Win+Space opens Wofi's desktop-entry launcher in Labwc. Keep power actions
+    # there, and expose Hibernate only when the kernel supports `disk`.
     power_applications="$HOME/.local/share/applications"
     ${pkgs.coreutils}/bin/mkdir -p "$power_applications"
     ${pkgs.coreutils}/bin/cp -f --no-preserve=mode "${powerDesktopFiles.logout}" "$power_applications/nixarchy-logout.desktop"
@@ -266,6 +274,7 @@ in
       kdePackages.qqc2-desktop-style
       kdePackages.dolphin
       anchorAddToDesktop
+      anchorSetWallpaper
       foot
       fuzzel
       grim
@@ -279,13 +288,10 @@ in
       bc
       slurp
       tesseract
-      swaynotificationcenter
-      swaybg
-      (writeShellScriptBin "labwc-set-wallpaper" ''
-        exec ${runtimeShell} ${./labwc/labwc/scripts/set-wallpaper-image} "$@"
-      '')
       wdisplays
       wl-clipboard
+      wofi
+      wbg
       wlr-randr
       zbar
     ];
@@ -297,22 +303,29 @@ in
       xdg.configFile."labwc/environment.d/90-keyboard.env".source = labwcKeyboardEnvironment;
       xdg.configFile."labwc/keybinds".source = labwcKeybinds;
       xdg.configFile."labwc/scripts".source = ./labwc/labwc/scripts;
-      home.file.".local/bin/quickshell-mode" = {
-        source = ./labwc/labwc/scripts/quickshell-mode;
-        executable = true;
-      };
-      # Keep a compositor-neutral entry point alongside the historical
-      # quickshell-mode helper. Sway/KDE sessions can call the same launcher
-      # after importing their own Wayland environment.
-      home.file.".local/bin/quickshell-topbar" = {
-        source = ./labwc/labwc/scripts/quickshell;
-        executable = true;
-      };
-      home.file.".config/labwc/voxtype-paste.py" = {
-        source = ./anchor-shell/plugins/voxtype/scripts/omarchy-universal-paste.py;
-        executable = true;
+      home.file = lib.genAttrs
+        (map (name: ".local/share/themes/${name}") labwcThemeNames)
+        (target: {
+          source = labwcThemeRoot + "/${lib.removePrefix ".local/share/themes/" target}";
+        }) // {
+          ".local/bin/quickshell-mode" = {
+            source = ./labwc/labwc/scripts/quickshell-mode;
+            executable = true;
+          };
+          # Keep a compositor-neutral entry point alongside the historical
+          # quickshell-mode helper. Sway/KDE sessions can call the same launcher
+          # after importing their own Wayland environment.
+          ".local/bin/quickshell-topbar" = {
+            source = ./labwc/labwc/scripts/quickshell;
+            executable = true;
+          };
+          ".config/labwc/voxtype-paste.py" = {
+            source = ./anchor-shell/plugins/voxtype/scripts/omarchy-universal-paste.py;
+            executable = true;
+          };
       };
       xdg.configFile."kanshi/config".source = labwcKanshiConfig;
+      xdg.configFile."wofi".source = labwcWofi;
       xdg.configFile."fuzzel".source = labwcFuzzel;
       xdg.configFile."mako".source = labwcMako;
       xdg.dataFile."kio/servicemenus/anchor-send-to-desktop.desktop" = {
@@ -323,10 +336,6 @@ in
         source = ./labwc/dolphin/set-wallpaper.desktop;
         executable = true;
       };
-      home.file.".local/share/themes/BL-Lithium-dark".source =
-        ./labwc/labwc/themes/BL-Lithium-dark;
-      home.file.".local/share/themes/Adwaita-Labwc-dark".source =
-        ./labwc/labwc/themes/Adwaita-Labwc-dark;
       xdg.configFile."labwc/autostart" = {
         source = labwcAutostart;
         executable = true;

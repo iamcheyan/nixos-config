@@ -14,8 +14,8 @@ Anchor Shell 是一套与具体 Wayland 合成器无关的桌面功能层。它�
 
 ```text
 modules/anchor-shell/              Anchor Shell 的完整源码
-modules/anchor-shell/plugins/      当前使用的 first-party 插件
-modules/anchor-shell/third-party/  已迁入并由本仓库管理的第三方插件
+modules/anchor-shell/plugins/      当前使用并统一维护的插件
+modules/anchor-shell/third-party/  迁移说明，不存放运行插件源码
 modules/anchor-shell/compat/       为兼容原有 Omarchy 命名和脚本保留的副本
 modules/anchor-shell/docs/         迁移、验证和插件说明
 
@@ -30,12 +30,13 @@ modules/anchor-shell/docs/         迁移、验证和插件说明
 ├── plugins/               当前使用和维护的插件
 │   ├── bar/               顶栏和顶栏小组件
 │   ├── clipboard/         剪贴板入口
+│   ├── desktop-icons/     桌面图标、选择与拖拽
 │   ├── voxtype/           语音输入控制插件
 │   ├── lock/              锁屏插件
 │   ├── notifications/     通知
 │   ├── panels/             网络、电源、蓝牙等面板
 │   └── services/          闲置、夜灯等后台服务
-├── third-party/           尚未迁移的第三方插件
+├── third-party/           来源与迁移说明
 ├── compat/omarchy/        omarchy-* 兼容命令和默认资源
 └── docs/                  架构、迁移和插件文档
 ```
@@ -188,10 +189,9 @@ Nixarchy/Omarchy store 包。
 
 ## 插件加载规则
 
-Anchor Shell 的插件注册器只扫描本仓库的插件目录：
+Anchor Shell 的插件注册器统一扫描 `modules/anchor-shell/plugins/`。已迁入的外部来源插件也放在该目录，由插件 README 记录其来源。
 
-1. `modules/anchor-shell/plugins/`
-2. `modules/anchor-shell/third-party/`
+`modules/anchor-shell/third-party/` 只保留迁移说明，不作为插件扫描根目录。
 
 Hyprland/Omarchy 继续使用它自己的 `~/.config/omarchy/plugins/`。Anchor Shell
 不会把这个目录作为插件来源，因此在 Anchor Shell 中修改、替换或调试插件，
@@ -203,6 +203,7 @@ Hyprland/Omarchy 继续使用它自己的 `~/.config/omarchy/plugins/`。Anchor 
 - `omarchy.lock`
 - `iamcheyan.clipboard`
 - `hancore.voxtype-enhance`
+- `desktop-icons`
 
 Voxtype 的源码目录现为 `modules/anchor-shell/plugins/voxtype/`；为保持现有
 配置和 IPC 兼容，目录名已经改变，但 manifest ID 仍然是

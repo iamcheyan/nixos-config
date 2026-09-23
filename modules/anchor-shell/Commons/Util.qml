@@ -78,7 +78,12 @@ QtObject {
   }
 
   function canonicalWidgetId(id) {
-    return String(id || "")
+    var key = String(id || "")
+    // Preserve user shell.json layouts across the first-party to third-party
+    // plugin migration and the launcher consolidation.
+    if (key === "henri.desktop-icons") return "desktop-icons"
+    if (key === "launcher") return "launcher"
+    return key
   }
 
   // Best-effort base64 decode. Returns "" on parse failure rather than

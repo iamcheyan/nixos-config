@@ -664,15 +664,16 @@ QtObject {
   function rescan() {
     if (scanning) return
     scanning = true
-    // $1 = first-party dir and the remaining arguments are third-party roots.
-    // Keep a dummy $0 because bash reserves it for the script name.
+    // $1 = the repository-owned plugin root. Keep a dummy $0 because bash
+    // reserves it for the script name.
     // First-party plugins may be grouped one level deeper, e.g. panels/audio
     // or services/battery.
     // First-party bar widgets can also carry sibling manifests such as
     // widgets/Clock.manifest.json so multiple widgets can live in one source
     // directory without wrapper folders.
-    // Third-party plugins shipped with Anchor Shell stay in the repository;
-    // user-installed plugins use the Anchor Shell config directory.
+    // All repository-managed plugins, including migrated external plugins,
+    // live under this root. User-installed plugins use the Anchor Shell
+    // config directory.
     var script = ""
       + "emit_manifest() { local kind=\"$1\"; local manifest=\"$2\"; local sub; "
       + "  if [[ ${manifest##*/} == \"manifest.json\" ]]; then sub=\"${manifest%/manifest.json}\"; else sub=\"$(dirname -- \"$manifest\")\"; fi; "
@@ -684,22 +685,11 @@ QtObject {
       + "  [[ -d \"$dir\" ]] || return 0; "
       + "  while IFS= read -r manifest; do emit_manifest firstparty \"$manifest\"; done < <(find \"$dir\" -mindepth 2 -maxdepth 3 -type f \\( -name manifest.json -o -name '*.manifest.json' \\) | sort); "
       + "}; "
-      + "scan_thirdparty() { "
-      + "  for dir in \"$@\"; do "
-      + "    [[ -d \"$dir\" ]] || continue; "
-      + "    for sub in \"$dir\"/*/; do "
-      + "      [[ -f \"$sub/manifest.json\" ]] || continue; "
-      + "      emit_manifest thirdparty \"$sub/manifest.json\"; "
-      + "    done; "
-      + "  done; "
-      + "}; "
-      + "scan_firstparty \"$1\"; shift; "
-      + "scan_thirdparty \"$@\""
-    var thirdPartyDir = registry.firstPartyDir ? (registry.firstPartyDir + "/../third-party") : ""
+      + "scan_firstparty \"$1\""
     // This registry belongs to the standalone Labwc/compositor-neutral shell.
     // Its roots are intentionally limited to this repository; the separate
     // Hyprland compatibility shell owns ~/.config/omarchy/plugins.
-    scanProcess.command = ["bash", "-c", script, "plugin-scan", registry.firstPartyDir, thirdPartyDir]
+    scanProcess.command = ["bash", "-c", script, "plugin-scan", registry.firstPartyDir]
     scanProcess.running = true
   }
 

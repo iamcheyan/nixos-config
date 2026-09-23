@@ -14,11 +14,10 @@
 仓库内的 `iamcheyan.clipboard` 保留了本地 Labwc 多屏定位和 backend 修复，
 不会被用户目录中的旧副本覆盖。
 
-插件注册器的搜索顺序保持为：
+插件注册器的搜索顺序为：
 
-1. Quickshell 仓库内的 first-party/third-party 源；
-2. `~/.config/omarchy/plugins/` 旧路径；
-3. `~/.config/quickshell/plugins/` 新用户插件路径。
+1. `modules/anchor-shell/plugins/`：仓库维护的全部插件；
+2. `~/.config/anchor-shell/plugins/`：用户安装的插件。
 
 迁移期间仍保留旧路径，方便逐个比较和回退。后续验证完成后，才会考虑停止
 读取旧的 Omarchy 用户插件目录。
