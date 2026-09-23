@@ -1,8 +1,8 @@
 #!/bin/sh
-# Wallpaper picker — list images from ~/wallpapers and apply
+# Wallpaper picker — list images from ~/wallpapers and apply with Fuzzel
 
 BG_DIR="$HOME/wallpapers"
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/labwc"
+STATE_DIR="${ANCHOR_SHELL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/anchor-shell}"
 STATE_FILE="$STATE_DIR/wallpaper"
 
 [ -d "$BG_DIR" ] || {
@@ -25,8 +25,8 @@ done
     exit 1
 }
 
-chosen=$(printf '%b' "$files" | wofi --dmenu \
-    -p "Wallpaper" -W 300 -H 300 -l 8 -i)
+chosen=$(printf '%b' "$files" | fuzzel --dmenu \
+    --prompt "Wallpaper" --width 40 --lines 8 --no-icons)
 
 [ -z "$chosen" ] && exit 0
 

@@ -193,11 +193,6 @@ cat >> "$rc_file" << 'FOOTER'
   </mouse>
 
   <windowRules>
-    <windowRule identifier="wofi" skipTaskbar="yes" skipWindowSwitcher="yes">
-      <action name="ToggleAlwaysOnTop" />
-      <action name="Raise" />
-      <action name="Focus" />
-    </windowRule>
     <windowRule identifier="*kitty*">
       <titlebarColor>#000000</titlebarColor>
       <titlebarTextColor>#ffffff</titlebarTextColor>

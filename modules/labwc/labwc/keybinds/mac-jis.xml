@@ -54,11 +54,6 @@
       <action name="Execute" command="wtype -M Ctrl s -m Ctrl" />
     </keybind>
 
-    <!-- 剪贴板历史 (Alt+V) -->
-    <keybind key="A-v">
-      <action name="Execute" command="~/.config/cliphist/cliphist-fuzzel" />
-    </keybind>
-
     <!-- 截图 -->
     <keybind key="W-S-a">
       <action name="Execute" command="~/.config/labwc/scripts/omarchy-capture-screenshot region copy" />

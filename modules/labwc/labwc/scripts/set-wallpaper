@@ -5,7 +5,8 @@ export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
 wallpaper=""
-wallpaper_state="${XDG_STATE_HOME:-$HOME/.local/state}/labwc/wallpaper"
+anchor_state_dir="${ANCHOR_SHELL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/anchor-shell}"
+wallpaper_state="$anchor_state_dir/wallpaper"
 
 # 1. Read last user-selected wallpaper from state file
 if [ -r "$wallpaper_state" ]; then

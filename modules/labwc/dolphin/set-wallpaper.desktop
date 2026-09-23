@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Service
+MimeType=image/*;
+Actions=setAsWallpaper;
+X-KDE-Priority=TopLevel
+
+[Desktop Action setAsWallpaper]
+Name=Set as Wallpaper
+Name[ja]=壁紙に設定
+Icon=preferences-desktop-wallpaper
+Exec=labwc-set-wallpaper %f

@@ -18,7 +18,7 @@ modules/labwc/
 │   ├── keybinds/              # 快捷键预设配置片段
 │   ├── scripts/               # Labwc 专属辅助与控制脚本
 │   │   ├── set-wallpaper      # 桌面壁纸渲染与启动脚本（调用 swaybg）
-│   │   ├── wallpaper          # Wofi 交互式壁纸选择器（检索 ~/wallpapers）
+│   │   ├── wallpaper          # Fuzzel 交互式壁纸选择器（检索 ~/wallpapers）
 │   │   ├── reload             # Labwc 与 Quickshell 热重载脚本（带进程守护）
 │   │   ├── quickshell         # Quickshell 顶栏与面板统一拉起入口
 │   │   ├── quickshell-mode    # Quickshell 运行模式切换（dev/nix）
@@ -32,17 +32,6 @@ modules/labwc/
 │   └── themes/                # Labwc 窗口标题栏与边框装饰主题
 │       ├── BL-Lithium-dark/   # 极简暗色边框主题
 │       └── Adwaita-Labwc-dark/# GNOME Adwaita 风格暗色边框主题
-├── wofi/                      # Wofi 应用程序启动器与交互弹窗
-│   ├── app-launcher           # 应用搜索与启动器入口
-│   ├── config / config-popos  # 布局参数与窗口大小定义
-│   ├── style.css              # 主应用启动器 CSS 暗色美化样式
-│   ├── cliphist.css           # 剪贴板历史搜索弹窗专用样式
-│   ├── menu.css               # 快捷菜单弹窗样式
-│   └── power-dialog.css       # 电源操作弹窗样式
-├── cliphist/                  # Cliphist 剪贴板历史集成
-│   ├── cliphist-wofi          # 基于 Wofi 的交互式剪贴板历史选择器 (Win+V)
-│   ├── cliphist-fuzzel        # 基于 Fuzzel 的极简剪贴板选择器
-│   └── config                 # 剪贴板守护参数
 ├── mako/                      # Mako 通知守护进程配置
 │   └── config                 # 桌面通知样式（圆角、透明度、超时与颜色）
 ├── fuzzel/                    # Fuzzel 极简启动器配置
@@ -65,8 +54,6 @@ modules/labwc/
 | `labwc/scripts/` | `~/.config/labwc/scripts/` | 声明式可执行链接目录 |
 | `labwc/scripts/quickshell-mode`| `~/.local/bin/quickshell-mode` | 用户全局 CLI 工具 |
 | `labwc/themes/*` | `~/.local/share/themes/*` | GTK/Labwc 主题目录 |
-| `wofi/` | `~/.config/wofi/` | Wofi 样式与配置文件 |
-| `cliphist/` | `~/.config/cliphist/` | 剪贴板工具配置 |
 | `mako/config` | `~/.config/mako/config` | 通知守护进程配置 |
 | `fuzzel/fuzzel.ini` | `~/.config/fuzzel/fuzzel.ini` | 轻量启动器配置 |
 
@@ -80,12 +67,12 @@ modules/labwc/
    - 导入 D-Bus / systemd 用户会话环境变量。
    - 启动壁纸渲染：执行 `~/.config/labwc/scripts/set-wallpaper wayland`，拉起 `swaybg` 常驻后台。
    - 启动状态栏：执行 `~/.config/labwc/scripts/quickshell`，拉起 Quickshell Top Bar。
-   - 启动桌面守护程序：`swaync` (通知中心)、`nm-applet` (网络托盘)、`fcitx5` (输入法)、`cliphist` (剪贴板监听)。
+   - 剪贴板由 Anchor Shell 的 `iamcheyan.clipboard` service 管理，不再由独立的 `cliphist` watcher 管理。
 
 ### 2. 壁纸管理体系 (Wallpaper System)
 - **壁纸存放目录**：`~/wallpapers/`（由用户自由存放常用壁纸图片）。
-- **当前壁纸状态记录**：`~/.local/state/labwc/wallpaper`（记录当前选择的壁纸完整绝对路径）。
-- **选壁纸操作**：通过桌面右键菜单或调用 `~/.config/labwc/scripts/wallpaper`，弹出 Wofi 图片列表，选择后自动将绝对路径持久化写入状态文件，并通过 `swaybg` 无缝切换背景。
+- **当前壁纸状态记录**：`~/.local/state/anchor-shell/wallpaper`（记录当前选择的壁纸完整绝对路径）。这是 Labwc、Anchor Shell 锁屏和 `wallpaper-rotate` 共用的唯一状态文件。
+- **选壁纸操作**：通过桌面右键菜单或调用 `~/.config/labwc/scripts/wallpaper`，弹出 Fuzzel 图片列表，选择后自动将绝对路径持久化写入状态文件，并通过 `swaybg` 无缝切换背景。
 - **开机/重载自愈**：`set-wallpaper` 优先读取状态文件中的壁纸，若不存在则自动扫描 `~/wallpapers/` 中的第一张图片作为兜底，无需在代码仓库中打包体积庞大的二进制图片。
 
 ### 3. 热重载机制 (Live Reload)

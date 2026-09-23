@@ -19,7 +19,7 @@
 
   <menu id="apps-menu" label="Applications">
     <item label="Browse All...">
-      <action name="Execute" command="~/.config/wofi/app-launcher" />
+      <action name="Execute" command="~/.config/labwc/scripts/launcher" />
     </item>
     <separator />
     <item label="Terminal">
@@ -129,11 +129,15 @@
   </menu>
 
   <menu id="root-menu">
+    <item label="New File">
+      <action name="Execute" command="~/.config/labwc/scripts/new-desktop-file" />
+    </item>
+    <separator />
     <item label="Terminal">
       <action name="Execute" command="kitty" />
     </item>
     <item label="Run Application...">
-      <action name="Execute" command="~/.config/wofi/app-launcher" />
+      <action name="Execute" command="~/.config/labwc/scripts/launcher" />
     </item>
     <separator />
     <menu id="apps-menu" />

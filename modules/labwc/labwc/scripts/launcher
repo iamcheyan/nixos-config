@@ -1,9 +1,15 @@
 #!/bin/sh
-# launcher — toggle wofi application launcher
+set -eu
 
-if pgrep -f '(^|/)wofi( |$)' >/dev/null 2>&1; then
-    pkill -f '(^|/)wofi( |$)'
-    exit 0
-fi
+# Labwc's application launcher is the first-party Anchor Shell plugin. Resolve
+# the one running Quickshell instance explicitly so this works from a
+# compositor keybind without relying on a default IPC config path.
+pid=$(quickshell list --all 2>/dev/null | awk '/Process ID:/ { print $3; exit }')
+case "$pid" in
+    ''|*[!0-9]*)
+        printf '%s\n' 'Anchor Shell is not running' >&2
+        exit 1
+        ;;
+esac
 
-exec "$HOME/.config/wofi/app-launcher"
+exec quickshell ipc --pid "$pid" call shell toggle launcher '{"menu":"root"}'

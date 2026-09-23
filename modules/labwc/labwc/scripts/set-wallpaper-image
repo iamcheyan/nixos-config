@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+
+image=${1:?Usage: set-wallpaper-image IMAGE}
+[ -f "$image" ] || exit 1
+image=$(realpath -- "$image")
+
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+
+state_dir="${ANCHOR_SHELL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/anchor-shell}"
+mkdir -p "$state_dir"
+printf '%s\n' "$image" > "$state_dir/wallpaper"
+
+# Replace the current background and retain the choice for the next login.
+for pid in $(pgrep -x swaybg 2>/dev/null || true); do
+	kill "$pid" 2>/dev/null || true
+done
+swaybg -i "$image" -m fill >/dev/null 2>&1 &

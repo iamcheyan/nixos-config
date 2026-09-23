@@ -7,7 +7,6 @@
 | 角落 | 触发区域 | 延迟 | 动作 | 说明 |
 |------|---------|------|------|------|
 | 右上 (topRight) | 2×2px | 300ms | ToggleShowDesktop | 显示/隐藏桌面 |
-| 左下 (bottomLeft) | 2×2px | 300ms | Execute cliphist-fuzzel | 弹出剪贴板历史 |
 | 右下 (bottomRight) | 2×2px | 300ms | ShowMenu root-menu | 弹出系统右键菜单 |
 
 ## 配置格式 (rc.xml)
@@ -44,7 +43,6 @@
 <action name="ToggleShowDesktop" />
 
 <!-- 执行命令 -->
-<action name="Execute" command="~/.config/cliphist/cliphist-fuzzel" />
 
 <!-- 弹出菜单 -->
 <action name="ShowMenu" menu="root-menu" />

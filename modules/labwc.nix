@@ -35,8 +35,9 @@ let
     exec ${pkgs.quickshell}/bin/quickshell "$@"
   '');
 
-  # Power actions become searchable desktop entries in the Wofi launcher
-  # opened by Win+Space. Hibernate is copied only when the kernel supports it.
+  # Power actions remain searchable desktop entries in the Anchor Shell
+  # launcher opened by the compositor shortcut. Hibernate is copied only when
+  # the kernel supports it.
   powerDesktopFiles = {
     logout = pkgs.writeText "nixarchy-logout.desktop" ''
       [Desktop Entry]
@@ -96,7 +97,6 @@ let
   labwcEnvironment = ./labwc/labwc/environment;
   labwcKeyboardEnvironment = ./labwc/labwc/environment.d/90-keyboard.env;
   labwcKeybinds = ./labwc/labwc/keybinds;
-  labwcWofi = ./labwc/wofi;
   labwcFuzzel = ./labwc/fuzzel;
   labwcMako = ./labwc/mako;
 
@@ -187,8 +187,9 @@ let
     # Refresh the Labwc-owned Fcitx5 service for this session's Wayland socket.
     ${pkgs.systemd}/bin/systemctl --user restart --no-block anchor-fcitx5.service &
 
-    # Win+Space opens Wofi's desktop-entry launcher in Labwc. Keep power actions
-    # there, and expose Hibernate only when the kernel supports `disk`.
+    # Win+Space opens Anchor Shell's application launcher. Keep power actions
+    # in the desktop-entry database, and expose Hibernate only when the kernel
+    # supports `disk`.
     power_applications="$HOME/.local/share/applications"
     ${pkgs.coreutils}/bin/mkdir -p "$power_applications"
     ${pkgs.coreutils}/bin/cp -f --no-preserve=mode "${powerDesktopFiles.logout}" "$power_applications/nixarchy-logout.desktop"
@@ -280,9 +281,11 @@ in
       tesseract
       swaynotificationcenter
       swaybg
+      (writeShellScriptBin "labwc-set-wallpaper" ''
+        exec ${runtimeShell} ${./labwc/labwc/scripts/set-wallpaper-image} "$@"
+      '')
       wdisplays
       wl-clipboard
-      wofi
       wlr-randr
       zbar
     ];
@@ -310,11 +313,14 @@ in
         executable = true;
       };
       xdg.configFile."kanshi/config".source = labwcKanshiConfig;
-      xdg.configFile."wofi".source = labwcWofi;
       xdg.configFile."fuzzel".source = labwcFuzzel;
       xdg.configFile."mako".source = labwcMako;
       xdg.dataFile."kio/servicemenus/anchor-send-to-desktop.desktop" = {
         source = ./anchor-shell/plugins/desktop-icons/dolphin/send-to-desktop.desktop;
+        executable = true;
+      };
+      xdg.dataFile."kio/servicemenus/labwc-set-wallpaper.desktop" = {
+        source = ./labwc/dolphin/set-wallpaper.desktop;
         executable = true;
       };
       home.file.".local/share/themes/BL-Lithium-dark".source =

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Screenshot helper — pick mode via wofi
+# Screenshot helper — pick mode via Fuzzel
 
 dir="${SCREENSHOT_DIR:-$HOME/Downloads}"
 mkdir -p "$dir"
@@ -14,7 +14,7 @@ mode=$(printf '%s\n' \
     "Full Screen (save)" \
     "Area (copy)" \
     "Area (save)" |
-    wofi --dmenu -p "Screenshot" -W 280 -H 200 -l 4 -i)
+    fuzzel --dmenu --prompt "Screenshot" --width 36 --lines 4 --no-icons)
 
 [ -z "$mode" ] && exit 0
 

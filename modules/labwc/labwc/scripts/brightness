@@ -1,5 +1,5 @@
 #!/bin/sh
-# Brightness control via wofi
+# Brightness control via Fuzzel
 
 cur=$(brightnessctl -m | awk -F, '{print $4}' | tr -d '%')
 
@@ -8,9 +8,9 @@ opts=$(printf '%s\n' \
     "Brightness -10" \
     "Brightness +10")
 
-chosen=$(printf '%s\n' "$opts" | wofi --dmenu \
-    -p "Brightness (current: ${cur}%)" \
-    -W 240 -H 280 -l 7 -i)
+chosen=$(printf '%s\n' "$opts" | fuzzel --dmenu \
+    --prompt "Brightness (current: ${cur}%)" \
+    --width 36 --lines 7 --no-icons)
 
 [ -z "$chosen" ] && exit 0
 

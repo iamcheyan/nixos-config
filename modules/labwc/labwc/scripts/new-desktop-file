@@ -1,0 +1,33 @@
+#!/bin/sh
+set -eu
+
+# Labwc root-menu "New File": drop an empty document on the Desktop with a
+# unique name, then ask Anchor Shell to enter filename-editing mode for it
+# immediately. Double-click the icon afterwards to edit its contents.
+desktop="${HOME}/Desktop"
+mkdir -p "$desktop"
+
+name="Untitled.txt"
+if [ -e "$desktop/$name" ]; then
+    n=2
+    while [ -e "$desktop/Untitled $n.txt" ]; do
+        n=$((n + 1))
+        if [ "$n" -gt 999 ]; then
+            printf '%s\n' 'Too many untitled documents' >&2
+            exit 1
+        fi
+    done
+    name="Untitled $n.txt"
+fi
+
+: > "$desktop/$name"
+
+pid=$(quickshell list --all 2>/dev/null | awk '/Process ID:/ { print $3; exit }')
+case "$pid" in
+    ''|*[!0-9]*)
+        printf '%s\n' 'Anchor Shell is not running' >&2
+        exit 1
+        ;;
+esac
+
+exec quickshell ipc --pid "$pid" call shell renameDesktopItem "$name"

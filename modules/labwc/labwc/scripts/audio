@@ -1,5 +1,5 @@
 #!/bin/sh
-# Audio control via wofi
+# Audio control via Fuzzel
 
 get_vol() {
     pactl get-sink-volume @DEFAULT_SINK@ 2>/dev/null | grep -oP '\d+%' | head -1
@@ -22,9 +22,9 @@ opts=$(printf '%s\n' \
     "---" \
     "Mute / Unmute")
 
-chosen=$(printf '%s\n' "$opts" | wofi --dmenu \
-    -p "Audio  vol:${vol}  mute:${mute}" \
-    -W 260 -H 300 -l 8 -i)
+chosen=$(printf '%s\n' "$opts" | fuzzel --dmenu \
+    --prompt "Audio  vol:${vol}  mute:${mute}" \
+    --width 40 --lines 8 --no-icons)
 
 [ -z "$chosen" ] && exit 0
 

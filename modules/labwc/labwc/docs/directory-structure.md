@@ -16,23 +16,22 @@
 │   ├── keybind-profile       # 核心拼装脚本：根据键盘布局拼装 rc.xml
 │   ├── keyboard-profile      # 物理键盘布局配置（Mac JIS / 标准 PC）
 │   ├── keyboard-menu         # 生成键盘切换管道菜单 (Pipe Menu)
-│   ├── launcher              # 呼出/隐藏应用启动器 (wofi)
+│   ├── launcher              # 呼出/隐藏 Anchor Shell 应用启动器
 │   ├── workspace-overview    # 模拟按键呼出工作区总览 (W-Space)
-│   ├── output-info           # 在 wofi 弹窗中显示屏幕输出信息
+│   ├── output-info           # 在 Fuzzel 弹窗中显示屏幕输出信息
 │   │
 │   ├── screenshot-keybind    # 快捷键调用的后台截图脚本 ( grim + slurp )
 │   ├── screenshot-menu       # 托盘菜单调用的前端截图选择器 ( fuzzel )
 │   ├── brightness-control    # 快捷键调用的后台亮度调整 ( brightnessctl )
-│   ├── brightness            # 菜单调用的亮度滑块/选择器 ( wofi )
-│   ├── audio                 # 菜单调用的音量控制器 ( pactl + wofi )
-│   ├── clipboard             # 菜单调用的剪贴板历史选择器 ( cliphist + wofi )
+│   ├── brightness            # 菜单调用的亮度滑块/选择器 ( Fuzzel )
+│   ├── audio                 # 菜单调用的音量控制器 ( pactl + Fuzzel )
 │   │
-│   ├── wallpaper             # 菜单调用的壁纸选择器 ( wofi )
-│   ├── font-size             # 菜单调用的窗口标题字号微调 ( wofi )
-│   ├── gaps                  # 菜单调用的窗口外间距微调 ( wofi )
+│   ├── wallpaper             # 菜单调用的壁纸选择器 ( Fuzzel )
+│   ├── font-size             # 菜单调用的窗口标题字号微调 ( Fuzzel )
+│   ├── gaps                  # 菜单调用的窗口外间距微调 ( Fuzzel )
 │   ├── scale                 # 应用屏幕缩放比例 ( wlr-randr )
 │   ├── scale-menu            # 生成屏幕缩放选项管道菜单 ( Pipe Menu )
-│   ├── theme-switch          # 菜单调用的窗口装饰主题切换器 ( wofi )
+│   ├── theme-switch          # 菜单调用的窗口装饰主题切换器 ( Fuzzel )
 │   ├── reload                # 重载合成器配置，并重置壁纸和 Quickshell
 │   ├── system-menu           # 托盘或快捷键调用的系统关机/重载菜单 ( fuzzel )
 │   ├── power-restart         # 快速重启 labwc/Quickshell 的微型菜单 ( fuzzel )
