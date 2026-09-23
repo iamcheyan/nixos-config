@@ -17,6 +17,10 @@ vm.createContext(context)
 vm.runInContext(source, context, { filename: sourcePath })
 const layout = context.layout
 const grid = { left: 24, top: 48, cellW: 96, cellH: 104, rows: 5 }
+const grids = {
+  HDMI1: grid,
+  HDMI2: { left: 32, top: 64, cellW: 96, cellH: 104, rows: 8 }
+}
 const items = [{ id: "a" }, { id: "b" }, { id: "c" }]
 const equalJson = (actual, expected) =>
   assert.strictEqual(JSON.stringify(actual), JSON.stringify(expected))
@@ -25,7 +29,7 @@ let state = layout.normalize(
   { version: 3, screens: { HDMI1: { a: { col: 0, row: 0 }, b: { col: 0, row: 0 } } } },
   items,
   ["HDMI1", "HDMI2"],
-  grid
+  grids
 )
 assert.notStrictEqual(state.screens.HDMI1.a.col + "," + state.screens.HDMI1.a.row,
   state.screens.HDMI1.b.col + "," + state.screens.HDMI1.b.row)
@@ -65,6 +69,32 @@ equalJson(sameScreenMove.screens.HDMI1.b, { col: 0, row: 0 })
 
 equalJson(layout.cellFromPixel(120, 160, grid), { col: 1, row: 1 })
 equalJson(layout.pixelFromCell({ col: 1, row: 1 }, grid), { x: 120, y: 152 })
+
+const perScreen = layout.normalize(
+  {},
+  items,
+  ["HDMI1", "HDMI2"],
+  grids
+)
+equalJson(perScreen.screens.HDMI2.b, { col: 0, row: 1 })
+
+const migrated = layout.normalize(
+  { positions: { HDMI2: { a: { x: 32, y: 168 } } } },
+  [{ id: "a" }],
+  ["HDMI1", "HDMI2"],
+  grids
+)
+equalJson(migrated.screens.HDMI2.a, { col: 0, row: 1 })
+
+const disconnected = layout.normalize(
+  perScreen,
+  items,
+  ["HDMI1"],
+  grids
+)
+equalJson(layout.visibleIds(disconnected, items, ["HDMI1"], "HDMI1").sort(), ["a", "b", "c"])
+const reconnected = layout.normalize(disconnected, items, ["HDMI1", "HDMI2"], grids)
+assert.strictEqual(layout.homeOf(reconnected, "b"), "HDMI2")
 
 const oneScreen = layout.visibleIds(moved, items, ["HDMI1"], "HDMI1")
 equalJson(oneScreen.sort(), ["a", "b", "c"])

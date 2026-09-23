@@ -459,17 +459,30 @@ class AddToDesktopTrustTests(unittest.TestCase):
 
 
 class QmlSecurityTests(unittest.TestCase):
+    def _qml_source(self):
+        names = [
+            "Service.qml",
+            "DesktopSurface.qml",
+            "DesktopIcon.qml",
+            "IconContextMenu.qml",
+            "TrustPrompt.qml",
+            "DragGhost.qml",
+        ]
+        return "\n".join(
+            (ROOT / name).read_text(encoding="utf-8") for name in names
+        )
+
     def test_all_text_elements_force_plain_text(self):
         import re
 
-        source = (ROOT / "Service.qml").read_text(encoding="utf-8")
+        source = self._qml_source()
         text_elements = len(re.findall(r"(?m)^\s*Text\s*\{", source))
         plain_text = len(re.findall(r"(?m)^\s*textFormat:\s*Text\.PlainText\s*$", source))
         self.assertGreater(text_elements, 0)
         self.assertEqual(plain_text, text_elements)
 
     def test_image_source_uses_safe_helper(self):
-        source = (ROOT / "Service.qml").read_text(encoding="utf-8")
+        source = self._qml_source()
         self.assertIn("source: panel.host.iconSource(iconRoot.modelData)", source)
         self.assertIn("function safeIconSource(", source)
         self.assertIn("function isBlockedIconUrl(", source)
@@ -478,7 +491,7 @@ class QmlSecurityTests(unittest.TestCase):
         self.assertIn("--trust-and-open", source)
         self.assertIn("--rename", source)
         self.assertIn('action: "rename"', source)
-        self.assertIn("bin/create-hyperlink", source)
+        self.assertIn('"dolphin", "--select"', source)
 
 
 if __name__ == "__main__":

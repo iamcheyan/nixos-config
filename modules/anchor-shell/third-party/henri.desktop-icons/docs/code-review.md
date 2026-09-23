@@ -11,16 +11,17 @@
 
 主要文件：
 
-- `Service.qml`：插件服务、每个显示器的桌面层、图标交互和菜单。
+- `Service.qml`：插件服务、索引、持久化状态、动作和全局选择。
+- `DesktopSurface.qml`：单个显示器的 PanelWindow、输入区域和布局视图。
+- `DesktopIcon.qml`：单个图标、标签、拖拽和双击。
+- `IconContextMenu.qml`：图标右键菜单。
+- `TrustPrompt.qml`：不受信任启动器确认框。
+- `DragGhost.qml`：跨显示器拖拽预览。
 - `DesktopLayout.js`：持久化网格模型和跨屏移动逻辑。
 - `bin/desktop-index`：桌面索引、安全校验、打开、删除、重命名和放置文件。
 - `bin/add-to-desktop`：创建快捷方式或复制文件到桌面。
 - `bin/create-hyperlink`：创建和打开 `.url` 快捷方式。
 - `dolphin/send-to-desktop.desktop`：Dolphin 服务菜单入口。
-- `nautilus/`：上游遗留的 Nautilus 扩展。
-
-当前实现约 1885 行 QML，功能和状态较多，已经不适合继续在单个文件中
-追加交互分支。
 
 ## 必须优先修复的问题
 
@@ -53,33 +54,41 @@ next.screens[toScreen][targetId] = sourceCell
 
 ### 2. 所有显示器共用第一块屏的网格参数
 
+状态：已修复（2026-09-23）。
+
 `Service.qml` 的 `reconcileLayout()` 将
 `Quickshell.screens[0]` 的 grid 传给整个布局模型。`DesktopLayout.repair()`
 也只接收一份 grid。
 
-这在两块显示器高度、缩放或顶部栏尺寸不同的时候不正确。后续应改成：
+这在两块显示器高度、缩放或顶部栏尺寸不同的时候不正确。现在已改成：
 
 ```text
 screenName -> { left, top, cellW, cellH, rows }
 ```
 
-布局模型在修复每个屏幕时使用该屏幕自己的 grid。像素坐标只在 UI 层转换，
-状态文件继续保存逻辑网格坐标。
+`Service.qml` 为每个输出建立 `screenName -> grid` 映射，
+`DesktopLayout.normalize()`、迁移和重复格修复按屏幕使用对应 grid。像素坐标只在
+UI 层转换，状态文件继续保存逻辑网格坐标；旧的单一 grid 调用仍可兼容。
+布局测试已覆盖不同 `rows` 的两个显示器。
 
 ### 3. 位置文件自写事件不能只用计数抵消
+
+状态：已修复（2026-09-23）。
 
 `savePositions()` 通过 `positionWrites` 计数来忽略 `FileView` 的变化事件。
 原子写入可能产生多个事件、合并事件或事件顺序变化，计数可能残留，导致之后
 的外部修改被错误忽略。
 
-建议保存最后一次写入内容的 hash 或规范化 JSON：
+现在保存最后一次写入的规范化 JSON：
 
-1. 写文件前记录内容 hash；
+1. 写文件前记录规范化内容；
 2. 文件变化时读取并比较实际内容；
 3. 内容与本地最近一次写入相同则忽略；
-4. 内容不同才重新加载。
+4. 内容不同才重新加载，不再依赖事件计数。
 
 ## 可以直接删除的不可达功能
+
+状态：已修复（2026-09-23）。
 
 空白桌面右键现在由 Labwc 原生菜单处理，插件自己的空白菜单已经没有实际
 入口。`emptyMouse.onPressed` 会直接调用 `showRootMenu()`，因此下面这条链
@@ -104,28 +113,19 @@ screenName -> { left, top, cellW, cellH, rows }
 - “点击空白桌面五次切换壁纸”的 `emptyClicks`、计时器和
   `switchWallpaper()`。
 
-五连击功能是否保留需要单独确认；如果没有实际使用，应删除，避免桌面空白
+五连击壁纸功能已删除；壁纸切换仍由 `Super+Ctrl+Space` 提供，避免桌面空白
 点击产生隐藏副作用。
 
 ## 上游文件管理器集成清理
 
+状态：已修复（2026-09-23）。
+
 当前系统新增了 Dolphin 的 KIO 服务菜单，并通过 Nix 提供
-`add-to-desktop` wrapper。若当前不再维护 Nautilus，应删除：
-
-- `nautilus/add_to_desktop.py`；
-- `nautilus/create_hyperlink.py`；
-- README 中 Nautilus 安装和 Hyprland 浮动规则说明。
-
-这些扩展仍然包含旧的 `~/.config/omarchy/plugins/...` 路径，与当前
-Anchor Shell 源码路径不一致。
+`add-to-desktop` wrapper。Nautilus 扩展已经删除，README 只保留 Dolphin 说明。
 
 删除插件空白菜单后，`bin/add-to-desktop` 中只供 GTK 文件选择器使用的部分也
-可以删除：
-
-- `pick_paths()`；
-- `--pick-app`；
-- `--pick-files`；
-- GTK4/Adwaita 文件选择器依赖。
+已经删除：`pick_paths()`、`--pick-app`、`--pick-files` 和 GTK4/Adwaita
+文件选择器依赖。
 
 Dolphin 服务菜单仍需要普通路径参数和 `--copy`。
 
@@ -133,8 +133,11 @@ Dolphin 服务菜单仍需要普通路径参数和 `--copy`。
 
 ### `.url` 超链接支持
 
-`bin/create-hyperlink` 约 488 行，包含完整 GTK/Adwaita 窗口。如果用户不使用
-网页快捷方式，可以整体删除，并同步删除：
+状态：保留并明确为受支持功能（2026-09-23）。
+
+`bin/create-hyperlink` 约 488 行，包含完整 GTK/Adwaita 窗口。网页快捷方式仍由
+该工具支持，因此本轮不删除它。若后续确认不再需要 `.url`，
+再整体删除并同步删除：
 
 - `.url` 创建和打开逻辑；
 - `desktop-index` 的 `.url` 分支；
@@ -145,13 +148,17 @@ Dolphin 服务菜单仍需要普通路径参数和 `--copy`。
 
 ### Trash 特殊处理
 
+状态：保留（2026-09-23）。
+
 Trash 图标识别、拖入 Trash 和右键 Trash 菜单是 Windows 风格桌面体验的一部分，
-暂时保留。只有确认不需要桌面 Trash 图标时才删除。
+本轮确认保留，不删除。
 
 ### `preview.png` 和上游发布说明
 
+状态：保留（2026-09-23）。
+
 `preview.png` 约 1.8 MB，只被 README 使用。如果该目录只作为系统内置模块，
-不再作为独立插件发布，可以删除图片和上游安装说明：
+仍保留该图片和上游安装说明，因为 README 仍是可独立发布的插件说明：
 
 - `omarchy plugin add`；
 - `omarchy plugin update`；
@@ -162,6 +169,8 @@ Trash 图标识别、拖入 Trash 和右键 Trash 菜单是 Windows 风格桌面
 Anchor Shell 插件加载。
 
 ## 结构优化
+
+状态：已完成（2026-09-23）。
 
 保留 `DesktopLayout.js` 作为纯函数模型，但把 `Service.qml` 拆成几个组件：
 
@@ -175,7 +184,7 @@ TrustPrompt.qml      # 不受信任启动器确认框
 DragGhost.qml        # 跨显示器拖拽预览
 ```
 
-拆分时保持以下边界：
+已按上述边界拆分，并保持以下约束：
 
 - 持久化状态只由 `Service.qml` 管理；
 - 网格交换、迁移和修复只由 `DesktopLayout.js` 管理；
@@ -187,15 +196,18 @@ DragGhost.qml        # 跨显示器拖拽预览
 
 ### 减少无效轮询
 
-当前 Desktop 目录已经有 `FileView` 监听，同时还有 1.5 秒一次的 Python 索引
-轮询。目录监听正常时，绝大多数轮询是无效的。建议：
+状态：已修复（2026-09-23）。
 
-- 监听事件触发立即刷新；
-- 用短 debounce 合并连续事件；
-- 兜底轮询改为 30–60 秒；
-- `Process` 运行期间不再启动新的索引进程。
+当前 Desktop 目录已经有 `FileView` 监听，同时还有兜底 Python 索引轮询。目录
+监听正常时，绝大多数轮询是无效的。现在：
+
+- 监听事件通过 100ms debounce 合并连续事件；
+- 兜底轮询改为 30 秒；
+- `Process.running` 期间不再启动新的索引进程。
 
 ### 保持 Repeater 稳定
+
+状态：已完成（2026-09-23，既有实现已验证）。
 
 当前已经通过 `visibleItems`、`itemsMatch()` 和 `refreshVisibleItems()` 避免
 纯位置变化时重建所有 delegate。后续不要把它改回每次计算新数组的直接绑定。
@@ -212,7 +224,10 @@ DragGhost.qml        # 跨显示器拖拽预览
 
 ## 测试补充计划
 
-现有测试通过，但布局测试覆盖仍然偏少。需要补充：
+状态：已完成（2026-09-23）。布局测试已补充模型层覆盖；实际拖拽和右键仍按
+手工清单验证。
+
+现有测试覆盖：
 
 - 同屏拖入空格；
 - 同屏拖入已占用格并交换；
@@ -224,15 +239,16 @@ DragGhost.qml        # 跨显示器拖拽预览
 - 单屏期间主动拖动图标后的归属变化；
 - 旧版像素坐标迁移；
 - 重复格修复；
-- 外部修改位置文件不会被本地写入计数吞掉；
+- 外部修改位置文件不会被本地写入内容比较吞掉；
 - 空白右键转发 Labwc，图标右键仍打开插件菜单。
 
 每次修改后至少运行：
 
 ```bash
 node tests/test_layout_model.js
-ANCHOR_SHELL_PYTHON/bin/python3 tests/test_desktop_index.py
-qmlformat Service.qml
+ANCHOR_PY=$(sed -n '2p' /run/current-system/sw/bin/add-to-desktop | awk '{print $2}')
+"$ANCHOR_PY" tests/test_desktop_index.py
+qmlformat Service.qml DesktopSurface.qml DesktopIcon.qml IconContextMenu.qml TrustPrompt.qml DragGhost.qml
 nix flake check --impure --no-build
 ```
 
@@ -246,10 +262,10 @@ quickshell list --all
 
 ## 推荐执行顺序
 
-1. 先修 `moveToScreen()` 的跨屏交换和每屏独立 grid。
-2. 增加上述布局回归测试。
-3. 删除不可达空白菜单、五连击壁纸和无效属性。
-4. 根据实际文件管理器选择删除 Nautilus 集成和 GTK 选择器。
-5. 确认是否保留 `.url`，再决定 `create-hyperlink` 的去留。
-6. 将 `Service.qml` 拆成显示器、图标、菜单、信任框和拖拽 ghost 组件。
-7. 最后降低索引轮询频率并完善位置文件 hash 判断。
+1. ~~修复 `moveToScreen()` 的跨屏交换和每屏独立 grid。~~
+2. ~~增加布局回归测试。~~
+3. ~~删除不可达空白菜单、五连击壁纸和无效属性。~~
+4. ~~根据实际文件管理器删除 Nautilus 集成和 GTK 选择器。~~
+5. ~~确认保留 `.url`，保留 `create-hyperlink`。~~
+6. ~~将 `Service.qml` 拆成显示器、图标、菜单、信任框和拖拽 ghost 组件。~~
+7. ~~降低索引轮询频率并完善位置文件内容比较。~~

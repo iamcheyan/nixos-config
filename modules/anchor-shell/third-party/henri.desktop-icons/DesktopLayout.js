@@ -43,6 +43,14 @@ function screenNamesFrom(value) {
   return result.length > 0 ? result : ["default"]
 }
 
+function gridFor(grids, screen) {
+  if (grids && grids[screen] && grids[screen].rows)
+    return grids[screen]
+  if (grids && grids.default && grids.default.rows)
+    return grids.default
+  return grids
+}
+
 function itemIds(items) {
   var result = []
   for (var i = 0; i < (items || []).length; i++) {
@@ -62,7 +70,7 @@ function homeOf(state, id) {
   return ""
 }
 
-function migrate(raw, ids, screens, grid) {
+function migrate(raw, ids, screens, grids) {
   var state = empty()
   var source = raw || {}
   if (source.version === 3 && isObject(source.screens))
@@ -77,7 +85,9 @@ function migrate(raw, ids, screens, grid) {
         for (var id in positions[screen]) {
           var point = positions[screen][id]
           if (point && point.x !== undefined && point.y !== undefined)
-            state.screens[screen][id] = cellFromPixel(point.x, point.y, grid)
+            state.screens[screen][id] = cellFromPixel(
+              point.x, point.y, gridFor(grids, screen)
+            )
         }
       }
     }
@@ -114,11 +124,12 @@ function migrate(raw, ids, screens, grid) {
     if (assigned[id])
       continue
     var target = screens[missing % screens.length]
+    var targetGrid = gridFor(grids, target)
     if (!state.screens[target])
       state.screens[target] = {}
     state.screens[target][id] = {
-      col: Math.floor(missing / Math.max(1, grid.rows)),
-      row: missing % Math.max(1, grid.rows)
+      col: Math.floor(missing / Math.max(1, targetGrid.rows)),
+      row: missing % Math.max(1, targetGrid.rows)
     }
     assigned[id] = target
   }
@@ -130,15 +141,15 @@ function migrate(raw, ids, screens, grid) {
   return state
 }
 
-function normalize(raw, items, screenNames, grid) {
+function normalize(raw, items, screenNames, grids) {
   var ids = itemIds(items)
   var screens = screenNamesFrom(screenNames)
-  var state = migrate(raw, ids, screens, grid)
-  repair(state, screens, grid)
+  var state = migrate(raw, ids, screens, grids)
+  repair(state, screens, grids)
   return state
 }
 
-function repair(state, activeScreens, grid) {
+function repair(state, activeScreens, grids) {
   var screens = screenNamesFrom(activeScreens)
   for (var screen in state.screens) {
     var cells = {}
@@ -155,7 +166,7 @@ function repair(state, activeScreens, grid) {
       }
     }
     for (var i = 0; i < duplicates.length; i++) {
-      var free = firstFree(cells, grid, i)
+      var free = firstFree(cells, gridFor(grids, screen), i)
       entries[duplicates[i]] = free
       cells[cellKey(free.col, free.row)] = duplicates[i]
     }

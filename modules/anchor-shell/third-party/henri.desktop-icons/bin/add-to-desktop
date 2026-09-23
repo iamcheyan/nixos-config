@@ -147,43 +147,6 @@ def copy_one(source: Path, desktop: Path) -> Path:
     return dest
 
 
-def pick_paths(title: str, initial: Path) -> list[str]:
-    gi.require_version("Gtk", "4.0")
-    gi.require_version("Adw", "1")
-    from gi.repository import Adw, Gtk
-
-    chosen: list[str] = []
-
-    class App(Adw.Application):
-        def __init__(self):
-            super().__init__(application_id="org.omarchy.add-to-desktop")
-            self.connect("activate", self.on_activate)
-
-        def on_activate(self, _app) -> None:
-            win = Gtk.ApplicationWindow(application=self)
-            win.set_default_size(1, 1)
-            dialog = Gtk.FileDialog(title=title)
-            dialog.set_initial_folder(Gio.File.new_for_path(str(initial)))
-            dialog.open_multiple(win, None, self._on_picked)
-
-        def _on_picked(self, dialog, result) -> None:
-            try:
-                files = dialog.open_multiple_finish(result)
-            except GLib.Error:
-                self.quit()
-                return
-            if files:
-                for i in range(files.get_n_items()):
-                    item = files.get_item(i)
-                    path = item.get_path() if item else None
-                    if path:
-                        chosen.append(path)
-            self.quit()
-
-    App().run([])
-    return chosen
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Create shortcuts on the Desktop, or copy files there."
@@ -198,29 +161,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Copy the real files onto the Desktop instead of creating shortcuts.",
     )
-    parser.add_argument(
-        "--pick-app",
-        action="store_true",
-        help="Pick application launchers to pin.",
-    )
-    parser.add_argument(
-        "--pick-files",
-        action="store_true",
-        help="Pick files to copy onto the Desktop.",
-    )
     args = parser.parse_args(argv)
 
     desktop = desktop_dir()
     paths = list(args.paths)
     copy = args.copy
-
-    if args.pick_app:
-        paths.extend(
-            pick_paths("Pin application to Desktop", Path("/usr/share/applications"))
-        )
-    if args.pick_files:
-        copy = True
-        paths.extend(pick_paths("Add files to Desktop", Path.home()))
 
     if not paths:
         return 0
