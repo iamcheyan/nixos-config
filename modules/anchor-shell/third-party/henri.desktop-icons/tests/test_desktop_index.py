@@ -500,7 +500,7 @@ class QmlSecurityTests(unittest.TestCase):
         self.assertNotIn("property var host: host", surface)
         self.assertIn("host: panel.host", surface)
         self.assertIn("required property var surface", icon)
-        self.assertIn("required property var emptyMouse", icon)
+        self.assertIn("required property var focusItem", icon)
 
 
 if __name__ == "__main__":

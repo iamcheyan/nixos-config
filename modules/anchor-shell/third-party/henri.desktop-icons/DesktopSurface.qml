@@ -433,7 +433,7 @@ PanelWindow {
             DesktopIcon {
                 host: panel.host
                 surface: panel
-                emptyMouse: emptyMouse
+                focusItem: emptyMouse
             }
         }
 

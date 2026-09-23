@@ -9,7 +9,7 @@ Item {
 
     required property var host
     required property var surface
-    required property var emptyMouse
+    required property var focusItem
     required property var modelData
     required property int index
 
@@ -41,7 +41,7 @@ Item {
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
         radius: 8
-        property bool selected: surface.host.isSelected(iconRoot.modelData.id) && emptyMouse.activeFocus
+        property bool selected: surface.host.isSelected(iconRoot.modelData.id) && focusItem.activeFocus
         color: selected ? Qt.rgba(1, 1, 1, 0.18) : (iconHover.hovered ? Qt.rgba(1, 1, 1, 0.08) : "transparent")
         border.width: selected ? 1 : 0
         border.color: Qt.rgba(1, 1, 1, 0.35)
@@ -233,7 +233,7 @@ Item {
             iconRoot.lastSceneX = surface.modelData.x + iconRoot.x + mouse.x;
             iconRoot.lastSceneY = surface.modelData.y + iconRoot.y + mouse.y;
             surface.host.selectItem(iconRoot.modelData, mouse.modifiers);
-            emptyMouse.forceActiveFocus();
+            focusItem.forceActiveFocus();
             if (mouse.button === Qt.LeftButton)
                 surface.host.beginDrag(iconRoot.modelData, surface.screenName, iconRoot.lastSceneX, iconRoot.lastSceneY, mouse.x, mouse.y);
         }
