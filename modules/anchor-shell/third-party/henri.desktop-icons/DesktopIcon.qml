@@ -126,8 +126,6 @@ Item {
                 text: surface.host.plainText(iconRoot.modelData.name)
                 textFormat: Text.PlainText
                 color: "#b3000000"
-                style: Text.Outline
-                styleColor: "#b3000000"
                 font.pixelSize: 12
                 font.family: Style.fontFamily
                 wrapMode: Text.Wrap
@@ -143,8 +141,6 @@ Item {
                 text: surface.host.plainText(iconRoot.modelData.name)
                 textFormat: Text.PlainText
                 color: "white"
-                style: Text.Outline
-                styleColor: "#cc000000"
                 font.pixelSize: 12
                 font.family: Style.fontFamily
                 wrapMode: Text.Wrap
