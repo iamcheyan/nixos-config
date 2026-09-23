@@ -7,12 +7,15 @@
   </core>
 
   <theme>
-    <name>BL-Lithium-dark</name>
+    <name>Blue Elegance Box V2</name>
+    <titlebar>
+      <layout>:max,close</layout>
+    </titlebar>
     <cornerRadius>0</cornerRadius>
     <maximizedDecoration>none</maximizedDecoration>
 
-    <font place="ActiveWindow" name="MesloLGS NF" size="9" />
-    <font place="InactiveWindow" name="MesloLGS NF" size="9" />
+    <font place="ActiveWindow" name="Cantarell" size="10" weight="semibold" />
+    <font place="InactiveWindow" name="Cantarell" size="10" weight="semibold" />
     <font place="MenuItem" name="MesloLGS NF" size="9" />
 
     <font place="OnScreenDisplay">
@@ -100,6 +103,11 @@
     </keybind>
     <keybind key="W-s">
       <action name="Execute" command="wtype -M Ctrl s -m Ctrl" />
+    </keybind>
+
+    <!-- 剪贴板历史 (Alt+V) -->
+    <keybind key="A-v">
+      <action name="Execute" command="~/.config/labwc/scripts/clipboard-history" />
     </keybind>
 
     <!-- 截图 -->
@@ -223,6 +231,11 @@
   </mouse>
 
   <windowRules>
+    <windowRule identifier="wofi" skipTaskbar="yes" skipWindowSwitcher="yes">
+      <action name="ToggleAlwaysOnTop" />
+      <action name="Raise" />
+      <action name="Focus" />
+    </windowRule>
     <windowRule identifier="*code*">
       <serverDecoration>yes</serverDecoration>
     </windowRule>
