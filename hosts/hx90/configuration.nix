@@ -14,8 +14,9 @@ in
 
   networking.hostName = "hx90";
 
-  # Keep Omarchy/Hyprland as the default session while exposing the separate
-  # Labwc migration session in SDDM for manual testing.
+  # Labwc is HX90's normal desktop session. This also selects Labwc for SDDM
+  # autologin, so restarting the display manager does not launch Omarchy first.
+  services.displayManager.defaultSession = lib.mkForce "labwc";
   programs.labwcPreview.enable = true;
 
   # Keep the Hermes remote API peer available when the user is logged out.
