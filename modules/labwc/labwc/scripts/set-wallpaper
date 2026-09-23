@@ -37,7 +37,7 @@ case "${1:-wayland}" in
 	;;
 wayland)
 	if [ -n "$wallpaper" ] && [ -f "$wallpaper" ]; then
-		exec wbg "$wallpaper"
+		exec wbg --stretch "$wallpaper"
 	else
 		exit 0
 	fi

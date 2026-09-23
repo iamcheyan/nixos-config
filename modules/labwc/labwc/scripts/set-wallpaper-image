@@ -22,4 +22,4 @@ fi
 for pid in $(pgrep -x wbg 2>/dev/null || true); do
 	kill "$pid" 2>/dev/null || true
 done
-wbg "$image" >/dev/null 2>&1 &
+wbg --stretch "$image" >/dev/null 2>&1 &
