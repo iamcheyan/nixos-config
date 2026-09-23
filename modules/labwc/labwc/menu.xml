@@ -93,9 +93,6 @@
     <item label="Wallpaper...">
       <action name="Execute" command="~/.config/labwc/scripts/wallpaper" />
     </item>
-    <item label="Theme...">
-      <action name="Execute" command="~/.config/labwc/scripts/theme-switch" />
-    </item>
     <item label="Font Size...">
       <action name="Execute" command="~/.config/labwc/scripts/font-size" />
     </item>
@@ -129,12 +126,11 @@
   </menu>
 
   <menu id="root-menu">
-    <item label="New File">
-      <action name="Execute" command="~/.config/labwc/scripts/new-desktop-file" />
-    </item>
-    <separator />
     <item label="Terminal">
       <action name="Execute" command="kitty" />
+    </item>
+    <item label="New File">
+      <action name="Execute" command="~/.config/labwc/scripts/new-desktop-file" />
     </item>
     <item label="Run Application...">
       <action name="Execute" command="~/.config/labwc/scripts/launcher" />
@@ -143,6 +139,7 @@
     <menu id="apps-menu" />
     <menu id="tools-menu" />
     <menu id="settings-menu" />
+    <menu id="window-themes-menu" label="Themes" execute="~/.config/labwc/scripts/theme-menu" />
     <separator />
     <menu id="session-menu" />
     <item label="Reload Configuration">

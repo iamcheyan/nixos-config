@@ -50,9 +50,8 @@ fi
 
 kill -HUP "$_pid" && echo "  SIGHUP sent OK" >> "$LOG" || echo "  SIGHUP FAILED" >> "$LOG"
 
-# Restart wallpaper, preserving the user's state-file selection. The NixOS
-# wrapper is named `.swaybg-wrapped`, so an exact-name pkill misses it.
-for _pid in $(ps -eo pid=,comm= | awk '$2 ~ /swaybg/ {print $1}'); do
+# Restart wallpaper, preserving the user's state-file selection.
+for _pid in $(ps -eo pid=,comm= | awk '$2 == "wbg" {print $1}'); do
     [ "$_pid" = "$$" ] || kill "$_pid" 2>/dev/null || true
 done
 "$HOME/.config/labwc/scripts/set-wallpaper" wayland >/dev/null 2>&1 &

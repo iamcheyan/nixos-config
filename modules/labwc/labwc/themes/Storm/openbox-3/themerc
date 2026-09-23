@@ -1,0 +1,117 @@
+#
+#   ____    _
+#  / ___|  | |_    ___    _ __   _ __ ___   1.2.1
+#  \___ \  | __|  / _ \  | '__| | '_ ` _ \ 
+#   ___) | | |_  | (_) | | |    | | | | | |
+#  |____/   \__|  \___/  |_|    |_| |_| |_|
+# 
+#
+#  "Storm" created by Lurux the 26/04/2019
+#  For the Storm desktop environment
+#
+#  Inspired by "Turquoise Nights Ob" by na12
+#
+
+# General, Geometry
+
+padding.width: 5
+padding.height: 5
+
+window.client.padding.width: 0
+window.handle.width: 0
+window.label.text.justify: center
+
+border.width: 0
+
+# Active window
+
+window.active.title.bg: flat solid
+window.active.title.bg.color: #262626
+
+window.active.label.bg: parentrelative
+window.active.label.text.color:#b3b3b3
+
+window.active.button.unpressed.bg: parentrelative
+window.active.button.unpressed.image.color: #999999
+
+window.active.button.hover.bg: parentrelative
+window.active.button.hover.image.color: #ffffff
+
+window.active.button.pressed.bg: parentrelative
+window.active.button.pressed.image.color: #cccccc
+
+window.active.button.disabled.bg: parentrelative
+window.active.button.disabled.image.color: #666666
+
+window.active.button.toggled.unpressed.image.color: #999999
+window.active.button.toggled.hover.image.color: #ffffff
+window.active.button.toggled.pressed.image.color: #cccccc
+window.active.button.toggled.disabled.image.color: #666666
+
+# Inactive window
+
+window.inactive.title.bg: flat solid
+window.inactive.title.bg.color: #333333
+
+window.inactive.label.bg: parentrelative
+window.inactive.label.text.color:#808080
+
+window.inactive.button.unpressed.bg: parentrelative
+window.inactive.button.unpressed.image.color: #999999
+
+window.inactive.button.hover.bg: parentrelative
+window.inactive.button.hover.image.color: #ffffff
+
+window.inactive.button.pressed.bg: parentrelative
+window.inactive.button.pressed.image.color: #cccccc
+
+window.inactive.button.disabled.bg: parentrelative
+window.inactive.button.disabled.image.color: #666666
+
+window.inactive.button.toggled.unpressed.image.color: #999999
+window.inactive.button.toggled.hover.image.color: #ffffff
+window.inactive.button.toggled.pressed.image.color: #cccccc
+window.inactive.button.toggled.disabled.image.color: #666666
+
+# Menu
+
+menu.border.width: 1
+menu.border.color: #262626
+
+menu.title.bg: flat solid
+menu.title.bg.color: #262626
+
+menu.title.text.color: #808080
+menu.title.text.justify: center
+
+menu.items.bg: flat solid
+menu.items.bg.color:#262626
+
+menu.items.text.color:#b3b3b3
+
+menu.items.active.bg: flat solid
+menu.items.active.bg.color:#262626
+
+menu.items.active.text.color:#ffffff
+
+menu.items.disabled.text.color: #808080
+
+menu.overlap.x: -3
+menu.overlap.y: 0
+
+menu.separator.padding.width: 0
+menu.separator.color:#4d4d4d
+
+# OSD
+
+osd.bg: flat solid
+osd.bg.color: #333333
+
+osd.hilight.bg: flat solid
+osd.hilight.bg.color: #4d4d4d
+
+osd.unhilight.bg: flat solid
+osd.unhilight.bg.color: #262626
+
+osd.label.bg: parentrelative
+osd.label.text.color: #b3b3b3

@@ -1,0 +1,148 @@
+# "Nightmare Red" theme for Openbox WM.         
+#  Inspired by "Nightmare" for pekwm by Gilbert Flores.                                                                                
+#======================================================================>
+
+#======================================>
+#     GLOBAL WIDTH SETTINGS
+#======================================>
+
+padding.width: 2
+padding.height: 3
+border.width: 1
+window.handle.width: 2
+window.client.padding.width: 0
+menu.overlap.x: -5
+window.label.text.justify: center
+
+#======================================>
+#     FOCUSED WINDOW
+#======================================>
+
+window.active.border.color: #383838
+
+window.active.title.bg: raised solid
+window.active.title.bg.color: #383838
+
+window.active.label.bg: parentrelative
+window.active.label.text.color: #F7F7F7
+
+window.active.button.unpressed.bg: flat border vertical gradient
+window.active.button.unpressed.bg.color: 		#696969
+window.active.button.unpressed.bg.colorTo: 		#595959
+window.active.button.unpressed.image.color:		#F7F7F7
+
+window.active.button.toggled.unpressed.bg: flat border vertical gradient
+window.active.button.toggled.unpressed.bg.color: 		#696969
+window.active.button.toggled.unpressed.bg.colorTo: 		#595959
+window.active.button.toggled.unpressed.image.color:		#F7F7F7
+
+window.active.button.pressed.bg: flat border vertical gradient
+window.active.button.pressed.bg.color: 			#A61414
+window.active.button.pressed.bg.colorTo: 		#8A1111
+window.active.button.pressed.image.color:		#F5F5F5
+
+window.active.button.toggled.pressed.bg: flat border vertical gradient
+window.active.button.toggled.pressed.bg.color: 			#AD1717
+window.active.button.toggled.pressed.bg.colorTo: 		#8A1111
+window.active.button.toggled.pressed.image.color:		#F5F5F5
+
+window.active.button.hover.bg: flat border vertical gradient
+window.active.button.hover.bg.color: 			#B81616
+window.active.button.hover.bg.colorTo: 			#991212
+window.active.button.hover.image.color:			#FFFFFF
+
+window.active.button.toggled.hover.bg: flat border vertical gradient
+window.active.button.toggled.hover.bg.color: 			#B81616
+window.active.button.toggled.hover.bg.colorTo: 			#991212
+window.active.button.toggled.hover.image.color:			#FFFFFF
+
+window.active.button.disabled.bg: flat border vertical gradient
+window.active.button.disabled.bg.color: 		#696969
+window.active.button.disabled.bg.colorTo: 		#595959
+window.active.button.disabled.image.color:		#F7F7F7
+
+window.active.handle.bg: raised solid
+window.active.handle.bg.color: #cecece
+
+window.active.grip.bg: raised solid
+window.active.grip.bg.color: #383838
+
+#======================================>
+#     UNFOCUSED WINDOW
+#======================================>
+
+window.inactive.border.color: #454545
+
+window.inactive.title.bg: raised solid
+window.inactive.title.bg.color: #454545
+
+window.inactive.label.bg: parentrelative
+window.inactive.label.text.color: #EDEDED
+
+window.inactive.button.unpressed.bg: parentrelative
+window.inactive.button.unpressed.image.color: #EDEDED
+
+window.inactive.button.toggled.unpressed.bg: parentrelative
+window.inactive.button.toggled.unpressed.image.color: #EDEDED
+
+window.inactive.button.pressed.bg: flat border vertical gradient
+window.inactive.button.pressed.bg.color: 		#575757
+window.inactive.button.pressed.bg.colorTo: 		#3D3D3D
+window.inactive.button.pressed.image.color:		#EDEDED
+
+window.inactive.button.toggled.pressed.bg: flat border vertical gradient
+window.inactive.button.toggled.pressed.bg.color: 		#575757
+window.inactive.button.toggled.pressed.bg.colorTo: 		#3D3D3D
+window.inactive.button.toggled.pressed.image.color:		#EDEDED
+
+window.inactive.button.hover.bg: flat border vertical gradient
+window.inactive.button.hover.bg.color: 			#575757
+window.inactive.button.hover.bg.colorTo: 		#3D3D3D
+window.inactive.button.hover.image.color:		#f5f5f5
+
+window.inactive.button.toggled.hover.bg: flat border vertical gradient
+window.inactive.button.toggled.hover.bg.color: 			#575757
+window.inactive.button.toggled.hover.bg.colorTo: 		#3D3D3D
+window.inactive.button.toggled.hover.image.color:		#f5f5f5
+
+window.inactive.button.disabled.bg: parentrelative
+window.inactive.button.disabled.image.color: #EDEDED
+
+window.inactive.handle.bg: raised solid
+window.inactive.handle.bg.color: #cecece
+
+window.inactive.grip.bg: raised solid
+window.inactive.grip.bg.color: #454545
+
+#======================================>
+#     MENU SETTINGS	
+#======================================>
+
+menu.title.bg: raised solid 
+menu.title.bg.color: #383838
+menu.title.text.color: #F7F7F7
+
+menu.items.bg: raised solid
+menu.items.bg.color: #383838
+menu.items.text.color: #F7F7F7
+
+menu.items.disabled.text.color: #ADADAD
+
+menu.items.active.bg: gradient horizontal flat border
+menu.items.active.bg.color: #2e2e2e
+menu.items.active.bg.colorTo: #2e2e2e
+menu.items.active.bg.border.color: #CF1919
+menu.items.active.text.color: #FFFFFF
+menu.items.active.disabled.text.color: #CCCCCC
+
+menu.separator.color: #FF3019
+menu.title.text.justify: center
+
+#======================================>
+#     OSD			
+osd.hilight.bg: gradient horizontal flat border
+osd.hilight.bg.color: #383838
+osd.hilight.bg.colorTo: #383838
+osd.hilight.bg.border.color: #383838
+
+#======================================>

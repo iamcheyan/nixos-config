@@ -13,7 +13,7 @@ mkdir -p "$state_dir"
 printf '%s\n' "$image" > "$state_dir/wallpaper"
 
 # Replace the current background and retain the choice for the next login.
-for pid in $(pgrep -x swaybg 2>/dev/null || true); do
+for pid in $(pgrep -x wbg 2>/dev/null || true); do
 	kill "$pid" 2>/dev/null || true
 done
-swaybg -i "$image" -m fill >/dev/null 2>&1 &
+wbg "$image" >/dev/null 2>&1 &

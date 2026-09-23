@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""Generate a Labwc pipe menu from installed Openbox-compatible themes."""
+
+import os
+import shlex
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+
+home = Path.home()
+data_home = Path(os.environ.get("XDG_DATA_HOME", home / ".local/share"))
+theme_bases = [
+    data_home / "themes",
+    home / ".themes",
+    Path("/usr/local/share/themes"),
+    Path("/usr/share/themes"),
+]
+
+themes = set()
+for base in theme_bases:
+    try:
+        themes.update(
+            entry.name
+            for entry in base.iterdir()
+            if (entry / "openbox-3/themerc").is_file()
+        )
+    except OSError:
+        continue
+
+current = ""
+try:
+    rc = ET.parse(home / ".config/labwc/rc.xml")
+    current = (rc.findtext(".//theme/name") or "").strip()
+except (OSError, ET.ParseError):
+    pass
+
+root = ET.Element("openbox_pipe_menu")
+if not themes:
+    ET.SubElement(root, "item", {"label": "No Openbox themes installed"})
+else:
+    for name in sorted(themes, key=str.casefold):
+        label = f"{name} (current)" if name == current else name
+        item = ET.SubElement(root, "item", {"label": label})
+        command = " ".join(
+            [
+                shlex.quote(str(home / ".config/labwc/scripts/theme-switch")),
+                shlex.quote(name),
+            ]
+        )
+        action = ET.SubElement(item, "action", {"name": "Execute"})
+        ET.SubElement(action, "command").text = command
+
+print(ET.tostring(root, encoding="unicode"))

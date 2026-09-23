@@ -5,8 +5,7 @@ export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
 wallpaper=""
-anchor_state_dir="${ANCHOR_SHELL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/anchor-shell}"
-wallpaper_state="$anchor_state_dir/wallpaper"
+wallpaper_state="${ANCHOR_SHELL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/anchor-shell}/wallpaper"
 
 # 1. Read last user-selected wallpaper from state file
 if [ -r "$wallpaper_state" ]; then
@@ -38,9 +37,9 @@ case "${1:-wayland}" in
 	;;
 wayland)
 	if [ -n "$wallpaper" ] && [ -f "$wallpaper" ]; then
-		exec swaybg -i "$wallpaper" -m fill
+		exec wbg "$wallpaper"
 	else
-		exec swaybg -c "#181825"
+		exit 0
 	fi
 	;;
 x11)

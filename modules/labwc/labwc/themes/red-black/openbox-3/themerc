@@ -1,0 +1,122 @@
+!! Menu 
+menu.border.color: #2d2d2d
+menu.items.bg: flat solid
+menu.items.bg.color: #2D2D2D
+menu.items.text.color: #CACACA
+menu.items.justify: left
+menu.items.disabled.text.color: #4D4D4D
+menu.title.bg: flat solid
+menu.title.bg.color: #A52A2A
+menu.title.text.color: #ffffff
+menu.title.text.justify: Center
+menu.items.active.bg: flat solid
+menu.items.active.bg.color: #A52A2A
+menu.items.active.text.color: #ffffff
+menu.items.font:shadow=n:shadowtint=30
+menu.title.text.font:shadow=y:shadowtint=0
+menu.separator.color: #262626
+menu.separator.width: 1
+menu.separator.padding.width: 2
+menu.separator.padding.height: 4
+menu.overlap: 0
+
+!! WINDOW SETTINGS
+border.width: 6
+padding.width: 6
+padding.height: 0
+window.handle.width: 0
+window.active.client.color:  #2d2d2d
+window.inactive.client.color:  #2d2d2d
+window.client.padding.width: 1
+window.client.padding.height: 1
+
+!! ACTIVE	
+window.active.border.color: #2d2d2d
+window.active.title.bg: gradient flat horizontal
+window.active.title.bg.highlight: 70  
+window.active.title.bg.color: #2D2D2D
+window.active.title.bg.colorTo: #A52A2A
+window.active.title.separator.color: #2D2D2D
+window.active.text.justify: center
+window.active.label.bg: flat  
+window.active.label.bg.color: #2D2D2D
+window.active.label.text.color: #cacaca
+window.active.handle.bg: flat
+window.active.handle.bg.color: #2d2d2d
+window.active.grip.bg: flat
+window.active.grip.bg.color: #2d2d2d
+window.active.button.unpressed.bg: parentrelative 
+window.active.button.unpressed.bg.color: #A52A2A
+window.active.button.unpressed.image.color: #cacaca
+window.active.button.unpressed.bg.border.color: #A52A2A
+window.active.button.hover.bg: flat  
+window.active.button.hover.bg.color: #A52A2A
+window.active.button.hover.image.color: #FEFAFE
+window.active.button.pressed.bg: parentrelative
+window.active.button.pressed.bg.color: #A52A2A
+window.active.button.pressed.image.color: #FF0000
+window.active.button.disabled.bg: parentrelative
+window.active.button.disabled.bg.color: #A52A2A
+window.active.button.disabled.image.color: #722B2B
+
+!! INACTIVE	
+window.inactive.border.color: #2d2d2d
+window.inactive.title.bg: Vertical Flat 
+window.inactive.title.bg.color: #2d2d2d
+window.inactive.title.separator.color: #2d2d2d
+window.inactive.text.justify: center
+window.inactive.label.bg: parentrelative
+window.inactive.label.text.color: #7f7f7f
+window.inactive.handle.bg: parentrelative
+window.inactive.handle.bg.color: #2d2d2d
+window.inactive.grip.bg: parentrelative
+window.inactive.grip.bg.color: #2d2d2d
+window.inactive.button.unpressed.bg: parentrelative
+window.inactive.button.unpressed.bg.color: #456190
+window.inactive.button.unpressed.image.color: #7f7f7f
+window.inactive.button.unpressed.bg.border.color: #7297CE
+window.inactive.button.hover.bg: parentrelative
+window.inactive.button.hover.bg.color: #B6BBC3
+window.inactive.button.hover.image.color: #cacaca
+window.inactive.button.pressed.bg: parentrelative
+window.inactive.button.pressed.bg.color: #A52A2A
+window.inactive.button.pressed.image.color: #FF0000
+window.inactive.button.disabled.bg: parentrelative
+window.inactive.button.disabled.bg.color: #A52A2A
+window.inactive.button.disabled.image.color: #2d2d2d
+
+# OSD
+osd.border.width: 1
+osd.border.color: #484848
+
+osd.bg: flat solid
+osd.bg.color: #444444
+osd.label.bg: flat solid
+osd.label.bg.color: #444444
+osd.label.text.color: #eeeeee
+
+osd.hilight.bg: flat solid
+osd.hilight.bg.color: #f06860
+
+osd.unhilight.bg: flat solid
+osd.unhilight.bg.color: #888888
+
+osd.button.unpressed.bg: flat border
+osd.button.unpressed.bg.color: #303030
+osd.button.unpressed.*.border.color: #242424
+
+osd.button.pressed.bg: flat border
+osd.button.pressed.bg.color: #2a2a2a
+osd.button.pressed.*.border.color: #242424
+
+osd.button.focused.bg: flat solid border
+osd.button.focused.bg.color: #303030
+osd.button.focused.*.border.color: #1e1e1e
+
+osd.button.focused.box.color: #f06860
+
+
+### Fonts
+window.active.label.text.font:shadow=y:shadowtint=12:shadowoffset=1
+window.inactive.label.text.font:shadow=y:shadowtint=12:shadowoffset=1
+

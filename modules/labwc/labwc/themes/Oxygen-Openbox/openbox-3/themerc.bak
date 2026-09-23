@@ -1,0 +1,115 @@
+# "Oxygen-Openbox" theme
+# By Azuma Hazuki
+# 21 October 2018
+
+# Dev. Note: Please use a large enough font (>= size 9), or the buttons won't look right!
+# Again, it's not possible to make the window buttons and titlebars look *precisely*
+# correct just because of how much simpler Openbox is than Plasma 4.x, but this is
+# close enough that your brain should feel roughly similar while you use it. 
+
+# Major, major thanks to Tobgle, who gave me the idea to use dotted circles with his
+# attempt at this theme, simply called Oxygen on the box-look.org themes website at
+# https://www.box-look.org/p/1017631. This work uses his .xbm files verbatim, as I simply
+# couldn't improve on them. Bravo, Tobgle!
+
+#--------
+# Globals|
+#--------
+border.width:						1
+
+padding.width:						4
+padding.height:						2
+
+#----------------
+# Window Settings|
+#----------------
+window.*.justify:					center
+
+window.client.padding.width:				3
+window.client.padding.height:				1
+
+window.active.border.color:				#d0cbc8
+window.inactive.border.color:				#d0cbc8
+
+window.active.client.color:				#d0cbc8
+window.inactive.client.color:				#d0cbc8
+
+window.active.title.separator.color:			#d0cbc8
+window.inactive.title.separator.color:			#d0cbc8
+
+window.active.label.text.color:				#808080
+window.inactive.label.text.color:			#b0b0b0
+
+window.active.title.bg:					Gradient Vertical Flat
+window.active.title.bg.color:				#f9f9f9
+window.active.title.bg.colorTo:				#d0cbc8
+
+window.inactive.title.bg:				Gradient Vertical Flat
+window.inactive.title.bg.color:				#e0e0e0
+window.inactive.title.bg.colorTo:			#d0cbc8
+
+window.active.label.bg:					parentrelative
+window.inactive.label.bg:				parentrelative
+
+window.active.button.pressed.bg:			parentrelative
+window.inactive.button.pressed.bg:			parentrelative
+
+window.active.button.toggled.pressed.bg:		parentrelative
+window.active.button.toggled.unpressed.bg:		parentrelative
+
+window.inactive.button.toggled.pressed.bg:		parentrelative
+window.inactive.button.toggled.unpressed.bg:		parentrelative
+
+window.active.button.unpressed.bg:			parentrelative
+window.active.button.disabled.bg:			parentrelative
+window.inactive.button.unpressed.bg:			parentrelative
+window.inactive.button.disabled.bg:			parentrelative
+
+window.active.button.*.image.color:			#909090
+window.inactive.button.*.image.color:			#b0b0b0
+
+window.handle.width:					0
+
+#--------------
+# Menu Settings|
+#--------------
+menu.title.text.color:					#808080
+menu.items.text.color:					#808080
+menu.items.disabled.text.color:				#a0a0a0
+menu.items.active.text.color:				#ffffff
+menu.items.active.disabled.text.color:			#a0a0a0
+
+menu.separator.color:					#808080
+
+menu.items.bg:						Flat Solid Border
+menu.items.bg.color:					#e0e0e0
+menu.items.bg.border.color:				#d0cbc8
+
+menu.items.active.bg:					Gradient Vertical Flat
+menu.items.active.bg.color:				#b0b0b0
+menu.items.active.bg.colorTo:				#d0cbc8
+
+menu.title.bg:						Gradient Vertical Flat Border
+menu.title.bg.color:					#e0e0e0
+menu.title.bg.colorTo:					#d0cbc8
+menu.title.bg.border.color:				#d0cbc8
+
+#---------------------------
+# On-Screen Display Settings|
+#---------------------------
+osd.bg:							Flat Solid Border
+osd.bg.color:						#000000
+osd.bg.border.color:					#000000
+
+osd.label.bg:						parentrelative
+
+osd.unhilight.bg:					Gradient Vertical Flat
+osd.unhilight.color:					#5e7f8e
+osd.unhilight.colorTo:					#7098be
+
+osd.hilight.bg:						Gradient SplitVertical Flat Border
+osd.hilight.bg.color.splitTo:				#ffffff
+osd.hilight.bg.color:					#3c85ce
+osd.hilight.bg.colorTo:					#63a2e1
+osd.hilight.bg.colorTo.splitTo:				#ffffff
+osd.hilight.bg.border.color:				#418edc
