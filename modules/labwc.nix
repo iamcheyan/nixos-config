@@ -236,7 +236,7 @@ let
       export OMARCHY_PATH="$omarchy_root"
       export PATH="$omarchy_root/bin:${pkgs.coreutils}/bin:${pkgs.bash}/bin:$PATH"
       export QUICKSHELL_ROOT="$quickshell_root"
-      export QUICKSHELL_PLUGINS_DIR="$quickshell_root/third-party"
+      export QUICKSHELL_PLUGINS_DIR="$quickshell_root/plugins"
       ${quickshellWithKirigami}/bin/quickshell -n -p "$quickshell_root"
       status=$?
       # A clean exit is also a restart request: labwc -r can tear down the
