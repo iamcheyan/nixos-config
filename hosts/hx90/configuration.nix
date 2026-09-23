@@ -18,26 +18,10 @@ in
   # Labwc migration session in SDDM for manual testing.
   programs.labwcPreview.enable = true;
 
-  # Disk hibernation: this host has a 68.4 GiB NVMe swap partition (UUID from
-  # hardware-configuration.nix) and ~62 GiB RAM. NixOS does not wire resume=
-  # from swapDevices alone.
-  boot.resumeDevice = "/dev/disk/by-uuid/cfceef33-5044-4a72-8c01-c8d1f4444f00";
-
-  # Keep lid/power-button suspend. Do not auto-sleep on idle.
-  services.logind.settings.Login = {
-    IdleAction = "ignore";
-    HandleLidSwitch = "suspend";
-    HandlePowerKey = "suspend";
-    HandleSuspendKey = "suspend";
-  };
-
-  # The Hermes peer runs as a user service and must remain available after
-  # logout and across boots.
+  # Keep the Hermes remote API peer available when the user is logged out.
   users.users.tetsuya.linger = true;
   environment.variables.HERMES_HOME = "/home/tetsuya/.local/share/hermes-peer";
 
-  # Hermes' supported Linux installer maintains its own fixed Python venv.
-  # Declare its system runtime tools here so they remain available on NixOS.
   environment.systemPackages = with pkgs; [
     curl
     ffmpeg
@@ -47,8 +31,8 @@ in
     xz
   ];
 
-  # The API server binds only to this host's LAN address. Add a source-limited
-  # iptables allow rule; no unrestricted TCP port is opened.
+  # The peer is bound to this host's LAN address; only the local subnet may
+  # connect to TCP/8377.
   networking.firewall.extraCommands = ''
     iptables -w -A nixos-fw -s 192.168.3.0/24 -p tcp --dport 8377 -j nixos-fw-accept
   '';
@@ -56,9 +40,6 @@ in
     iptables -w -D nixos-fw -s 192.168.3.0/24 -p tcp --dport 8377 -j nixos-fw-accept 2>/dev/null || true
   '';
 
-  # Install/operate Hermes as a private user-level remote API peer. Its
-  # dedicated home keeps the user's existing ~/.hermes data and credentials
-  # separate, and this service starts no messaging platform adapters.
   home-manager.users.tetsuya = { ... }: {
     systemd.user.services.hermes-peer = {
       Unit = {
@@ -83,12 +64,38 @@ in
     };
   };
 
-  # Keep manual suspend/hibernation available, but do not trigger either one
-  # automatically. The lid and power-button policy above controls that latter
-  # behavior.
+  # Disk hibernation: this host has a 68.4 GiB NVMe swap partition (UUID from
+  # hardware-configuration.nix) and ~62 GiB RAM. NixOS does not wire resume=
+  # from swapDevices alone.
+  boot.resumeDevice = "/dev/disk/by-uuid/cfceef33-5044-4a72-8c01-c8d1f4444f00";
+
+  # Keep lid/power-button suspend. Do not auto-sleep on idle.
+  services.logind.settings.Login = {
+    IdleAction = "ignore";
+    HandleLidSwitch = "suspend";
+    HandlePowerKey = "suspend";
+    HandleSuspendKey = "suspend";
+  };
+
+  # Low-latency remote desktop/game streaming for macOS Moonlight clients.
+  # Auto-login is intentional: this is a privately owned workstation and the
+  # remote desktop must have a graphical session available after boot.
+  services.sunshine = {
+    enable = true;
+    autoStart = true;
+    openFirewall = true;
+    capSysAdmin = true;
+  };
+  services.displayManager.autoLogin = {
+    enable = true;
+    user = "tetsuya";
+  };
+
+  # This workstation must not suspend while it is being used remotely.
+  # Keep the policy declarative so a future nixos-rebuild cannot undo it.
   systemd.sleep.settings.Sleep = {
-    AllowSuspend = "yes";
-    AllowHibernation = "yes";
+    AllowSuspend = "no";
+    AllowHibernation = "no";
     AllowHybridSleep = "no";
     AllowSuspendThenHibernate = "no";
     # ACPI S4 poweroff fails on this firmware: xhci 0000:04:00.4 returns EBUSY
