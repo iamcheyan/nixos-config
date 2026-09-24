@@ -193,6 +193,10 @@ let
       QUICKSHELL_ROOT QUICKSHELL_PLUGINS_DIR QUICKSHELL_CONFIG \
       ANCHOR_SHELL_PYTHON \
       NIXARCHY_ROOT OMARCHY_PATH
+    # Keep both systemd and D-Bus activated applications on the Labwc
+    # session's GTK and Qt theme settings.
+    ${pkgs.dbus}/bin/dbus-update-activation-environment --systemd \
+      QT_QPA_PLATFORMTHEME GTK_THEME
     # Refresh the Labwc-owned Fcitx5 service for this session's Wayland socket.
     ${pkgs.systemd}/bin/systemctl --user restart --no-block anchor-fcitx5.service &
 
