@@ -27,6 +27,8 @@ in
     curl
     ffmpeg
     git
+    google-chrome
+    microsoft-edge
     nodejs_24
     ripgrep
     xz
