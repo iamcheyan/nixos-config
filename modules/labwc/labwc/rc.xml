@@ -9,7 +9,7 @@
   <theme>
     <name>Blue Elegance Box V2</name>
     <titlebar>
-      <layout>:iconify,max,close</layout>
+      <layout>:max,close</layout>
     </titlebar>
     <cornerRadius>0</cornerRadius>
     <maximizedDecoration>none</maximizedDecoration>
