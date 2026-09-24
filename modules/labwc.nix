@@ -240,9 +240,12 @@ in
     systemd.user.services.anchor-shell-labwc-probe = {
       description = "Anchor Shell for the Labwc session";
       serviceConfig = {
-        ExecStart = "${quickshellWithKirigami}/bin/quickshell -n -p ${quickshellRoot}";
+        # Route through the mode-aware launcher so `quickshell-mode dev`
+        # selects the checkout and `quickshell-mode nix` selects this store copy.
+        ExecStart = "%h/.local/bin/quickshell-topbar";
         Environment = [
           "PATH=/run/current-system/sw/bin:/run/wrappers/bin:/bin"
+          "QS_ICON_THEME=Pop"
           "NIXARCHY_ROOT=${quickshellCompatRoot}"
           "OMARCHY_PATH=${quickshellCompatRoot}"
           "QUICKSHELL_ROOT=${quickshellRoot}"
