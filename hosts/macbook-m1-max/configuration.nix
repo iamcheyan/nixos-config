@@ -28,6 +28,14 @@
   home-manager.useUserPackages = true;
   home-manager.users.tetsuya = import ../../modules/home-manager/darwin-user.nix;
 
+  # Start the Tailscale macOS app at each graphical login; account state stays in the app.
+  launchd.user.agents.tailscale = {
+    serviceConfig = {
+      ProgramArguments = [ "/usr/bin/open" "-a" "Tailscale" ];
+      RunAtLoad = true;
+    };
+  };
+
   # This is the nix-darwin schema version, not the macOS version and not the
   # NixOS system.stateVersion. Do not change it during routine upgrades.
   system.stateVersion = 6;
