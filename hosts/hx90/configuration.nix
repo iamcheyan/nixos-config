@@ -14,6 +14,9 @@ in
 
   networking.hostName = "hx90";
 
+  # Tailscale mesh VPN; authentication is performed after activation.
+  services.tailscale.enable = true;
+
   # Labwc is HX90's normal desktop session. This also selects Labwc for SDDM
   # autologin, so restarting the display manager does not launch Omarchy first.
   services.displayManager.defaultSession = lib.mkForce "labwc";
