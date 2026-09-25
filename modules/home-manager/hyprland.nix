@@ -1,4 +1,4 @@
-{ config, hostName ? "unknown", lib, ... }:
+{ config, hostName ? "unknown", lib, pkgs, ... }:
 
 let
   # Hyprland uses XKB names.  Keep the choice with the host configuration so
@@ -12,8 +12,26 @@ let
     [ "input = {\n    kb_options = \"compose:caps\",\n  }" ]
     [ "input = {\n    kb_layout = \"${kbLayout}\",\n    kb_options = \"compose:caps\",\n  }" ]
     inputSource;
+
+  active-monitor-screenshot = pkgs.writeShellApplication {
+    name = "nixarchy-screenshot-active-monitor";
+    runtimeInputs = [ pkgs.coreutils pkgs.grim pkgs.hyprland pkgs.jq pkgs.libnotify pkgs.wl-clipboard ];
+    text = ''
+      monitor="$(hyprctl -j activeworkspace | jq -er '.monitor')"
+      pictures_dir="''${XDG_PICTURES_DIR:-$HOME/Pictures}"
+      mkdir -p "$pictures_dir"
+      filepath="$pictures_dir/screenshot-$(date +%Y-%m-%d_%H-%M-%S).png"
+
+      grim -o "$monitor" "$filepath"
+      wl-copy --type image/png < "$filepath"
+      printf '%s\n' "$filepath"
+      notify-send "Screenshot" "Saved to Pictures and copied to clipboard" -t 2500 2>/dev/null || true
+    '';
+  };
 in
 {
+  home.packages = [ active-monitor-screenshot ];
+
   # The complete Hyprland user directory is now owned by Home Manager.  Keep
   # the source files in this repository; only input.lua is rendered per host.
   home.file = {

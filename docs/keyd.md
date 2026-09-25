@@ -104,12 +104,12 @@ s = C-S-print
 ```lua
 o.bind(
   "CTRL + SHIFT + PRINT",
-  "MINILA-R direct fullscreen screenshot",
-  "omarchy-capture-screenshot fullscreen slurp"
+  "MINILA-R active monitor screenshot",
+  "nixarchy-screenshot-active-monitor"
 )
 ```
 
-`fullscreen slurp` 会固定截取整个屏幕，但沿用 Omarchy 原生的保存、剪贴板、缩略图通知和截图编辑入口。普通 `Shift + Print` 仍保留原来的延迟截图功能。
+`nixarchy-screenshot-active-monitor` 会读取 Hyprland 当前活动工作区所属显示器，只截取该显示器，并保存到图片目录、复制到剪贴板和发送通知。普通 `Shift + Print` 仍保留原来的延迟截图功能。
 
 `Muhenkan + 3` 输出 `Ctrl + Shift + F3`，在 chezmoi 中调用
 `omarchy-delayed-screenshot 3 fullscreen`。脚本等待 3 秒后再调用

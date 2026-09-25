@@ -35,9 +35,9 @@ hl.bind("F24", hl.dsp.exec_cmd("voxtype record toggle"), {
 
 -- MINILA-R dedicated Muhenkan layer (keyd emits Print / Ctrl+Shift+Print).
 -- Muhenkan + S: use Omarchy's native interactive smart-region picker.
--- Shift + Muhenkan + S: save the current screen directly, without a picker.
+-- Shift + Muhenkan + S: save the focused monitor directly, without a picker.
 hl.unbind("CTRL + SHIFT + PRINT")
-o.bind("CTRL + SHIFT + PRINT", "MINILA-R direct fullscreen screenshot", "omarchy-capture-screenshot fullscreen slurp")
+o.bind("CTRL + SHIFT + PRINT", "MINILA-R active monitor screenshot", "nixarchy-screenshot-active-monitor")
 o.bind("CTRL + SHIFT + F3", "MINILA-R delayed fullscreen screenshot", "omarchy-delayed-screenshot 3 fullscreen")
 
 -- Change an existing binding by unbinding it first, then binding the key again.
@@ -56,4 +56,3 @@ o.bind("CTRL + SHIFT + F3", "MINILA-R delayed fullscreen screenshot", "omarchy-d
 -- Delayed screenshot (script managed by chezmoi at ~/.local/bin/).
 -- Usage: omarchy-delayed-screenshot [seconds] [region|fullscreen]
 o.bind("SHIFT + PRINT", "Delayed screenshot", "omarchy-delayed-screenshot 3")
-

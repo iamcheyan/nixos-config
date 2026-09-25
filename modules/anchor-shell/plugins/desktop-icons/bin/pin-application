@@ -6,7 +6,7 @@ if [[ $# -ne 1 || -z $1 ]]; then
   exit 2
 fi
 
-desktop_id=${1%.desktop}.desktop
+desktop_id=$1
 if [[ $desktop_id == */* || $desktop_id == *\\* ]]; then
   printf 'Invalid desktop ID: %s\n' "$1" >&2
   exit 2
@@ -21,11 +21,23 @@ else
 fi
 
 for data_dir in $data_dirs; do
-  candidate=$data_dir/applications/$desktop_id
+  # DesktopEntries IDs omit the final filename extension. Preserve IDs that
+  # themselves end in `.desktop` (for example `org.telegram.desktop`) and
+  # append the filename extension instead of stripping part of the ID.
+  candidate=$data_dir/applications/$desktop_id.desktop
   if [[ -f $candidate ]]; then
     exec add-to-desktop "$candidate"
+  fi
+
+  # Also accept callers that pass an actual desktop filename.
+  if [[ $desktop_id == *.desktop ]]; then
+    candidate=$data_dir/applications/$desktop_id
+    if [[ -f $candidate ]]; then
+      exec add-to-desktop "$candidate"
+    fi
   fi
 done
 
 printf 'Application not found: %s\n' "$desktop_id" >&2
+notify-send -u normal -i dialog-error "Desktop" "Application not found: $desktop_id" 2>/dev/null || true
 exit 1
