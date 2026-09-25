@@ -119,6 +119,8 @@ the same terminal policy as Omarchy's `clipboard.lua`:
 
 - Omarchy terminal/TUI windows receive `Shift+Insert`;
 - graphical applications receive `Ctrl+V`.
+- For a focused XWayland app such as WeChat, the hook mirrors the recognized text
+  to the X11 clipboard with `xclip` and sends `Ctrl+V` through `xdotool`.
 
 This avoids terminal applications interpreting `Ctrl+V` as a special action,
 such as an image-paste command. Labwc/Sway/KDE use the Wayland virtual

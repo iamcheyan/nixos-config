@@ -282,6 +282,8 @@ in
     slurp
     swappy
     wl-clipboard
+    xclip
+    xdotool
     wtype
     ydotool
     brightnessctl
