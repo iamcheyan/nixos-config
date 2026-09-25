@@ -97,11 +97,11 @@ in
     user = "tetsuya";
   };
 
-  # This workstation must not suspend while it is being used remotely.
-  # Keep the policy declarative so a future nixos-rebuild cannot undo it.
+  # Keep suspend modes disabled while this workstation is being used remotely,
+  # but allow an explicit disk hibernation from the local power menu.
   systemd.sleep.settings.Sleep = {
     AllowSuspend = "no";
-    AllowHibernation = "no";
+    AllowHibernation = "yes";
     AllowHybridSleep = "no";
     AllowSuspendThenHibernate = "no";
     # ACPI S4 poweroff fails on this firmware: xhci 0000:04:00.4 returns EBUSY
