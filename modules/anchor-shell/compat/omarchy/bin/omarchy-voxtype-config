@@ -20,8 +20,8 @@ if ! command -v voxtype >/dev/null 2>&1; then
     "echo 'Dictation is not installed.'; \
      echo; \
      echo 'Enable it from the menu:  Install > AI > Dictation'; \
-     echo 'or uncomment dictation.enable in ~/.config/nixarchy/apps.nix,'; \
-     echo 'then run nixarchy-apply.'"
+     echo 'or declare voxtype in ~/nixos-config,'; \
+     echo 'then rebuild the HX90 configuration.'"
   exit 0
 fi
 

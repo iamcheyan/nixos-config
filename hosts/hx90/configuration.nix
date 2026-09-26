@@ -9,7 +9,8 @@ in
     ../../mir2ei.nix
     ../../modules/workstation.nix
     ../../modules/update-snapshots.nix
-    ./nixarchy-apps.nix
+    ./apps.nix
+    ../../modules/devenv.nix
   ] ++ lib.optional (localHost != null && builtins.pathExists localHost) localHost;
 
   networking.hostName = "hx90";
@@ -108,22 +109,6 @@ in
     # (-16), USB resets count as a wakeup, and the kernel rolls the image back.
     # After the snapshot is on disk, do a normal poweroff instead of S4.
     HibernateMode = "shutdown";
-  };
-
-  # Nixarchy's upstream menu uses an Arch/mkinitcpio-only hibernation marker.
-  # Override that existing row declaratively so the option is visible on NixOS
-  # when this host has a resume-capable swap device and boot configuration.
-  programs.nixarchy.menu.extraEntries = {
-    "system.hibernate" = {
-      when = ''test -r /sys/power/image_size && awk 'NR > 1 && $1 !~ /zram/ && $3 > 0 { found = 1 } END { exit !found }' /proc/swaps && grep -q 'resume=' /run/current-system/kernel-params'';
-      action = "systemctl hibernate";
-    };
-    "system.nixos-update" = {
-      icon = "󰒓";
-      label = "NixOS Update (Snapshot)";
-      description = "Snapshot / and /home, update plugins and NixOS";
-      action = "nixos-update";
-    };
   };
 
   # zram pages live in RAM. Flush them to the NVMe resume swap before the

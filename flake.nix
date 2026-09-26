@@ -6,9 +6,9 @@
     # deliberately after the new machine is stable.
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
 
-    nixarchy = {
-      url = "github:olafkfreund/nixarchy/v4.0.2-12";
-      inputs.nixpkgs.follows = "nixpkgs";
+    hyprland = {
+      # Preserve the installed Lua-capable compositor pin independently.
+      url = "github:hyprwm/Hyprland";
     };
 
     home-manager = {
@@ -63,7 +63,7 @@
         ];
       };
 
-      # x86_64 btrfs workstation using the same nixarchy desktop baseline.
+      # x86_64 btrfs workstation using the locally managed desktop baseline.
       hx90 = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         specialArgs = { inherit inputs localRoot; };

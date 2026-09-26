@@ -13,6 +13,18 @@ description: >
   For installing a package, use `nixos`; for GPU or AI services, use those skills.
 ---
 
+## 本机约束
+
+本机是 NixOS，配置源在 `~/nixos-config`，HX90 日常桌面是 Labwc + Anchor Shell。
+Nixarchy 外部依赖已移除；不要调用 `nixarchy apply`、app/pkg 管理器或编辑旧的
+`~/.config/nixarchy/*.nix`。系统变更直接编辑本仓库的 Nix 模块。先查看实际 cwd、
+仓库 AGENTS.md 和已有更改。跨平台私人配置归 chezmoi，公开通用配置归 dotfiles。
+构建本机使用 `nixos-rebuild build --impure --flake ~/nixos-config#hx90`；
+用户授权应用后使用 `sudo nixos-rebuild switch --impure --flake ~/nixos-config#hx90`。
+保留未提交改动，不编辑 `/nix/store`；不要为修复单个问题更新整个 flake。
+
+
+
 # NixOS Services Skill
 
 Two things that are ordinary elsewhere and are the whole job here:
@@ -33,7 +45,7 @@ Guessing an option name costs a full rebuild to find out. Three ways, cheapest
 first:
 
 ```bash
-nixarchy-search postgres        # fzf over this system's packages AND options
+nix search nixpkgs postgres        # fzf over this system's packages AND options
 man configuration.nix           # offline, complete, searchable with /
 nixos-option services.nginx     # what is set right now, and where it came from
 ```
@@ -229,7 +241,7 @@ sudo nft list ruleset | grep 8080    # did the firewall actually open it
 | Message | Meaning |
 |---|---|
 | `The option 'services.foo.bar' does not exist` | Renamed or removed. Read the module's `imports` block |
-| `attribute 'foo' missing` | Wrong package attribute. `nixarchy-search` it |
+| `attribute 'foo' missing` | Wrong package attribute. look it up in the locked nixpkgs source |
 | `infinite recursion encountered` | A `config` value used to compute something it also defines |
 | `path '/nix/store/...' does not exist` for a file you just wrote | Untracked in git. `git add` it |
 | `A definition for option ... is not of type ...` | Wrong shape — a string where a list or path is wanted |

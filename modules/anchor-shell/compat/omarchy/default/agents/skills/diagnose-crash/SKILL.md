@@ -9,6 +9,18 @@ description: >
   Covers reporting a confirmed Nixarchy or Omarchy bug — see reporting.md.
 ---
 
+## 本机约束
+
+本机是 NixOS，配置源在 `~/nixos-config`，HX90 日常桌面是 Labwc + Anchor Shell。
+Nixarchy 外部依赖已移除；不要调用 `nixarchy apply`、app/pkg 管理器或编辑旧的
+`~/.config/nixarchy/*.nix`。系统变更直接编辑本仓库的 Nix 模块。先查看实际 cwd、
+仓库 AGENTS.md 和已有更改。跨平台私人配置归 chezmoi，公开通用配置归 dotfiles。
+构建本机使用 `nixos-rebuild build --impure --flake ~/nixos-config#hx90`；
+用户授权应用后使用 `sudo nixos-rebuild switch --impure --flake ~/nixos-config#hx90`。
+保留未提交改动，不编辑 `/nix/store`；不要为修复单个问题更新整个 flake。
+
+
+
 # Diagnosing a Crash
 
 Work from evidence. The goal is an honest account of what happened, not a

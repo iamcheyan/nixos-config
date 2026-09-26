@@ -15,7 +15,7 @@ let
       pkgs.nixos-rebuild
       pkgs.snapper
       pkgs.systemd
-      config.programs.nixarchy.package
+      (pkgs.callPackage ./packages/desktop-compat.nix { })
     ];
     text = builtins.readFile ../scripts/nixos-update.sh;
   };

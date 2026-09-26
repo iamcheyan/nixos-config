@@ -37,7 +37,8 @@ USAGE
 fi
 
 (( $# >= 2 )) || fail "Usage: omarchy-shell <target> <method> [args...]"
-[[ -n ${OMARCHY_PATH:-} ]] || fail "OMARCHY_PATH is not set"
+OMARCHY_PATH=${OMARCHY_PATH:-/run/current-system/sw/share/omarchy}
+[[ -f $OMARCHY_PATH/shell/shell.qml ]] || OMARCHY_PATH=/run/current-system/sw/share/omarchy
 [[ -f $OMARCHY_PATH/shell/shell.qml ]] || fail "omarchy-shell config not found: $OMARCHY_PATH/shell/shell.qml"
 
 # qs matches instances by display, and a caller from outside the session (an
@@ -56,7 +57,23 @@ fi
 # positionals. qs reports connection failures with a nonzero exit, but IPC-level
 # failures (unknown target/function, bad arguments) go to stdout with exit 0.
 ipc_timeout=${OMARCHY_SHELL_IPC_TIMEOUT:-2s}
-output=$(timeout --kill-after=1s "$ipc_timeout" qs ipc -n -p "$OMARCHY_PATH/shell" call -- "$@" 2>/dev/null)
+ipc_path="$OMARCHY_PATH/shell"
+case ":${XDG_CURRENT_DESKTOP:-}:" in
+  *:labwc:*|*:Labwc:*)
+    # A terminal may retain a previous mode's QUICKSHELL_ROOT after rebuild.
+    # Read the running service's command line before considering fallback paths.
+    shell_pid=$(systemctl --user show anchor-shell-labwc-probe.service -p MainPID --value)
+    ipc_path=""
+    if [[ "$shell_pid" =~ ^[1-9][0-9]*$ && -r "/proc/$shell_pid/cmdline" ]]; then
+      ipc_path=$(tr '\0' '\n' < "/proc/$shell_pid/cmdline" | awk 'previous == "-p" { print; exit } { previous = $0 }')
+    fi
+    if [[ -z "$ipc_path" ]]; then
+      ipc_path=$(systemctl --user show anchor-shell-labwc-probe.service -p Environment --value | tr ' ' '\n' | sed -n 's/^QUICKSHELL_ROOT=//p' | head -1)
+    fi
+    [[ -f "$ipc_path/shell.qml" ]] || fail "Anchor Shell runtime not found"
+    ;;
+esac
+output=$(timeout --kill-after=1s "$ipc_timeout" qs ipc -n -p "$ipc_path" call -- "$@" 2>/dev/null)
 ipc_status=$?
 
 if (( ipc_status == 124 || ipc_status == 137 )); then

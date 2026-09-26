@@ -152,37 +152,12 @@ if [[ -n $attr ]]; then
   echo
   echo "$name is not installed."
   echo
-  echo "Adding it to your configuration as ${attr}, so it is still here after"
-  echo "the next rebuild and on the next machine you install from this flake."
+  echo "The package attribute is ${attr}; declare it in your NixOS configuration."
   echo
 
-  if ! nixarchy-pkg-add "$attr"; then
-    echo >&2
-    echo "Could not add $attr to ~/.config/nixarchy/apps.nix." >&2
-    echo "Add it by hand and run: nixarchy apply" >&2
-    exit 1
-  fi
+  echo "Install $attr declaratively in ~/nixos-config, rebuild, then select $name again." >&2
+  exit 1
 
-  echo
-  echo "Building it now. This takes a few minutes the first time, and asks for"
-  echo "your password to rebuild the system."
-  echo
-
-  # Run, not offered. Choosing an agent and getting one used to be the same act
-  # -- upstream installs it there and then -- and splitting them is what left a
-  # ticked menu entry beside a `claude: command not found`. Declining is still
-  # possible, and says what it costs.
-  #
-  # "yes" when it cannot ask: the menu's own launcher has a terminal, so the
-  # cases that cannot are scripts and tests, where finishing the job the caller
-  # asked for beats stopping half way through it.
-  if confirm "Build it now?" yes; then
-    exec nixarchy-apply
-  fi
-
-  echo "Not building. $name is in your configuration but not installed yet."
-  echo "Run 'nixarchy apply' when you are ready."
-  exit 0
 fi
 
 # No nixpkgs package. mise, and honest about what that costs.

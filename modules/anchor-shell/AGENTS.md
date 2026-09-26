@@ -13,8 +13,7 @@ and paths are in [ARCHITECTURE.md](ARCHITECTURE.md).
 - Nix wiring: `/home/tetsuya/nixos-config/modules/labwc.nix`
 - Compositor checkout: `/home/tetsuya/labwc-plus/`
 
-Do not edit the `/nix/store` copy. Do not edit `modules/desktop.nix` Nixarchy
-patches or `modules/home-manager/hypr/` for a Labwc shell change. Hyprland
+Do not edit the `/nix/store` copy. Do not edit `modules/desktop.nix` 的系统接线 or `modules/home-manager/hypr/` for a Labwc shell change. Hyprland
 keeps its own Omarchy tree.
 
 The live first-party topbar widgets are:

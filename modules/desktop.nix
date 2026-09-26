@@ -1,59 +1,6 @@
 { config, lib, pkgs, inputs, ... }:
 
 let
-  # Nixarchy v4.0.2-4 currently ships an installPhase whose embedded Python
-  # check keeps Nix indentation. Unindent the generated shell phase locally;
-  # shell indentation is not semantic, while Python indentation is.
-  nixarchyPackageBase = import ./packages/nixarchy-omarchy.nix {
-    inherit lib pkgs inputs;
-  };
-  nixarchyPackage = nixarchyPackageBase.overrideAttrs (old: {
-    # The custom SystemSwitch indicator can remain active after a rebuild
-    # process exits because Quickshell's process poll is not synchronized with
-    # the terminal launcher.  A stale “Rebuilding the system...” spinner is
-    # worse than having no indicator; the update command still remains
-    # available from the menu and its terminal shows the real build output.
-    postInstall = (old.postInstall or "") + ''
-      substituteInPlace $out/share/omarchy/shell/plugins/bar/widgets/Indicators.qml \
-        --replace-fail \
-          '[ "SystemSwitch", "Dictation", "ScreenRecording", "Reminder", "NightLight", "Dnd", "StayAwake" ]' \
-          '[ "Dictation", "ScreenRecording", "Reminder", "NightLight", "Dnd", "StayAwake" ]'
-      rm -f $out/share/omarchy/shell/plugins/bar/indicators/SystemSwitch.qml
-      # Keep terminal applications on their explicit monospace fonts while
-      # making the built-in Omarchy Shell UI and topbar use the GNOME-style
-      # Cantarell family. Nerd Font glyphs still resolve through Qt fallback.
-      substituteInPlace $out/share/omarchy/shell/Commons/Style.qml \
-        --replace-fail \
-          'property string fontFamily: "monospace"' \
-          'property string fontFamily: "Cantarell"'
-
-      # Match the heavier GNOME Shell appearance for readable bar labels.
-      # Keep icon glyphs in the same family so Nerd Font fallback remains intact.
-      newline="$(printf '\nX')"
-      newline="''${newline%X}"
-      substituteInPlace $out/share/omarchy/shell/Ui/WidgetButton.qml \
-        --replace-fail \
-          'font.pixelSize: root.fontSize' \
-          "font.pixelSize: root.fontSize''${newline}    font.weight: Font.DemiBold"
-      substituteInPlace $out/share/omarchy/shell/plugins/bar/widgets/ActiveWindow.qml \
-        --replace-fail \
-          'font.pixelSize: Style.font.body' \
-          "font.pixelSize: Style.font.body''${newline}      font.weight: Font.DemiBold"
-
-      # A local plugin watcher must never tear down a live session lock. Doing
-      # so destroys WlSessionLock while Hyprland is secure and can leave the
-      # compositor in its LOCK failsafe, producing a black screen. Defer the
-      # reload; after unlocking, a normal shell restart can load the change.
-      reload_newline="$(printf '\nX')"
-      reload_newline="''${reload_newline%X}"
-      reload_guard="  function reloadPlugins() {''${reload_newline}    var lockId = shell.pluginRegistry.resolveEnabledId(\"omarchy.lock\")''${reload_newline}    var lockService = shell.serviceFor(lockId)''${reload_newline}    if (lockService && lockService.locked) {''${reload_newline}      console.warn(\"Deferring plugin reload while session lock is active\")''${reload_newline}      return''${reload_newline}    }"
-      substituteInPlace $out/share/omarchy/shell/shell.qml \
-        --replace-fail \
-          '  function reloadPlugins() {' \
-          "$reload_guard"
-    '';
-  });
-
   # Keep the login screen in the system closure so SDDM can discover it under
   # /run/current-system/sw/share/sddm/themes. The source is the locked Shizuka
   # flake input, so new machines do not need a local theme clone or copy.
@@ -97,7 +44,7 @@ let
 in
 {
   imports = [
-    inputs.nixarchy.nixosModules.nixarchy
+    ./desktop-runtime.nix
     ./fonts.nix
   ];
 
@@ -176,14 +123,6 @@ in
   };
   boot.kernel.sysctl."vm.swappiness" = 180;
 
-  programs.nixarchy = {
-    enable = true;
-    package = nixarchyPackage;
-    displayManager = false;
-    # Omarchy's update widget and CLI must update the user-owned source flake,
-    # not the root-owned compatibility files under /etc/nixos.
-    flake = "/home/tetsuya/nixos-config";
-  };
 
   hardware.bluetooth = {
     enable = true;

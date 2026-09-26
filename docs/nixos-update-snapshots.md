@@ -58,7 +58,7 @@ HX90 的布局是：
 - `/`、`/home` 和 `/nix` 的 Btrfs 子卷；
 - zram + 磁盘 swap；
 - `btrfs-progs`；
-- Nixarchy/Omarchy 的 NixOS 更新入口。
+- 本地桌面的 NixOS 更新入口。
 
 当前已实现：
 
@@ -145,40 +145,17 @@ generation_before = 6
 
 ### 完整执行顺序
 
-默认执行 `nixos-update` 时，实际顺序如下：
+1. 定位 `NIXOS_CONFIG`（默认 `~/nixos-config`）和主机目标。
+2. 检查工具和未提交改动，按用户选择保留改动或临时 stash。
+3. 持有 sleep/idle inhibitor，创建事务记录与 root/home 快照。
+4. 在临时复制中运行 `nix flake update`，更新本仓库独立输入。
+5. 使用 `--impure` 构建候选配置；失败时停止，保留记录和快照。
+6. 更新用户 Omarchy 插件，将候选 lock 提升到源仓库，再切换候选系统。
+7. 记录结果并恢复临时 stash；失败时恢复原 flake 文件。
 
-1. 查询 Nixarchy 最新正式 release，并和 `flake.nix` 当前版本比较；
-2. 解析 `~/nixos-config` 和当前主机名，例如 `hx90`；
-3. 检查 `flake.nix`、Snapper、Omarchy 和 `nixos-rebuild` 是否可用；
-4. 检查配置仓库是否干净；有未提交改动时询问是否临时 stash，更新结束后自动恢复；
-5. 使用 `systemd-inhibit` 锁住 `sleep` 和 `idle`，防止更新期间休眠；
-6. 创建更新事务记录；
-7. 创建 `/` 的 root 快照；
-8. 创建 `/home` 的 home 快照；
-9. 按 release 从新到旧创建临时候选 flake，并执行 `nix flake update`；
-10. 执行 `nixos-rebuild build` 验证候选 flake；当前候选失败时继续尝试更旧版本；
-11. 候选构建成功后执行 `omarchy plugin update --yes`；
-12. 将通过验证的候选 `flake.nix` 和 `flake.lock` 提升到真实仓库；
-13. 执行 `sudo nixos-rebuild switch`；
-14. 将成功、失败、generation 和快照编号写入事务记录。
-
-候选构建或切换失败时，真实仓库会恢复到更新前的 `flake.nix` 和 `flake.lock`，
-因此当前配置始终代表最后一次成功验证的版本。已创建的快照和失败记录会保留，
-但该命令不会自动恢复快照，也不会自动回滚 NixOS generation。
-
-单独检查 Nixarchy release，不修改仓库或系统：
-
-```bash
-nixos-update check
-```
-
-正式执行 `nixos-update` 时，如果发现较新的 release，会按新旧顺序作为候选版本验证，
-而不是直接写入真实 `flake.nix`。只有某个候选构建和切换都成功，才会保留这个版本；
-如果使用 `--yes`，则自动接受验证流程，但不会跳过构建验证。
-
-工作区有改动时，交互式运行会询问是否临时暂存（包括未跟踪文件）。选择是后，
-更新完成或失败都会尝试恢复这些改动；恢复发生冲突时会保留 stash，并报告其引用。
-非交互运行不会擅自暂存，需要先提交改动或显式使用 `--allow-dirty`。
+`nixos-update check` 只在临时副本更新输入并显示 lock diff，不修改源仓库或系统。
+`--yes` 接受更新流程，不跳过构建。非交互环境遇到脏仓库须明确使用
+`--allow-dirty`，否则停止。此命令不查询 Nixarchy releases。
 
 ### 更新前检查
 
@@ -227,135 +204,11 @@ journalctl -t nixos-update
 
 ### 更新 Flake
 
-快照创建成功后，命令才执行：
+更新输入、构建与切换使用临时候选目录，不更新 Nixarchy 版本。
+Labwc 合成器来自本机 checkout，因此构建和切换保留 `--impure`。
+构建失败不切换系统，也不自动恢复 Btrfs 快照。
 
-```bash
-nix flake update --flake ~/nixos-config
-```
-
-之后执行：
-
-```bash
-nixos-rebuild build --flake ~/nixos-config#hx90
-sudo nixos-rebuild switch --flake ~/nixos-config#hx90
-```
-
-如果构建失败，应该：
-
-- 保留快照；
-- 记录失败日志；
-- 不切换系统；
-- 不自动恢复 `/` 或 `/home`。
-
-### Nixarchy 是如何更新的
-
-本仓库的 Nixarchy 不是通过 Omarchy 插件 checkout 更新的，而是 flake input：
-
-```nix
-nixarchy.url = "github:olafkfreund/nixarchy/v4.0.1-1";
-```
-
-它在系统层和 Home Manager 层分别接入：
-
-```nix
-inputs.nixarchy.nixosModules.nixarchy
-inputs.nixarchy.homeManagerModules.nixarchy
-```
-
-Nixarchy 提供的包、NixOS 模块、Home Manager 模块和 `omarchy` 命令，都会从这个
-flake input 构建。锁定的实际 commit 保存在 `flake.lock` 的 `nixarchy` 节点中。
-
-因此执行：
-
-```bash
-nix flake update --flake ~/nixos-config
-```
-
-时，Nix 会按照 `flake.nix` 中的 URL 尝试更新 Nixarchy，并把解析到的 commit 和
-hash 写入 `flake.lock`。如果 URL 固定在某个 release，结果仍然会停留在这个
-release；随后 `nixos-rebuild build` 和 `switch` 才会让锁定的 Nixarchy 版本进入
-当前系统。
-
-### Nixarchy 的 release/tag 与本机更新
-
-你看到的：
-
-```text
-v4.0.2-4
-```
-
-是 Nixarchy 发布的一个 release/tag，可以理解为 Nixarchy 的一个可追踪版本。它
-不是我们这台机器自动订阅的“最新版本”指针。当前本仓库明确固定的是：
-
-```nix
-nixarchy.url = "github:olafkfreund/nixarchy/v4.0.1-1";
-```
-
-因此，当前执行 `nixos-update` 时，`nix flake update` 会更新其他允许更新的
-flake input，但不会自动把 `v4.0.1-1` 改成 `v4.0.2-4`。这也是你上一次更新日志
-里只看到 `nixpkgs` 变化、没有看到 `nixarchy` 变化的原因。
-
-升级到 `v4.0.2-4` 需要先把 `flake.nix` 的版本引用改成：
-
-```nix
-nixarchy.url = "github:olafkfreund/nixarchy/v4.0.2-4";
-```
-
-然后再执行：
-
-```bash
-nixos-update
-```
-
-它会重新锁定 Nixarchy 的 commit，构建新版本，并在构建成功后切换系统。更精确地
-只更新这个 input，也可以使用：
-
-```bash
-nix flake lock --update-input nixarchy
-```
-
-但如果 `flake.nix` 仍然指向旧的 `v4.0.1-1`，这个命令也不会跨 release 自动跳到
-`v4.0.2-4`。
-
-固定 release 的优点是可复现和可回滚：以后任何时候都能明确知道系统使用哪个
-Nixarchy 版本。升级 release 属于一次需要检查、构建和测试的依赖升级，而不是每次
-日常更新都无条件追踪上游最新代码。
-
-#### 当前 `v4.0.2-4` 的兼容说明
-
-本机升级到 `v4.0.2-4` 时，发现它依赖的
-`hyprland-preview-share-picker` 尚未进入当前锁定的 NixOS 26.05 nixpkgs；同时该
-版本的 Omarchy 打包检查中有一段 Python 缩进问题。为保留 NixOS 26.05 的稳定
-nixpkgs 锁定，本仓库在 `modules/desktop.nix` 和 Home Manager 用户模块中提供了
-本地兼容 overlay/package，并修正生成的安装阶段缩进。该兼容层不改变 Omarchy
-功能，待上游和 nixpkgs 的组合不再需要时可以移除。
-
-这里有三个容易混淆的更新动作：
-
-```text
-nix flake update
-└── 按 flake.nix 的引用更新 Nixarchy 及其他 flake inputs
-
-nixos-rebuild switch
-└── 让新的 Nixarchy 包、模块和配置进入系统
-
-omarchy plugin update
-└── 更新用户目录中的 Omarchy 插件 git checkout
-```
-
-也就是说，`nixos-update` 通过两个独立步骤同时处理 Nixarchy 和 Omarchy 插件：
-先执行 `omarchy plugin update --yes`，再执行 `nix flake update`，最后构建并切换
-NixOS。它不会更新 chezmoi 或 `dotfiles`。
-
-更新完成后，如果 `flake.lock` 发生变化，应检查并提交：
-
-```bash
-cd ~/nixos-config
-git diff -- flake.lock
-git add flake.lock
-git commit -m "chore: update flake inputs"
-git push
-```
+桌面接管清单见 [nixarchy-removal.md](nixarchy-removal.md)。
 
 ### Omarchy 插件更新
 
@@ -409,9 +262,8 @@ sudo nixos-rebuild switch --flake .#hx90
 会绕过更新前快照流程。该命令仍可用于紧急修复、回滚或开发调试，但正式更新应
 统一使用 `nixos-update`。
 
-同理，`omarchy update` 仍可能直接更新 flake 并执行 NixOS switch，会绕过快照流程。
-正式更新应使用 `nixos-update`；本实现不修改 `/usr/share/omarchy`，并在 Nixarchy
-菜单中提供了 `NixOS Update (Snapshot)` 入口。
+`omarchy update` 已转发到 `nixos-update`，使用相同的快照流程。
+本地桌面菜单也保留 `NixOS Update (Snapshot)` 入口。
 
 ## 恢复流程设计
 

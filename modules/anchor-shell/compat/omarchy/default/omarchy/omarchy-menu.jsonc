@@ -28,6 +28,7 @@
   "system": {"icon":"","label":"System","aliases":["power-menu"]},
 
   // System
+  "system.nixos-update": {"icon":"󰒓","label":"NixOS Update (Snapshot)","description":"Snapshot / and /home, update plugins and NixOS","action":"nixos-update"},
   "system.screensaver": {"icon":"󱄄","label":"Screensaver","action":"omarchy-launch-screensaver force"},
   "system.lock": {"icon":"","label":"Lock","action":"omarchy-system-lock"},
   "system.suspend": {"icon":"󰒲","label":"Suspend","when":"! omarchy-toggle-enabled suspend-off","action":"systemctl suspend"},

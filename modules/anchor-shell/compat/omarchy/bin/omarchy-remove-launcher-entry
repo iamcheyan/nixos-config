@@ -100,6 +100,6 @@ fi
 echo "$desktop_file_name comes from a package, not from your home directory." >&2
         echo "" >&2
         echo "Remove it the way it was installed:" >&2
-        echo "  omarchy remove            the Remove menu, which edits your app selection" >&2
-        echo "  \$EDITOR ~/.config/nixarchy/apps.nix    then: nixarchy-apply" >&2
+        echo "  edit ~/nixos-config       remove the package from its system declaration" >&2
+        echo "  sudo nixos-rebuild switch --impure --flake ~/nixos-config#hx90" >&2
 exit 1

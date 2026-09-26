@@ -33,7 +33,7 @@ modules/anchor-shell/
 ```
 
 `compat/omarchy/` 是给 Labwc 用的兼容层，不是 Hyprland 的运行时。Hyprland
-的 Omarchy 来自 Nixarchy 包和 `~/.config/omarchy/`。不要把两棵树当成同一份。
+的 Omarchy 由本仓库 `modules/packages/desktop-compat.nix` 构建，使用 `~/.config/omarchy/`；两种会话的 shell 源码和用户状态仍分开。
 
 旧的 `modules/quickshell/` 已经删除。它曾经是迁到本目录之前的回退副本，
 没有任何 `.nix` 引用，Labwc 和 Hyprland 都不读它。
@@ -48,7 +48,7 @@ modules/labwc/labwc/scripts/quickshell-mode
 ```
 
 `modules/desktop.nix`、`modules/home-manager/hypr/`、
-`modules/packages/nixarchy-omarchy.nix` 属于 Hyprland/Omarchy 会话。改
+`modules/packages/desktop-compat.nix` 属于 Hyprland/Omarchy 会话。改
 Labwc 顶栏或插件时不要动这些文件。
 
 ## 运行时目录

@@ -3,16 +3,15 @@
 let
   cfg = config.programs.labwcPreview;
 
-  # Labwc Quickshell source lives in this repository. Hyprland keeps the
-  # separate Nixarchy Omarchy package; do not point this derivation at it.
+  # Labwc Quickshell source is independent of the compatibility Hyprland shell.
   quickshellRoot = pkgs.runCommand "anchor-shell" { } ''
     cp -r "${./anchor-shell}"/. "$out/"
+    # Runtime helpers are a separate sanitized package, not embedded copies.
+    chmod -R u+w "$out"
+    rm -rf "$out/compat"
   '';
-  # Helper commands still use the historical omarchy-* names. This copy is
-  # owned by Labwc; the Hyprland session continues to use Nixarchy's package.
-  quickshellCompatRoot = pkgs.runCommand "anchor-shell-omarchy-compat" { } ''
-    cp -r "${./anchor-shell/compat/omarchy}"/. "$out/"
-  '';
+  # Both sessions use locally packaged historical omarchy-* helper commands.
+  quickshellCompatRoot = "${pkgs.callPackage ./packages/desktop-compat.nix { }}/share/omarchy";
   quickshellDevRoot = "/home/tetsuya/nixos-config/modules/anchor-shell";
   # Henri desktop-icons uses Gio/GLib through PyGObject. Keep its interpreter
   # isolated instead of changing the system's generic python3 selection.
@@ -253,6 +252,7 @@ in
     # restarted only by systemd when the process exits.
     systemd.user.services.anchor-shell-labwc-probe = {
       description = "Anchor Shell for the Labwc session";
+      wants = [ "omarchy-sleep-lock.service" "omarchy-crash-watch.service" ];
       serviceConfig = {
         # Route through the mode-aware launcher so `quickshell-mode dev`
         # selects the checkout and `quickshell-mode nix` selects this store copy.

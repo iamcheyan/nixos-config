@@ -19,8 +19,6 @@ host="$(hostname -s)"
 history_dir="/var/lib/nixos-update/history"
 sudo_cmd="/run/wrappers/bin/sudo"
 [[ -x "$sudo_cmd" ]] || sudo_cmd="$(command -v sudo || true)"
-release_api="https://api.github.com/repos/olafkfreund/nixarchy/releases/latest"
-releases_api="https://api.github.com/repos/olafkfreund/nixarchy/releases?per_page=30"
 yes=false
 allow_dirty=false
 original_args=("$@")
@@ -110,69 +108,10 @@ show_record() {
     || { echo "Transaction not found: $id" >&2; exit 1; }
 }
 
-nixarchy_release() {
-  sed -nE 's#^[[:space:]]*url[[:space:]]*=[[:space:]]*"github:olafkfreund/nixarchy/([^"]+)";.*#\1#p' \
-    "$flake_dir/flake.nix" | head -n1
-}
-
-latest_nixarchy_release() {
-  curl --fail --silent --show-error --location --retry 2 \
-    --header 'Accept: application/vnd.github+json' \
-    "$release_api" | jq --raw-output '.tag_name // empty'
-}
-
-nixarchy_releases() {
-  curl --fail --silent --show-error --location --retry 2 \
-    --header 'Accept: application/vnd.github+json' \
-    "$releases_api" \
-    | jq --raw-output '.[] | select(.draft == false and .prerelease == false) | .tag_name' \
-    | awk '/^v[0-9]+(\.[0-9]+)*(-[0-9]+)?$/' \
-    | sort -V -r
-}
-
-check_nixarchy_release() {
-  local current latest newest
-  current="$(nixarchy_release)"
-  [[ "$current" =~ ^v[0-9]+(\.[0-9]+)*(-[0-9]+)?$ ]] || {
-    echo "Could not determine the pinned Nixarchy release from flake.nix." >&2
-    return 1
-  }
-  latest="$(latest_nixarchy_release)"
-  [[ "$latest" =~ ^v[0-9]+(\.[0-9]+)*(-[0-9]+)?$ ]] || {
-    echo "Could not determine the latest Nixarchy release from GitHub." >&2
-    return 1
-  }
-  newest="$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n1)"
-  printf 'Nixarchy release: current=%s latest=%s\n' "$current" "$latest"
-  if [[ "$current" == "$latest" ]]; then
-    printf 'Nixarchy is up to date.\n'
-    return 0
-  fi
-  if [[ "$newest" != "$latest" ]]; then
-    printf 'Pinned Nixarchy release is newer than the latest GitHub release; no upgrade suggested.\n'
-    return 0
-  fi
-  printf 'Nixarchy candidate available: %s -> %s (will be validated before promotion)\n' "$current" "$latest"
-  return 0
-}
-
-upgrade_nixarchy_ref() {
-  local latest=$1
-  local target_flake=${2:-$flake_dir}
-  sed -i -E \
-    "s#^([[:space:]]*url[[:space:]]*=[[:space:]]*\"github:olafkfreund/nixarchy/)[^\"]+(\";.*)#\\1${latest}\\2#" \
-    "$target_flake/flake.nix"
-}
-
 make_candidate_flake() {
-  local release=$1
-  if [[ -n "$candidate_flake_dir" && -d "$candidate_flake_dir" ]]; then
-    rm -rf "$candidate_flake_dir"
-  fi
   candidate_flake_dir="$(mktemp -d /tmp/nixos-update-flake.XXXXXX)"
   cp -a "$flake_dir"/. "$candidate_flake_dir/"
   rm -rf "$candidate_flake_dir/.git"
-  upgrade_nixarchy_ref "$release" "$candidate_flake_dir"
   echo "Updating candidate flake inputs..."
   nix flake update --flake "$candidate_flake_dir"
 }
@@ -187,7 +126,9 @@ if [[ "${1:-}" == "check" ]]; then
     echo "NixOS flake not found: $flake_dir" >&2
     exit 1
   }
-  check_nixarchy_release
+  trap '[[ -z "$candidate_flake_dir" ]] || rm -rf "$candidate_flake_dir"' EXIT
+  make_candidate_flake
+  diff -u "$flake_dir/flake.lock" "$candidate_flake_dir/flake.lock" || [[ $? == 1 ]]
   exit 0
 fi
 
@@ -227,26 +168,6 @@ if [[ "${NIXOS_UPDATE_INHIBITED:-0}" != 1 ]]; then
     --mode=block "$0" "${original_args[@]}"
 fi
 
-current_nixarchy_release="$(nixarchy_release)"
-latest_nixarchy_release="$(latest_nixarchy_release)"
-[[ "$current_nixarchy_release" =~ ^v[0-9]+(\.[0-9]+)*(-[0-9]+)?$ ]] || {
-  echo "Could not determine the pinned Nixarchy release from flake.nix." >&2
-  exit 1
-}
-[[ "$latest_nixarchy_release" =~ ^v[0-9]+(\.[0-9]+)*(-[0-9]+)?$ ]] || {
-  echo "Could not determine the latest Nixarchy release from GitHub." >&2
-  exit 1
-}
-nixarchy_upgrade=false
-if [[ "$current_nixarchy_release" != "$latest_nixarchy_release" ]] &&
-  [[ "$(printf '%s\n%s\n' "$current_nixarchy_release" "$latest_nixarchy_release" | sort -V | tail -n1)" == "$latest_nixarchy_release" ]]; then
-  nixarchy_upgrade=true
-  printf 'Nixarchy candidate available: %s -> %s (will be validated before promotion)\n' \
-    "$current_nixarchy_release" "$latest_nixarchy_release"
-else
-  printf 'Nixarchy release: %s (latest: %s)\n' "$current_nixarchy_release" "$latest_nixarchy_release"
-fi
-
 [[ -n "$sudo_cmd" ]] || { echo "sudo is not available" >&2; exit 1; }
 command -v snapper >/dev/null || { echo "snapper is not available" >&2; exit 1; }
 command -v omarchy >/dev/null || { echo "omarchy is not available" >&2; exit 1; }
@@ -274,11 +195,7 @@ if [[ "$allow_dirty" != true ]] && [[ -n "$(git -C "$flake_dir" status --porcela
 fi
 
 if [[ "$yes" != true ]]; then
-  if [[ "$nixarchy_upgrade" == true ]]; then
-    read -r -p "Upgrade Nixarchy to $latest_nixarchy_release, create snapshots, update and switch NixOS? [y/N] " answer
-  else
-    read -r -p "Create / and /home snapshots, update plugins/flake, and switch NixOS? [y/N] " answer
-  fi
+  read -r -p "Create / and /home snapshots, update plugins/flake, and switch NixOS? [y/N] " answer
   [[ "$answer" =~ ^[Yy]$ ]] || { echo "Cancelled."; exit 0; }
 fi
 
@@ -297,8 +214,6 @@ trap finish EXIT
   printf 'kernel_before=%s\n' "$(uname -r)"
   printf 'flake_dir=%s\n' "$flake_dir"
   printf 'flake_revision_before=%s\n' "$(git -C "$flake_dir" rev-parse HEAD)"
-  printf 'nixarchy_release_before=%s\n' "$current_nixarchy_release"
-  printf 'nixarchy_release_latest=%s\n' "$latest_nixarchy_release"
   printf 'flake_dirty_before=%s\n' "$(git -C "$flake_dir" status --porcelain | wc -l)"
   printf 'status=started\n'
 } > "$record_tmp"
@@ -327,53 +242,13 @@ write_record
 append_record 'status=snapshots-created'
 write_record
 
-mapfile -t release_candidates < <(
-  nixarchy_releases \
-    | while IFS= read -r release; do
-        [[ "$release" == "$current_nixarchy_release" ]] && continue
-        newest="$(printf '%s\n%s\n' "$current_nixarchy_release" "$release" | sort -V | tail -n1)"
-        [[ "$newest" == "$release" ]] && printf '%s\n' "$release"
-      done
-)
-if ((${#release_candidates[@]} == 0)); then
-  release_candidates=("$current_nixarchy_release")
-fi
-
-validated_release=""
-for candidate_release in "${release_candidates[@]}"; do
-  echo "Validating Nixarchy candidate $candidate_release..."
-  append_record "nixarchy_release_candidate=$candidate_release"
-  if ! make_candidate_flake "$candidate_release"; then
-    echo "Could not prepare candidate $candidate_release; trying the next older release..." >&2
-    append_record "nixarchy_release_rejected=$candidate_release"
-    append_record 'status=candidate-rejected'
-    write_record
-    continue
-  fi
-  append_record 'status=candidate-flake-updated'
-  write_record
-
-  echo "Building candidate NixOS configuration for $host..."
-  if nixos-rebuild build --flake "$candidate_flake_dir#$host"; then
-    validated_release="$candidate_release"
-    append_record "nixarchy_release_validated=$validated_release"
-    append_record 'status=build-succeeded'
-    write_record
-    break
-  fi
-  echo "Candidate $candidate_release failed to build; trying the next older release..." >&2
-  append_record "nixarchy_release_rejected=$candidate_release"
-  append_record 'status=candidate-rejected'
-  write_record
-done
-
-[[ -n "$validated_release" ]] || {
-  echo "No newer Nixarchy candidate passed the build; keeping $current_nixarchy_release." >&2
-  append_record "nixarchy_release_after=$current_nixarchy_release"
-  append_record 'status=no-candidate-promoted'
-  write_record
-  exit 0
-}
+make_candidate_flake
+append_record 'status=candidate-flake-updated'
+write_record
+echo "Building candidate NixOS configuration for $host..."
+nixos-rebuild build --impure --flake "$candidate_flake_dir#$host"
+append_record 'status=build-succeeded'
+write_record
 
 echo "Updating Omarchy plugins..."
 omarchy plugin update --yes
@@ -382,12 +257,11 @@ write_record
 
 echo "Promoting validated flake candidate..."
 promote_candidate_flake
-append_record "nixarchy_release_after=$validated_release"
 append_record 'status=flake-promoted'
 write_record
 
 echo "Switching NixOS configuration..."
-"$sudo_cmd" nixos-rebuild switch --flake "$candidate_flake_dir#$host"
+"$sudo_cmd" nixos-rebuild switch --impure --flake "$candidate_flake_dir#$host"
 switch_succeeded=true
 append_record "generation_after=$(current_generation)"
 append_record "kernel_after=$(uname -r)"

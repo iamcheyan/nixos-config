@@ -128,7 +128,7 @@ say so rather than suggesting a garbage collection that will not help."
 Use the nixos-config-repo skill. Check whether this machine's configuration is
 committed and pushed anywhere. If it is not, explain what that means -- the
 whole definition of this machine exists on one disk with no history -- and offer
-to run 'nixarchy config repo', which does the setup properly and scans for
+to manage Git directly in ~/nixos-config, after reviewing configuration for
 secrets before the first commit. Never commit a plaintext secret."
     ;;
   install)
@@ -136,7 +136,7 @@ secrets before the first commit. Never commit a plaintext secret."
 
 Use the nixos skill. I want to install or change: ${extra:-<ask me what>}.
 Pick the highest applicable route: the curated app list first, then
-nixarchy-pkg-add for a plain package, then a flake edit for anything needing
+edit ~/nixos-config Nix modules for packages and anything needing
 options. Never install imperatively. Show me the change before rebuilding."
     ;;
   update)

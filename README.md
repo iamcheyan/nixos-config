@@ -5,7 +5,7 @@
 使用独立的 `darwinConfigurations`；两者共享锁文件，但不直接共享 Linux 专用模块。
 
 本仓库负责 **NixOS 和 macOS 系统层**：系统包和服务、硬件或平台差异、启动和
-用户组，以及 Nixarchy 的 NixOS 系统接线。用户级私人编排由 `~/chezmoi` 管理，
+用户组，以及 本地桌面的 NixOS 系统接线。用户级私人编排由 `~/chezmoi` 管理，
 可公开复用的通用配置由 `~/dotfiles` 管理；详细边界见 `AGENTS.md`。
 
 ## 目录结构
@@ -40,8 +40,8 @@ macOS 的配置和第一次激活步骤见
 想系统学习这次迁移的设计、日常操作、边界、回滚和扩展方式，见
 [`docs/macos-nix-darwin/README.md`](docs/macos-nix-darwin/README.md)。
 
-HX90 的 `networking.hostName` 与 flake 输出名统一为 `hx90`，因此 Nixarchy 的
-`omarchy update` 即使不附加 `#hx90` 也能选中正确配置。
+HX90 的 `networking.hostName` 与 flake 输出名统一为 `hx90`，`nixos-update`
+据此选中正确配置；`omarchy update` 转发到同一快照更新流程。
 
 每台主机的 `configuration.nix` 只包含：主机名、时区（Asia/Tokyo）、用户
 `tetsuya`、以及该机特有的服务；其余全部 import 共享模块。
@@ -63,18 +63,17 @@ HX90 的 `networking.hostName` 与 flake 输出名统一为 `hx90`，因此 Nixa
 - **基础包**：git、curl、jq、ripgrep、python3、fnm 等。
 
 ### modules/desktop.nix — 桌面环境
-- **登录**：SDDM（Wayland 模式），Breeze 主题。主题依赖 KDE QML 模块，所以
+- **登录**：SDDM（Wayland 模式），Shizuka 主题。主题依赖 KDE QML 模块，所以
   同时启用了 Plasma 6——这台机器上 Plasma 也作为备用会话存在。
-- **默认会话**：使用 Nixarchy 提供的 Wayland 桌面会话。
-- **Omarchy 更新入口**：`programs.nixarchy.flake` 指向用户拥有的
-  `~/nixos-config`。状态栏与 `omarchy update` 更新本仓库的 `flake.lock` 后执行
-  rebuild，不使用 root 拥有的 `/etc/nixos`。
+- **HX90 默认会话**：Labwc + Anchor Shell；保留本地 Hyprland 和 Plasma 备用会话。
+- **更新入口**：`nixos-update` 从 `~/nixos-config` 创建快照、构建候选并切换；
+  `omarchy update` 转发到它。
 - **图形栈**：Hyprland（含 XWayland）、xdg portal、polkit、gnome-keyring、
   power-profiles-daemon。
 - **音频**：PipeWire（兼容 ALSA / 32 位 / PulseAudio 客户端）。
 - **蓝牙**：blueman。
 - **字体**：Noto CJK、JetBrains Mono Nerd Font、emoji、图标字体。
-- **桌面工具**：Labwc 使用 Anchor Shell（`modules/anchor-shell`，Quickshell 顶栏）；Hyprland 仍使用 Nixarchy 的 Omarchy shell。另有 grim/slurp/swappy
+- **桌面工具**：Labwc 使用 Anchor Shell（`modules/anchor-shell`，Quickshell 顶栏）；Hyprland 使用本仓库打包的 Omarchy 兼容 shell。另有 grim/slurp/swappy
   （截图）、foot/kitty（终端）、pamixer、brightnessctl、nautilus 等。
 - **两处针对性修补**：
   - `QML2_IMPORT_PATH` 指向 kirigami/qt5compat 的 `.unwrapped`，确保
@@ -134,11 +133,11 @@ nixos-rebuild build --flake ~/nixos-config#<name>
 sudo nixos-rebuild switch --rollback
 ```
 
-在 NixOS 上，`omarchy update` 不是 Arch/pacman 更新。Nixarchy 会使用
-`NIXARCHY_FLAKE=~/nixos-config` 执行 `nix flake update`，然后运行
-`nixos-rebuild switch`。它更新 NixOS/Nixarchy/Omarchy/Home Manager 等 flake
-输入，但不会更新 chezmoi、dotfiles 或用户运行时数据。详细范围、验证和双层回滚
-方法见 [`docs/nixarchy/update-and-rollback.md`](docs/nixarchy/update-and-rollback.md)。
+`omarchy update` 已转发到本机 `nixos-update`，更新独立 flake 输入前创建
+root/home 快照，构建候选后切换。不会更新 chezmoi 或 dotfiles。
+操作与恢复见 [`docs/nixos-update-snapshots.md`](docs/nixos-update-snapshots.md)。
+Nixarchy 外部依赖已移除，接管清单见 [`docs/nixarchy-removal.md`](docs/nixarchy-removal.md)。
+全局 AI 环境与 skills 接线见 [`docs/agent-environment.md`](docs/agent-environment.md)。
 
 Shizuka 登录主题的源码、`flake.lock` 锁定版本、NixOS generation 和 SDDM 实际加载
 路径之间的关系，见该文档中的「Shizuka 的版本到底由哪里管理」章节。注销登录不会
@@ -159,7 +158,7 @@ Shizuka 登录主题的源码、`flake.lock` 锁定版本、NixOS generation 和
 [`modules/home-manager/nixos-user.nix`](modules/home-manager/nixos-user.nix)。这里适合放：
 
 - 依赖 Nix store 软件包的用户配置、用户级 systemd service；
-- Nixarchy/Omarchy 的 NixOS 接线；
+- Labwc / Anchor Shell 与 Omarchy 兼容资源的 NixOS 接线；
 - 只在 NixOS 上使用的用户环境变量、GUI 默认值和配置文件。
 
 跨发行版或跨平台的用户偏好继续由 `~/chezmoi` 管理，例如 Fcitx5、终端、tmux、
@@ -222,7 +221,7 @@ Voxtype 和通用脚本。macOS 专属的 AeroSpace、Karabiner、Hammerspoon、
    ```bash
    sudo nixos-rebuild switch --flake ~/nixos-config#新名字
    ```
-7. **重启后**：在 SDDM 中选择 Nixarchy 会话登录。
+7. **重启后**：在 SDDM 中选择 Labwc（或所需备用会话）登录。
 
 ### 场景 B：把现有机器纳入这套配置管理
 

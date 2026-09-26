@@ -1,5 +1,9 @@
 # 更新、验证与回滚
 
+> 历史说明：2026-09-26 已移除 Nixarchy 外部依赖。当前更新流程见
+> [nixos-update-snapshots.md](../nixos-update-snapshots.md)，接管清单见
+> [nixarchy-removal.md](../nixarchy-removal.md)。下文旧命令和模块名不用于当前系统。
+
 ## `omarchy update` 在 NixOS 上做什么
 
 Nixarchy 替换了 Omarchy 原本面向 Arch/pacman 的更新器。本机执行

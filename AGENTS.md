@@ -7,7 +7,7 @@
 
 | 仓库 | 可见性 | 所有权 |
 |---|---|---|
-| `~/nixos-config` | 私人系统仓库 | NixOS 模块、系统包和服务、内核/引导、硬件与主机差异、Nixarchy 系统接线 |
+| `~/nixos-config` | 私人系统仓库 | NixOS 模块、系统包和服务、内核/引导、硬件与主机差异、本地桌面系统接线 |
 | `~/chezmoi` | PRIVATE | 用户级私人软件配置、凭据的 age 加密产物、Agent、输入法数据、终端及桌面偏好编排 |
 | `~/dotfiles` | PUBLIC | 可公开复用的 Zsh、Neovim、Ranger、Vifm、Starship 和 dotlink |
 

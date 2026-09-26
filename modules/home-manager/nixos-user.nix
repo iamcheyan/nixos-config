@@ -1,19 +1,20 @@
 { config, lib, pkgs, inputs, ... }:
 
 let
-  # Keep the Home Manager package identical to the system package. Nixarchy
-  # v4.0.2-4's embedded Python check needs the same indentation compatibility
-  # fix on both module paths.
-  nixarchyPackage = import ../packages/nixarchy-omarchy.nix {
-    inherit lib pkgs inputs;
-  };
+  desktopPackage = pkgs.callPackage ../packages/desktop-compat.nix { };
+  skillRoot = ../anchor-shell/compat/omarchy/default/agents/skills;
+  skillNames = builtins.attrNames (lib.filterAttrs (_: type: type == "directory") (builtins.readDir skillRoot));
+  skillFiles = lib.listToAttrs (lib.concatMap (name: map (prefix: {
+    name = "${prefix}/${name}";
+    value = { source = skillRoot + "/${name}"; force = true; };
+  }) [ ".agents/skills" ".codex/skills" ".claude/skills" ".pi/agent/skills" ]) skillNames);
+
 in
 
-# User configuration that is specific to the NixOS + Nixarchy environment.
+# User configuration that is specific to the locally managed NixOS desktop.
 # Cross-platform application preferences remain managed by chezmoi.
 {
   imports = [
-    inputs.nixarchy.homeManagerModules.nixarchy
     inputs.chatgpt-desktop-linux.homeManagerModules.default
     ./hyprland.nix
   ];
@@ -32,15 +33,26 @@ in
   # Keep the complete Omarchy plugin inventory with the NixOS/Home Manager
   # configuration.  The plugin checkouts themselves remain a separate Git
   # workspace because Omarchy updates them outside the Nix store.
-  home.file.".config/omarchy/plugins.list" = {
-    source = ./omarchy-plugins.list;
+  # Share one machine-specific environment brief across local coding agents.
+  # These global instruction files are loaded regardless of the current
+  # working directory; each client uses its own conventional filename.
+  home.file = skillFiles // {
+    ".config/omarchy/plugins.list" = {
+      source = ./omarchy-plugins.list;
+      force = true;
+    };
+  } // lib.genAttrs [
+    ".config/agent/AGENTS.md"
+    ".codex/AGENTS.md"
+    ".claude/CLAUDE.md"
+    ".gemini/GEMINI.md"
+    ".config/opencode/AGENTS.md"
+  ] (_: {
+    source = ./agent-environment.md;
+    # Replace the former chezmoi-managed links at these exact destinations.
     force = true;
-  };
+  });
 
-  programs.nixarchy = {
-    enable = true;
-    package = nixarchyPackage;
-  };
 
   # Install the official Linux ChatGPT/Codex desktop package declaratively.
   # The package includes its own Codex CLI runtime; no separate CLI install is
@@ -49,13 +61,34 @@ in
     enable = true;
   };
 
-  # Nixarchy owns the Omarchy/NixOS integration. Keep its generated user
-  # service declarative and prevent the upstream cursor hook from overriding
-  # the Home Manager cursor selection.
-  xdg.configFile."omarchy/hooks/theme-set.d/cursor".enable = lib.mkForce false;
-  systemd.user.services.omarchy-theme-gnome.Service.ExecStart = lib.mkForce [
-    "${config.programs.nixarchy.package}/bin/omarchy-theme-set-gnome"
-  ];
+  systemd.user.services.omarchy-theme-gnome = {
+    Unit = { Description = "Apply desktop theme to GTK"; After = [ "graphical-session.target" ]; PartOf = [ "graphical-session.target" ]; };
+    Service = {
+      Type = "oneshot";
+      Environment = [ "PATH=${desktopPackage}/bin:${pkgs.glib}/bin:${pkgs.coreutils}/bin:/run/current-system/sw/bin" "OMARCHY_PATH=${desktopPackage}/share/omarchy" ];
+      ExecStart = "${desktopPackage}/bin/omarchy-theme-set-gnome";
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+  };
+
+  # Seed only missing defaults; private chezmoi-owned preferences always win.
+  home.activation.localDesktopSeed = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    run ${pkgs.coreutils}/bin/cp -rn --no-preserve=mode,ownership \
+      "${desktopPackage}/share/omarchy/config/". "${config.xdg.configHome}/" || true
+    run mkdir -p "${config.xdg.configHome}/btop/themes" "${config.xdg.configHome}/omarchy/branding" \
+      "${config.home.homeDirectory}/.local/state/omarchy/current"
+    if [ ! -e "${config.xdg.configHome}/btop/themes/current.theme" ]; then
+      run ln -s "${config.home.homeDirectory}/.local/state/omarchy/current/theme/btop.theme" "${config.xdg.configHome}/btop/themes/current.theme"
+    fi
+    if [ ! -e "${config.home.homeDirectory}/.XCompose" ]; then
+      echo 'include "/etc/omarchy/xcompose"' > "${config.home.homeDirectory}/.XCompose"
+    fi
+    if [ ! -e "${config.home.homeDirectory}/.local/state/omarchy/current/theme.name" ]; then
+      run env OMARCHY_PATH="${desktopPackage}/share/omarchy" OMARCHY_THEME_HEADLESS=1 \
+        PATH="${desktopPackage}/bin:/run/current-system/sw/bin:$PATH" \
+        ${desktopPackage}/bin/omarchy-theme-set "tokyo-night" || true
+    fi
+  '';
 
   home.pointerCursor = {
     gtk.enable = true;
