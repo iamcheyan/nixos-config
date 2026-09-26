@@ -1,164 +1,79 @@
-# Omarchy shell
+# Anchor Shell
 
-`omarchy-shell` is a single long-running [Quickshell](https://quickshell.org/)
-instance that hosts the Omarchy desktop. Hyprland autostart launches one shell
-per graphical session; everything else — the bar, background switcher, panels,
-and overlays — runs **inside** the shell as a plugin.
+Labwc 会话的 Quickshell 桌面层：一根长驻进程里跑顶栏、面板、锁屏、通知、
+桌面图标和相关插件。源码就在本目录。架构、隔离和路径见
+[ARCHITECTURE.md](ARCHITECTURE.md)，改代码前读 [AGENTS.md](AGENTS.md)。
 
-Hosting everything inside one shell means:
+Hyprland 的 Omarchy shell 是另一棵树（Nixarchy 包 + `~/.config/omarchy/`）。
+改这里不会改那份。
 
-- shared services and singletons live once, not once per process
-- summoning a panel is an IPC call into a process that is already running,
-  not a fresh `quickshell -p ...` cold start
-- third-party plugins can be loaded from disk without changing any source
-  code in Omarchy itself
-
-## Labwc/NixOS development workflow
-
-On this machine the Quickshell source is maintained in the NixOS repository:
-
-```text
-/home/tetsuya/nixos-config/modules/anchor-shell/
-```
-
-The main Labwc bar widgets are:
-
-```text
-plugins/bar/widgets/ActiveWindow.qml
-plugins/bar/widgets/ActiveWindow.manifest.json
-plugins/bar/widgets/Workspaces.qml
-plugins/bar/widgets/Workspaces.manifest.json
-```
-
-The normal Labwc Nix module copies this directory into a read-only
-`/nix/store/...-quickshell-shell/` derivation. For day-to-day QML work, enable
-the development source once:
+## 日常开发
 
 ```bash
-quickshell-mode dev
+quickshell-mode dev          # 直接加载本目录
+# 编辑 QML 后再执行一次，让 shell 重启
+quickshell-mode status
+quickshell list --all        # Config path 应为本目录的 shell.qml
 ```
 
-This makes the Labwc supervisor launch Quickshell directly from
-`/home/tetsuya/nixos-config/modules/anchor-shell/`. After editing a QML file,
-run the same command again to restart the running shell without rebuilding.
-Return to the immutable Nix build with:
+切回 Nix store 构建：
 
 ```bash
 quickshell-mode nix
 ```
 
-Check the selected mode with `quickshell-mode status`. The development mode
-must be installed by one NixOS switch first, because it adds the selector and
-supervisor logic to the Labwc session.
-
-For a release-like test, or after changing the Nix module itself, stage the
-changed file and rebuild:
+改 `modules/labwc.nix` 或要验证 store 构建时：
 
 ```bash
 cd /home/tetsuya/nixos-config
-git add modules/anchor-shell/plugins/bar/widgets/ActiveWindow.qml
-git add modules/anchor-shell/plugins/bar/widgets/Workspaces.qml
+git add modules/anchor-shell/<changed-file>
 sudo nixos-rebuild switch --impure \
   --flake /home/tetsuya/nixos-config#hx90
 ```
 
-The explicit `git add` matters: flake evaluation only sees tracked or staged
-files. The compositor module is intentionally hardcoded to the local
-`/home/tetsuya/labwc-plus` checkout on this machine, so `--impure` is required
-and there is no upstream fallback version. A normal first-party QML edit does
-not require this rebuild while development mode is active.
+本机合成器来自 `/home/tetsuya/labwc-plus`，rebuild 需要 `--impure`。flake
+只看见已跟踪或已暂存的文件。
 
-After rebuilding, start a shell from the new store path. The safest method is
-to log out of Labwc and log in again. Check the result with:
-
-```bash
-quickshell list --all
-```
-
-There should normally be one instance, and its `Config path` should be a new
-`/nix/store/...-quickshell-shell/` path. Stop stale test instances cleanly by
-their instance ID:
-
-```bash
-quickshell kill --id <instance-id>
-```
-
-Avoid repeatedly using `pkill` in the Labwc session: an autostart supervisor
-may restart the process and leave multiple bars layered over each other,
-which can make menus and buttons appear not to accept clicks.
-
-For user plugins under `~/.config/omarchy/plugins/<id>/`, a NixOS rebuild is
-not required. Use the running shell's IPC:
-
-```bash
-quickshell ipc call shell rescanPlugins
-```
-
-For changes to the user layout at `~/.config/quickshell/shell.json`, use:
+用户布局：`~/.config/anchor-shell/shell.json`  
+用户插件：`~/.config/anchor-shell/plugins/`
 
 ```bash
 quickshell ipc call shell reloadConfig
+quickshell ipc call shell rescanPlugins
 ```
 
-These IPC operations do not replace first-party code already copied into the
-store. In `nix` mode, changes under `modules/anchor-shell/` require a rebuild and
-a new shell instance. In `dev` mode, the source is read from the checkout and
-only the Quickshell restart is needed.
+## 配置优先级
 
-### Configuration precedence
-
-The repository default layout is:
+仓库默认布局：
 
 ```text
 /home/tetsuya/nixos-config/modules/anchor-shell/shell.json
 ```
 
-The active user layout is normally:
+用户布局一旦存在就是权威文件，不会和默认做 deep-merge：
 
 ```text
-/home/tetsuya/.config/quickshell/shell.json
+/home/tetsuya/.config/anchor-shell/shell.json
 ```
 
-Once the user layout exists, it is authoritative rather than deep-merged with
-the default. If a widget is missing, check its `bar.layout` entry and the
-`disabledPlugins` list in the active user file. Labwc may advertise the desktop
-as `labwc:wlroots`; detection code should accept `labwc` as a colon-separated
-desktop name.
+缺某个 widget 时先看这个文件的 `bar.layout` 和 `disabledPlugins`。Labwc 可能
+把桌面报成 `labwc:wlroots`，检测时按冒号分隔，认 `labwc` 即可。
 
-The runtime layout:
+## 源码布局
 
+```text
+shell.qml
+Commons/
+Ui/
+services/          PluginRegistry, BarWidgetRegistry, AppLibrary
+plugins/           见 plugins/README.md
+compat/omarchy/    Labwc 自己的 omarchy-* 兼容命令，不是 Hyprland 运行时
+docs/
 ```
-shell/
-  shell.qml              entry point (ShellRoot)
-  services/
-    PluginRegistry.qml   discovers, validates plugins, looks up enabled state in shell.json
-    BarWidgetRegistry.qml unified registry for bar widgets (1p + 3p)
-  plugins/
-    bar/                 first-party plugins (see plugins/README.md)
-    image-picker/
-    menu/
-    notifications/
-    panels/
-      audio/
-      bluetooth/
-      monitor/
-      network/
-      power/
-      weather/
-    agents/
-    services/
-      battery/
-      idle/
-    osd/
-    polkit/
-```
-
-The plugin discovery path is documented in [plugins/README.md](plugins/README.md).
 
 ## Plugin manifest
 
-Every plugin ships a `manifest.json` describing what it is and how the
-shell should load it. Minimal example:
+每个插件根目录有 `manifest.json`。最小例子：
 
 ```json
 {
@@ -183,161 +98,56 @@ shell should load it. Minimal example:
 }
 ```
 
-Supported `kinds`:
+| Kind         | 作用 |
+|--------------|------|
+| `bar-widget` | 顶栏一段 |
+| `panel`      | 浮层面板 |
+| `overlay`    | 全屏 overlay |
+| `menu`       | 菜单表面 |
+| `service`    | 无 UI 的单例 |
+| `bar`        | 整根顶栏，可替换内置 `omarchy.bar` |
 
-| Kind         | What it is                                                   |
-|--------------|--------------------------------------------------------------|
-| `bar-widget` | A component that the active bar can drop into a section      |
-| `panel`      | A persistent or summoned floating window (e.g. OSD)          |
-| `overlay`    | A fullscreen overlay (e.g. background switcher)              |
-| `menu`       | A summoned menu surface                                      |
-| `service`    | A headless singleton, no UI                                  |
-| `bar`        | A full bar option that can replace the built-in `omarchy.bar` |
+同一时间只有一根 `bar` 插件生效。完整 schema 在 `services/PluginRegistry.qml`。
 
-Only one `bar` plugin is active at a time. Missing or invalid selections fall
-back to the built-in `omarchy.bar`, so users always have a safe path home.
-Panels, overlays, and menus are loaded when summoned. Plugins that need
-to outlive a single summon can set `keepLoaded: true` (e.g. the image
-picker keeps its overlay window mounted between summons). First-party
-services are loaded at startup.
+## 用户插件
 
-The full schema lives in `services/PluginRegistry.qml`.
-
-## Installing a third-party plugin
-
-A plugin is a **git repo** with a `manifest.json` at its root. Adding one
-clones it straight into `~/.config/omarchy/plugins/<id>/` (named by the
-manifest id); updating is a fast-forward pull of that checkout.
+放到 `~/.config/anchor-shell/plugins/<id>/`，带 `manifest.json` 和
+`entryPoints` 指向的 QML，然后：
 
 ```bash
-omarchy plugin add https://github.com/acme/omarchy-weather.git
-omarchy plugin update acme.weather       # fetches, shows a diff, fast-forwards
-omarchy plugin update                    # updates every git-managed plugin
-omarchy plugin remove acme.weather
+quickshell ipc call shell rescanPlugins
 ```
 
-> ⚠️ **Plugins run as unsandboxed code inside `omarchy-shell`.** Adding warns
-> you before cloning, plugins land disabled so you can review the code before
-> enabling, and updates show a diff of the changes before touching anything.
-> Only add repos whose code you are willing to run.
+不要写到 `~/.config/omarchy/plugins/`。那是 Hyprland 的目录。
 
-Each command is **interactive** when run bare in a terminal (gum pickers,
-confirmation, a diff to review) and fully **non-interactive** when given
-arguments. Pass `--yes` to skip every prompt — this is the path for scripts and
-AI agents:
+插件在 Quickshell 进程里以非沙箱代码运行。只加载你愿意审查的源码。
+
+## IPC
+
+运行中的 shell 暴露 `shell` 目标，以及插件自己注册的目标。
+
+| Method | Effect |
+|---|---|
+| `ping` | 健康检查 |
+| `summon <id> <payloadJson>` | 打开 panel/overlay |
+| `hide <id>` | 关闭 |
+| `toggle <id> <payloadJson>` | 开关 |
+| `call <id> <method> <arg>` | 调已加载插件的方法 |
+| `rescanPlugins` | 重新扫描插件目录 |
+| `reloadConfig` | 重载 `~/.config/anchor-shell/shell.json` |
+| `setPluginEnabled <id> <enabled>` | 持久化启用位；只有字面量 `"true"` 启用 |
+| `listPlugins` | JSON 列表 |
 
 ```bash
-omarchy plugin add https://github.com/acme/omarchy-weather.git --enable --yes
-omarchy plugin update --yes
+quickshell ipc call shell ping
+quickshell ipc call shell listPlugins
 ```
 
-The installer never runs plugin code, install hooks, or sudo — it only clones
-files, validates the manifest, and toggles enabled state over shell IPC. Since
-an installed plugin is a plain git checkout, anything beyond add/update
-(pinning a ref, switching branches) is ordinary git in the plugin directory.
+Labwc 进程里 `omarchy-shell` 仍可用，因为它来自 `compat/omarchy/bin`，
+`OMARCHY_PATH` 指向那份副本。那是兼容入口，启动路径仍是
+`quickshell-topbar`。
 
-### Installing by hand
-
-You can still drop a plugin in without git:
-
-1. Put it in `~/.config/omarchy/plugins/<plugin-id>/` with a `manifest.json`
-   plus the QML referenced from its `entryPoints`.
-2. `omarchy-shell shell rescanPlugins`.
-3. `omarchy plugin enable <id>`. Bar widgets start in
-   `barWidget.defaultSection`, or in the center when it is omitted, and can be
-   moved with `omarchy bar move`; a full bar replaces the one in use.
-
-The lower-level IPC equivalents remain available via `omarchy-shell shell rescanPlugins`,
-`omarchy-shell shell enablePlugin <id> '{}'`, and `omarchy-shell shell listPlugins`.
-The `omarchy plugin` commands wrap those calls. `omarchy bar move` and
-`omarchy bar set` edit the persisted widget layout in `shell.json`.
-
-To hack on a built-in plugin safely, clone it into user config instead of
-editing the built-in source. The complete plugin directory is copied, including
-every declared kind and local dependency. A built-in id such as
-`omarchy.clock` becomes `<username>.clock` (e.g. `dhh.clock`), with `My Clock`
-as its display name. The username prefix keeps shared clones from colliding
-with each other or with other plugin authors.
-
-```bash
-omarchy plugin clone omarchy.clock
-```
-
-Cloning switches from the built-in to the new personal plugin, preserving an
-existing bar widget's position and settings. Setup > Plugins > Clone provides
-the interactive picker, then opens the new `<username>.*` directory in `$EDITOR`.
-Existing shortcuts and shell IPC calls made to the built-in id are routed to
-the enabled clone, so cloning does not require changing its callers. Removing
-an active clone switches back to its built-in source.
-Saving a file anywhere under `~/.config/omarchy/plugins/` reloads plugin code
-automatically; `omarchy-shell shell rescanPlugins` remains available to force a reload.
-
-First-party plugins under `shell/plugins/` are discovered the same way and load
-by default. Disabling a non-widget records it in `disabledPlugins[]`; disabling
-a widget removes it from the bar layout while leaving its component available
-to add again. A full bar has no off state and is replaced by enabling another.
-
-## IPC contract
-
-The shell exposes a single `shell` IPC target plus whatever extra targets
-individual plugins register (e.g. the bar's `bar` target for refresh
-hooks, the image picker's `image-selector` target). `omarchy-menu` uses the
-shell target to summon the first-party `omarchy.menu` plugin instead of
-running a separate Quickshell instance.
-
-| Method                                   | Returns | Effect                                                |
-|------------------------------------------|---------|-------------------------------------------------------|
-| `ping`                                   | `ok`    | health check                                          |
-| `summon <id> <payloadJson>`              | `ok` / `unknown` | load + open a panel/overlay plugin           |
-| `hide <id>`                              | —       | close a previously-summoned plugin                    |
-| `toggle <id> <payloadJson>`              | —       | summon if closed, hide if open                        |
-| `call <id> <method> <arg>`               | string  | call a method on an already-loaded plugin             |
-| `rescanPlugins`                          | —       | re-walk plugin dirs and hot-reload plugin code        |
-| `reloadConfig`                           | `ok`    | reload `~/.config/omarchy/shell.json`                 |
-| `setPluginEnabled <id> <enabled>`        | `ok` / `unknown` | flip the persisted enabled bit (see note)    |
-| `listPlugins`                            | JSON    | every discovered plugin, sorted by name               |
-
-Direct invocation:
-
-```
-quickshell ipc -p $NIXARCHY_ROOT/shell call shell ping
-```
-
-Hyprland autostart launches the shell directly with `quickshell -p
-$NIXARCHY_ROOT/shell`. Use `omarchy-restart-shell` to stop every running
-instance of that config and launch one fresh shell process.
-
-A convenience wrapper, [`omarchy-shell`](../bin/omarchy-shell), forwards IPC
-calls to the running shell. It does not start the shell.
-
-```
-omarchy-shell shell ping
-omarchy-shell shell toggle omarchy.menu '{"menu":"root"}'
-omarchy-shell shell listPlugins
-omarchy-shell shell rescanPlugins
-```
-
-**Note on `setPluginEnabled`:** the `enabled` argument is a string. Only the
-literal `"true"` enables the plugin; every other value (including `"True"`,
-`"1"`, `"yes"`, or omitted) disables it. This keeps the IPC surface
-type-stable across QML's `string`-only IPC arguments.
-
-## Persisted state
-
-There is one user config file. Everything that distinguishes your
-customization from the shipped defaults lives in it.
-
-| Path                              | Owner          | Purpose                                                |
-|-----------------------------------|----------------|--------------------------------------------------------|
-| `~/.config/omarchy/shell.json`    | the shell      | full layout + per-entry settings + enabled plugin list |
-| `~/.config/omarchy/plugins/<id>/` | user           | drop-in third-party plugin source files                |
-
-The `config/omarchy/shell.json` default config describes the
-fresh-install state. When the user has no `shell.json`, the shell uses
-the defaults verbatim. Once the user customizes anything, `shell.json`
-becomes the authoritative file — we do **not** deep-merge defaults back in.
-
-### shell.json shape
+## shell.json
 
 ```json
 {
@@ -363,47 +173,7 @@ becomes the authoritative file — we do **not** deep-merge defaults back in.
 }
 ```
 
-### Storage rules
-
-1. **The active bar option is `bar.id`.** Omit it or set it to `omarchy.bar`
-   to use the built-in bar. Set it to another plugin id whose manifest declares
-   `kind: "bar"` to replace the full bar.
-2. **Every plugin instance is one entry.** Either in `bar.layout.<section>`
-   for bar widgets, or in `plugins[]` for panels, overlays, services,
-   menus, and anything else non-bar.
-3. **Settings are inline on the entry.** No `config:` sub-object, no
-   separate per-plugin settings file, no merge layers. The fields on each
-   entry are the values the plugin sees.
-4. **Built-in widget ids are namespaced.** Use ids such as `omarchy.clock`,
-   `omarchy.audio`, and `omarchy.network`. The migration rewrites older ids
-   like `Clock` and `AudioPanel` forward.
-5. **Third-party enabled ⇔ present.** A third-party plugin is enabled iff
-   its id appears somewhere in shell.json. For full bar options, that means
-   `bar.id`; for bar widgets, plugin enable/disable adds/removes layout entries;
-   other plugin kinds are enabled the same way. First-party non-bar plugins
-   are enabled unless listed in `disabledPlugins[]`.
-6. **Multiple instances** are allowed when a manifest sets
-   `allowMultiple: true`. Each instance is independent — e.g. two clock
-   widgets in different timezones are just two `{"id":"omarchy.clock", "timezone": ...}`
-   entries with their own values.
-7. **Idle timings are top-level.** `idle.screensaver` and `idle.lock`
-   are seconds since user idle began, so the default lock fires at 300s
-   even if the 150s screensaver starts first.
-8. **`version: 1` is required** at the top level. The shell will fall back
-   to defaults rather than load an unknown version.
-
-## Implementation history
-
-Built up in phases on this branch:
-
-- Phase 1 — `omarchy-shell phase 1: host the existing bar in a single shell`
-- Phase 2 — `omarchy-shell phase 2: plugin registry and bar widget registry`
-- Phase 3 — `omarchy-shell phase 3: fold bar-settings into the shell as a panel plugin`
-- Phase 4 — `omarchy-shell phase 4: absorb background-switcher as a plugin`
-- Phase 5 — `omarchy-shell phase 5: docs, cleanup, and migration crumbs`
-- Phase 6 — `omarchy-shell phase 6: reviewer cleanup (path traversal, collision, races)`
-- Phase 7 — `omarchy-shell phase 7: replace socket with IpcHandler, rename to image-picker`
-- Phase 8a — `omarchy-shell phase 8a: unified shell.json with inline plugin settings`
-
-Shared services and Pipewire/UPower/Hyprland consolidation are explicitly
-out of scope here and deferred to a follow-up after a review pass.
+- `bar.id` 省略或 `omarchy.bar` 用内置顶栏。
+- 设置写在条目自己身上，没有另一层 merge。
+- first-party 非 widget 插件默认启用，禁用写入 `disabledPlugins[]`。
+- `version: 1` 必填。

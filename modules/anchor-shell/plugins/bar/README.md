@@ -9,12 +9,12 @@ the shell for its whole session.
 - `Bar.qml` is Omarchy-owned bar engine code, loaded by the omarchy-shell host. Users should not edit it directly.
 - `widgets/` holds simple first-party bar widgets with sibling manifests.
 - Feature plugins such as `../panels/audio/`, `../panels/network/`, `../panels/power/`, and `../agents/` provide richer popup bar plugins.
-- The bar receives its config from the host shell as a `barConfig` property; the host loads it from `~/.config/omarchy/shell.json` (or `config/omarchy/shell.json` when the user has no file).
+- The bar receives its config from the host shell as a `barConfig` property; the host loads it from `~/.config/anchor-shell/shell.json` (or this repository's `shell.json` when the user has no file).
 - `omarchy bar position` updates only the user shell.json file.
 
 ## Customizing
 
-The bar config lives under the `bar:` key of [`~/.config/omarchy/shell.json`](../../README.md#shelljson-shape). Out of the box the shell uses [`config/omarchy/shell.json`](../../../config/omarchy/shell.json). Once you customize anything via the bar gestures, `omarchy bar ...`, or by editing shell.json directly, your file is canonical — there is no deep-merge.
+The bar config lives under the `bar:` key of [`~/.config/anchor-shell/shell.json`](../../README.md). Out of the box the shell uses this repository's `shell.json`. Once you customize anything by editing shell.json directly, your file is canonical — there is no deep-merge.
 
 The bar is configured directly on the bar itself: drag empty bar space (or click-and-hold) to move the bar to another screen edge, double-left-click empty center-bar space to toggle transparency, and drag widgets to reorder them. The `omarchy bar position`, `omarchy bar transparent`, `omarchy bar move`, and `omarchy bar set` commands do the same from scripts. Enable or disable widgets with `omarchy plugin enable` and `omarchy plugin disable` (widget ids come from `omarchy plugin list`).
 
@@ -175,8 +175,7 @@ richer popup plugins live in feature directories such as `../panels/audio/`,
 namespaced ids.
 
 Third-party widgets ship as separate plugins under
-`~/.config/omarchy/plugins/<plugin-id>/` with their own `manifest.json`
+`~/.config/anchor-shell/plugins/<plugin-id>/` with their own `manifest.json`
 declaring `kinds: ["bar-widget"]` and a `barWidget` entry point. See
-[../../README.md](../../README.md) for the manifest schema. Rescan, enable,
-and place third-party plugins with `omarchy-shell shell rescanPlugins`,
-`omarchy plugin enable`, and `omarchy bar move`.
+[../../README.md](../../README.md) for the manifest schema. Rescan with
+`quickshell ipc call shell rescanPlugins`.

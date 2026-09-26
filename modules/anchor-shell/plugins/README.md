@@ -1,6 +1,6 @@
 # First-party plugins
 
-These plugins ship with Omarchy and are discovered by the shell at startup.
+These plugins ship with Anchor Shell and are discovered by the shell at startup.
 They use the same `manifest.json` contract as third-party plugins; the
 only difference is that the shell flags them with `__isFirstParty: true`.
 First-party non-bar plugins are enabled unless listed in `disabledPlugins[]`;
@@ -8,8 +8,9 @@ First-party non-bar plugins are enabled unless listed in `disabledPlugins[]`;
 `kind: "bar"` plugin is selected. Services and keep-loaded panels are mounted
 at startup; other panels, overlays, and menus are loaded on demand.
 
-User-installed plugins live alongside these conceptually but on disk under
-`~/.config/omarchy/plugins/<plugin-id>/` rather than in this directory.
+User-installed plugins live under `~/.config/anchor-shell/plugins/<plugin-id>/`.
+Hyprland keeps its own plugins in `~/.config/omarchy/plugins/`; this registry
+does not scan that directory.
 
 ## Migrated maintained plugins
 
@@ -54,10 +55,10 @@ own plugin directories, each with its own `manifest.json`.
 ## Bar
 
 The built-in status bar and default full-bar option. Layout lives in the
-top-level `bar:` subtree of `~/.config/omarchy/shell.json` (with the shell
-providing [`config/omarchy/shell.json`](../../config/omarchy/shell.json) when
-the user has no file). See [`bar/README.md`](bar/README.md) for the widget catalogue
-and customization schema.
+top-level `bar:` subtree of `~/.config/anchor-shell/shell.json` (with the
+shell providing [`shell.json`](../shell.json) when the user has no file).
+See [`bar/README.md`](bar/README.md) for the widget catalogue and
+customization schema.
 
 ## Image picker
 

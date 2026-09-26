@@ -1,38 +1,42 @@
 # Agent handoff guide
 
-This directory contains the Quickshell source used by the Labwc session on
-this machine. Read this file before changing bar widgets or restarting the
-shell.
+This directory is the Quickshell source for the Labwc session (Anchor Shell).
+Read this file before changing bar widgets or restarting the shell. Isolation
+and paths are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-## Source and runtime boundaries
+## Source and runtime
 
 - Editable source: `/home/tetsuya/nixos-config/modules/anchor-shell/`
-- User layout: `/home/tetsuya/.config/quickshell/shell.json`
-- Generated runtime copy: `/nix/store/...-quickshell-shell/`
+- User layout: `/home/tetsuya/.config/anchor-shell/shell.json`
+- User plugins: `/home/tetsuya/.config/anchor-shell/plugins/`
+- Nix store copy: `/nix/store/...-anchor-shell/`
 - Nix wiring: `/home/tetsuya/nixos-config/modules/labwc.nix`
-- Labwc source checkout: `/home/tetsuya/labwc-plus/`
+- Compositor checkout: `/home/tetsuya/labwc-plus/`
 
-Do not edit the generated `/nix/store` copy. It is read-only and will be
-replaced by the next rebuild. Do not modify Labwc merely to solve a bar-widget
-problem; first check whether the behavior can be implemented in QML.
+Do not edit the `/nix/store` copy. Do not edit `modules/desktop.nix` Nixarchy
+patches or `modules/home-manager/hypr/` for a Labwc shell change. Hyprland
+keeps its own Omarchy tree.
 
-The active first-party widgets for the current topbar are:
+The live first-party topbar widgets are:
 
 ```text
 plugins/bar/widgets/ActiveWindow.qml
 plugins/bar/widgets/Workspaces.qml
 ```
 
-The old external active-window plugin is separate and is not the source for the
-current `omarchy.active-window` widget:
+## Development mode
 
-```text
-/home/tetsuya/.config/omarchy/plugins/iamcheyan.active-window/
+```bash
+quickshell-mode dev
 ```
 
-## Build and apply changes
+That writes `~/.config/anchor-shell/mode` and restarts the Labwc systemd
+service so Quickshell loads this checkout. After a QML edit, run the same
+command again. Return to the store copy with `quickshell-mode nix`.
 
-For a first-party source change:
+A Nix rebuild is required when changing `labwc.nix`, the launcher, or when
+testing a store build. Stage files first (`git add`) and use `--impure`
+because `labwc-plus` lives outside the flake.
 
 ```bash
 cd /home/tetsuya/nixos-config
@@ -41,115 +45,59 @@ sudo nixos-rebuild switch --impure \
   --flake /home/tetsuya/nixos-config#hx90
 ```
 
-The `git add` is required before a flake rebuild because untracked files are
-not included in the flake source. During normal development, use the direct
-checkout mode instead:
-
-```bash
-quickshell-mode dev
-```
-
-After editing QML, run the same command again to restart the shell. Use
-`quickshell-mode nix` to return to the immutable Nix build. A Nix rebuild is
-still required when changing the Nix module, the launcher, or when testing a
-release-like store build. The compositor module is permanently
-configured to use the local `/home/tetsuya/labwc-plus` checkout on this
-machine. There is no upstream fallback package; `--impure` is required because
-that checkout is outside this flake.
-
-After the rebuild, the running shell still has the old store path until it is
-restarted. Check instances with:
+Keep one instance:
 
 ```bash
 quickshell list --all
-```
-
-Keep one instance only. Stop stale instances using their IDs:
-
-```bash
 quickshell kill --id <instance-id>
 ```
 
-Then start the shell using the session's current `QUICKSHELL_ROOT`, or log out
-and back in. Avoid repeated `pkill` calls: Labwc's autostart supervisor can
-immediately respawn the old shell and create overlapping bars.
-
-For a user plugin under `~/.config/omarchy/plugins/`, use:
+Do not `pkill`. After a user-plugin change under
+`~/.config/anchor-shell/plugins/`:
 
 ```bash
 quickshell ipc call shell rescanPlugins
 ```
 
-For only the user layout, use:
+After a layout-only change to `~/.config/anchor-shell/shell.json`:
 
 ```bash
 quickshell ipc call shell reloadConfig
 ```
 
-Neither command replaces first-party source already copied into `/nix/store`.
-
-## Current widget contracts
+## Widget contracts
 
 ### Workspaces
 
-`Workspaces.qml` uses the Labwc state files written under:
+`Workspaces.qml` reads Labwc state files:
 
 ```text
 $XDG_RUNTIME_DIR/labwc/workspace-<output-name>
 ```
 
-The current bridge writes the workspace name followed by the workspace count,
-for example:
-
-```text
-ワークスペース 1 4
-```
-
-The parser must therefore not assume the first whitespace-separated field is a
-number. It should read the final numeric fields. Labwc sessions can expose
-`XDG_CURRENT_DESKTOP=labwc:wlroots`; detect `labwc` among colon-separated
-desktop names rather than requiring an exact string match.
-
-The widget is instantiated once per bar surface/monitor. Use
-`Window.window.screen` when an operation must be scoped to that monitor.
+The bridge writes the workspace name then the count, for example
+`ワークスペース 1 4`. Parse the final numeric fields. Detect `labwc` among
+colon-separated `XDG_CURRENT_DESKTOP` names. Scope per-monitor work to
+`Window.window.screen`.
 
 ### Active window
 
-`ActiveWindow.qml` obtains titles and application IDs from
-`Quickshell.Wayland.ToplevelManager`. Application icons are resolved through
-the existing `shell.appLibrary`, which matches desktop entries and the icon
-index used by the launcher.
+Titles and app ids come from `Quickshell.Wayland.ToplevelManager`. Icons go
+through `shell.appLibrary`. Keep a global-active fallback when a toplevel
+has no `screens` list.
 
-The Wayland foreign-toplevel API may omit per-window screen information on
-some wlroots compositors. Keep a fallback for the global active toplevel so a
-missing `screens` list does not hide the widget completely. Do not assume that
-the compositor exposes a generic workspace property; Quickshell's Wayland
-`Toplevel` API provides visible screens, not a universal workspace ID.
+## Verification
 
-## Verification checklist
-
-After changing workspace or active-window behavior:
-
-1. Confirm `quickshell list --all` reports one instance using the new store path.
-2. Confirm both output state files exist and contain the expected workspace
-   name and count.
-3. Switch workspaces on each monitor separately with `Win+1` through `Win+4`.
-4. Verify the square active marker moves on only the focused monitor's bar.
-5. Open or focus windows on both monitors and verify each bar's title and icon.
-6. Capture a screenshot if visual behavior is disputed; do not infer a working
-   UI solely from the state file.
-
-If the state file changes but the bar does not, inspect the loaded store copy
-and restart Quickshell before changing Labwc. If multiple shell instances are
-listed, remove the stale ones first.
+1. `quickshell list --all` shows one instance.
+2. In `dev` mode the config path is this directory's `shell.qml`.
+3. Workspace files exist for each output; `Win+1`–`Win+4` move only the
+   focused monitor's marker.
+4. Focusing windows on each monitor updates that bar's title and icon.
 
 ## Change discipline
 
-- Keep first-party widget changes in this directory.
-- Keep user layout changes in `~/.config/quickshell/shell.json`.
-- Keep compositor changes in `/home/tetsuya/labwc-plus/` only when QML cannot
-  obtain the required information.
-- Document any unavoidable Labwc change and keep it in a separate commit from
-  the local Quickshell integration.
-- Do not commit unrelated pre-existing changes in
-  `/home/tetsuya/nixos-config`.
+- First-party widgets stay in this directory.
+- User layout stays in `~/.config/anchor-shell/shell.json`.
+- Compositor changes stay in `/home/tetsuya/labwc-plus/` only when QML
+  cannot obtain the information.
+- Do not commit unrelated pre-existing changes in `~/nixos-config`.

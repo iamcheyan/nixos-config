@@ -74,7 +74,7 @@ HX90 的 `networking.hostName` 与 flake 输出名统一为 `hx90`，因此 Nixa
 - **音频**：PipeWire（兼容 ALSA / 32 位 / PulseAudio 客户端）。
 - **蓝牙**：blueman。
 - **字体**：Noto CJK、JetBrains Mono Nerd Font、emoji、图标字体。
-- **桌面工具**：quickshell（任务栏）、walker（启动器）、grim/slurp/swappy
+- **桌面工具**：Labwc 使用 Anchor Shell（`modules/anchor-shell`，Quickshell 顶栏）；Hyprland 仍使用 Nixarchy 的 Omarchy shell。另有 grim/slurp/swappy
   （截图）、foot/kitty（终端）、pamixer、brightnessctl、nautilus 等。
 - **两处针对性修补**：
   - `QML2_IMPORT_PATH` 指向 kirigami/qt5compat 的 `.unwrapped`，确保

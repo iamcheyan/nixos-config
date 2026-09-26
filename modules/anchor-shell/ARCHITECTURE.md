@@ -1,303 +1,246 @@
-# Anchor Shell 架构与迁移说明
+# Anchor Shell 架构
 
-## 目标
+Anchor Shell 是 Labwc 会话使用的桌面功能层：顶栏、工作区、活动窗口、
+桌面图标、剪贴板、语音粘贴、锁屏、通知、闲置和相关面板。窗口管理器只
+提供 Wayland 会话、输入和窗口管理。
 
-Anchor Shell 是一套与具体 Wayland 合成器无关的桌面功能层。它承载我们日常
-真正依赖的顶栏、工作区显示、窗口标题、剪贴板、语音粘贴、锁屏、通知、闲置
-状态以及相关插件。
+它由 Quickshell 承载，源码全部在本目录。Labwc 改这里不会改 Hyprland 那份
+Omarchy shell。
 
-它可以由 Labwc、Sway、KDE Plasma 或其他兼容 Wayland 的桌面环境启动。窗口
-管理器只负责提供 Wayland 会话、输入和窗口管理；Anchor Shell 负责熟悉的顶栏
-和桌面交互。
-
-## 仓库边界
-
-```text
-modules/anchor-shell/              Anchor Shell 的完整源码
-modules/anchor-shell/plugins/      当前使用并统一维护的插件
-modules/anchor-shell/compat/       为兼容原有 Omarchy 命名和脚本保留的副本
-modules/anchor-shell/docs/         迁移、验证和插件说明
-
-# 具体源码位置
-
-```text
-/home/tetsuya/nixos-config/modules/anchor-shell/
-├── shell.qml              Quickshell 入口
-├── Commons/               颜色、样式等公共组件
-├── Ui/                    通用界面组件
-├── services/              应用、插件、状态等公共服务
-├── plugins/               当前使用和维护的插件
-│   ├── bar/               顶栏和顶栏小组件
-│   ├── clipboard/         剪贴板入口
-│   ├── desktop-icons/     桌面图标、选择与拖拽
-│   ├── voxtype/           语音输入控制插件
-│   ├── lock/              锁屏插件
-│   ├── notifications/     通知
-│   ├── panels/             网络、电源、蓝牙等面板
-│   └── services/          闲置、夜灯等后台服务
-├── compat/omarchy/        omarchy-* 兼容命令和默认资源
-└── docs/                  架构、迁移和插件文档
-```
-
-桌面图标插件已迁移到 `plugins/desktop-icons/`，运行时 ID 改为
-`desktop-icons`。
-
-## 哪些内容由仓库管理
-
-Git 仓库管理的是源码、默认资源、兼容脚本、Nix 接线和 systemd/Home Manager
-启动文件。主要接线位置是：
-
-```text
-/home/tetsuya/nixos-config/modules/labwc.nix
-/home/tetsuya/nixos-config/modules/desktop.nix
-/home/tetsuya/nixos-config/modules/labwc/labwc/scripts/quickshell
-/home/tetsuya/nixos-config/modules/labwc/labwc/scripts/quickshell-mode
-```
-
-用户自己的布局、主题修改、剪贴板历史和手动安装插件属于运行时数据，不直接
-写进 Nix 源码：
-
-```text
-~/.config/anchor-shell/              用户配置
-~/.config/anchor-shell/plugins/     用户额外插件
-~/.local/state/anchor-shell/        主题、通知、剪贴板等状态
-```
-
-这部分由 Anchor Shell 使用和初始化，但不会因为 NixOS rebuild 自动覆盖。首次
-启动时，如果新目录缺少对应文件，Labwc 会从旧 Omarchy/Quickshell 目录复制，
-不会删除旧目录。
-```
-
-旧的 `modules/quickshell/` 在迁移完成前保留为回退副本。它不是新的运行时
-来源；新的独立桌面层由 `modules/anchor-shell/` 提供。删除旧副本必须等到
-Anchor Shell 在所有目标桌面环境中完成验证之后再进行。
-
-## 运行时关系
-
-Labwc 当前通过 `modules/labwc.nix` 构建并启动 Anchor Shell：
+## 源码树
 
 ```text
 modules/anchor-shell/
-        │
-        ├── immutable Nix source: /nix/store/...-anchor-shell
-        └── development source: /home/tetsuya/nixos-config/modules/anchor-shell
-
-Labwc autostart
-        └── QUICKSHELL_ROOT → Anchor Shell
+├── shell.qml              Quickshell 入口
+├── shell.json             仓库默认布局
+├── Commons/               颜色、样式
+├── Ui/                    通用界面组件
+├── services/              应用库、插件注册、状态
+├── plugins/               Labwc 实际加载的插件
+│   ├── bar/               顶栏、工作区、活动窗口
+│   ├── clipboard/         剪贴板（runtime id: iamcheyan.clipboard）
+│   ├── desktop-icons/     桌面图标（runtime id: desktop-icons）
+│   ├── voxtype/           语音粘贴（runtime id: hancore.voxtype-enhance）
+│   ├── launcher/          启动器
+│   ├── lock/              锁屏（runtime id: omarchy.lock）
+│   ├── notifications/
+│   ├── osd/
+│   ├── panels/            网络、电源、蓝牙、时钟等
+│   ├── polkit/
+│   └── services/          闲置、夜灯、电池、媒体
+├── compat/omarchy/        Labwc 自己的 omarchy-* 命令和默认资源副本
+└── docs/                  迁移记录和插件说明
 ```
 
-## Nixarchy 脱钩进度
+`compat/omarchy/` 是给 Labwc 用的兼容层，不是 Hyprland 的运行时。Hyprland
+的 Omarchy 来自 Nixarchy 包和 `~/.config/omarchy/`。不要把两棵树当成同一份。
 
-Labwc/Anchor Shell 的第一阶段脱钩已经完成：
+旧的 `modules/quickshell/` 已经删除。它曾经是迁到本目录之前的回退副本，
+没有任何 `.nix` 引用，Labwc 和 Hyprland 都不读它。
 
-- Labwc 不再使用 `config.programs.nixarchy.package` 作为运行时或回退路径；
-- Omarchy 兼容命令和 shell 运行时来自本仓库的 `compat/omarchy/`；
-- Labwc 使用独立的 `anchor-fcitx5.service`，不再启动或重启
-  `omarchy-fcitx5.service`；
-- Telegram Desktop 等普通应用通过标准 `environment.systemPackages` 声明，
-  不再依赖 `programs.nixarchy.apps`。
+## 仓库接线
 
-Nixarchy 暂时仍保留在系统中，因为 Hyprland/Omarchy 会话仍使用它自己的
-模块、包和服务。后续移除 Nixarchy 前，还需要迁移 Hyprland 的系统接线、主题
-服务、用户模块以及 `nixarchy-apps.nix` 的剩余选项。这个阶段不会修改那些配置。
+```text
+modules/labwc.nix                          Labwc 会话、autostart、systemd
+modules/labwc-plus.nix                     本机 labwc-plus 合成器包
+modules/labwc/labwc/scripts/quickshell     启动入口（安装为 quickshell-topbar）
+modules/labwc/labwc/scripts/quickshell-mode
+```
 
-开发模式由 `~/.config/anchor-shell/mode` 选择，内容为 `dev` 时使用仓库源码；
-其他情况使用 Nix 构建副本。旧的 `~/.config/quickshell/mode` 只作为兼容读取
-来源。切换模式的入口仍保留原来的命令名：
+`modules/desktop.nix`、`modules/home-manager/hypr/`、
+`modules/packages/nixarchy-omarchy.nix` 属于 Hyprland/Omarchy 会话。改
+Labwc 顶栏或插件时不要动这些文件。
+
+## 运行时目录
+
+| 用途 | 路径 |
+|---|---|
+| 用户布局 | `~/.config/anchor-shell/shell.json` |
+| 用户插件 | `~/.config/anchor-shell/plugins/` |
+| 模式选择 | `~/.config/anchor-shell/mode`（`dev` 或 `nix`） |
+| 状态 | `~/.local/state/anchor-shell/` |
+| 启动入口 | `~/.local/bin/quickshell-topbar` |
+| 模式切换 | `~/.local/bin/quickshell-mode` |
+
+Labwc 第一次启动时，如果新目录还没有对应文件，会从
+`~/.config/omarchy/`、`~/.local/state/omarchy/`、`~/.config/quickshell/`
+复制一份。旧目录会留下，Hyprland 继续用它们。
+
+磁盘上的 `~/.config/quickshell/` 只是旧数据。`quickshell-mode` 在
+`~/.config/anchor-shell/mode` 不存在时仍会去读它，不要把它当成现行配置。
+
+## 开发模式和正式模式
+
+`~/.config/anchor-shell/mode` 为 `dev` 时，启动器直接加载本目录：
+
+```text
+QUICKSHELL_ROOT=/home/tetsuya/nixos-config/modules/anchor-shell
+```
+
+其他情况使用 Nix 构建的不可变副本：
+
+```text
+QUICKSHELL_ROOT=/nix/store/<hash>-anchor-shell
+```
+
+用户插件目录始终是 `~/.config/anchor-shell/plugins/`。仓库内 first-party
+插件由 `shell.qml` 通过 `QUICKSHELL_ROOT/plugins` 扫描，不经过
+`QUICKSHELL_PLUGINS_DIR`。
 
 ```sh
-quickshell-mode dev
-quickshell-mode nix
+quickshell-mode dev      # 切到仓库源码并重启
+quickshell-mode nix      # 切回 store 副本并重启
 quickshell-mode status
 ```
 
-这些命令名暂时不改，是为了兼容已有脚本和个人工作流；它们的实现和运行源
-已经由本仓库管理。
-
-## 编译后的位置
-
-Nix 构建会把源码复制到不可变的 `/nix/store/`。路径中的哈希会随着源码或依赖
-变化，因此不能把哈希写死。当前系统中对应的主要产物包括：
-
-```text
-/nix/store/...-anchor-shell
-/nix/store/...-anchor-shell-omarchy-compat
-/nix/store/...-home-manager-files
-/nix/store/...-hm_quickshell
-/nix/store/...-hm_quickshellmode
-/nix/store/...-nixos-system-hx90-...
-```
-
-当前系统 generation 可以通过下面命令查看：
+改 QML、manifest 或本目录下的插件时，用 `dev`，改完再执行一次
+`quickshell-mode dev` 重启。Labwc 的 `reload`（右键菜单 Reload
+Configuration）如果发现当前是开发模式，会写回 `nix` 并只通过
+`anchor-shell-labwc-probe.service` 拉起一根顶栏，避免开发实例和
+systemd 实例叠在一起。改 `modules/labwc.nix`、启动脚本或要验证
+store 构建时，才需要：
 
 ```sh
-readlink -f /run/current-system
-nix path-info -r /run/current-system | rg 'anchor-shell|hm_quickshell|home-manager-files'
+cd /home/tetsuya/nixos-config
+git add modules/anchor-shell/<changed-file>
+sudo nixos-rebuild switch --impure --flake /home/tetsuya/nixos-config#hx90
 ```
 
-Home Manager 暴露给用户的入口是符号链接：
+本机合成器来自 `/home/tetsuya/labwc-plus`，在 flake 外，所以 rebuild
+需要 `--impure`。
 
-```text
-~/.local/bin/quickshell-topbar
-~/.local/bin/quickshell-mode
-~/.config/labwc/autostart
-~/.config/labwc/scripts/quickshell
-~/.config/labwc/scripts/quickshell-mode
-```
-
-这些链接最终指向 `/nix/store/...`，但开发模式启动的 Quickshell 会直接加载：
-
-```text
-/home/tetsuya/nixos-config/modules/anchor-shell/shell.qml
-```
-
-因此“源码位置”和“编译后位置”可能不同，实际运行位置要以实例信息为准：
+一次运行里，命令行 `-p` 和 `QUICKSHELL_ROOT` 必须指向同一棵树。用
+`quickshell list --all` 和进程环境确认：
 
 ```sh
 quickshell list --all
+pid=$(quickshell list --all | awk '/Process ID:/ {print $3; exit}')
+tr '\0' ' ' < /proc/$pid/cmdline; echo
+tr '\0' '\n' < /proc/$pid/environ | rg '^QUICKSHELL_|^ANCHOR_|^OMARCHY_PATH=|^NIXARCHY_ROOT='
 ```
 
-## 启动链和运行环境
+保持一个实例。不要 `pkill`；Labwc 的 systemd 服务会立刻拉起旧进程，
+容易叠两根顶栏。
 
-Labwc 的启动链如下：
+## Labwc 启动链
 
 ```text
-NixOS 配置
-  └── modules/labwc.nix
-      └── ~/.config/labwc/autostart
+Labwc
+  └── ~/.config/labwc/autostart
+      └── systemctl --user restart anchor-shell-labwc-probe.service
           └── ~/.local/bin/quickshell-topbar
-              └── Anchor Shell / Quickshell
+              └── quickshell -p $QUICKSHELL_ROOT
 ```
 
-当前实例使用的关键环境变量是：
+Labwc 进程里的关键环境：
 
 ```text
-QUICKSHELL_ROOT              Anchor Shell 源码或 store 副本
+QUICKSHELL_ROOT              本目录或 /nix/store/...-anchor-shell
 QUICKSHELL_CONFIG            ~/.config/anchor-shell/shell.json
 QUICKSHELL_PLUGINS_DIR       ~/.config/anchor-shell/plugins
 ANCHOR_SHELL_CONFIG_DIR      ~/.config/anchor-shell
 ANCHOR_SHELL_STATE_DIR       ~/.local/state/anchor-shell
 ANCHOR_SHELL_PLUGINS_DIR     ~/.config/anchor-shell/plugins
-OMARCHY_PATH                 modules/anchor-shell/compat/omarchy
-NIXARCHY_ROOT                modules/anchor-shell/compat/omarchy
+OMARCHY_PATH                 modules/anchor-shell/compat/omarchy 的副本
+NIXARCHY_ROOT                同上，只是兼容变量名
+XDG_CURRENT_DESKTOP          labwc
 ```
 
-最后两个变量只是兼容名称；在 Labwc 下指向本仓库的兼容副本，不指向外部
-Nixarchy/Omarchy store 包。
+`OMARCHY_PATH` / `NIXARCHY_ROOT` 在 Labwc 进程里指向本仓库兼容层。
+系统 `/etc/set-environment` 里仍有一份指向 Nixarchy 包的 `OMARCHY_PATH`，
+那是给 Hyprland 会话用的；Labwc 的 systemd 服务会覆盖进程环境。
 
-## 插件加载规则
-
-Anchor Shell 的插件注册器统一扫描 `modules/anchor-shell/plugins/`。已迁入的外部来源插件也放在该目录，由插件 README 记录其来源。
-
-Hyprland/Omarchy 继续使用它自己的 `~/.config/omarchy/plugins/`。Anchor Shell
-不会把这个目录作为插件来源，因此在 Anchor Shell 中修改、替换或调试插件，
-不会改变 Hyprland/Omarchy 正在使用的插件源码。
-
-原有插件 ID 和脚本名可以继续保留，例如：
-
-- `omarchy.clock`
-- `omarchy.lock`
-- `iamcheyan.clipboard`
-- `hancore.voxtype-enhance`
-- `desktop-icons`
-
-Voxtype 的源码目录现为 `modules/anchor-shell/plugins/voxtype/`；为保持现有
-配置和 IPC 兼容，目录名已经改变，但 manifest ID 仍然是
-`hancore.voxtype-enhance`。
-
-这些名称是兼容接口，不代表 Anchor Shell 仍然属于 Omarchy。
-
-## 配置与状态
-
-当前迁移采用“源码先迁移、用户状态再隔离”的顺序。Anchor Shell 现在使用：
+输入法：
 
 ```text
-~/.config/anchor-shell/shell.json
-~/.config/anchor-shell/shell.toml
-~/.config/anchor-shell/lock-screen.json
-~/.local/state/anchor-shell/...
+Labwc       → anchor-fcitx5.service
+Hyprland    → omarchy-fcitx5.service
 ```
 
-Labwc 第一次启动时会在目标文件不存在的情况下，从旧的用户文件复制布局、
-主题、锁屏设置和相关状态；复制是非破坏性的，旧路径不会被删除或覆盖。
-因此现有布局、主题和历史数据可以平滑迁移。
+## 和 Hyprland / Omarchy 的隔离
 
-旧路径只作为一次性迁移来源保留：
+Labwc 的 shell 源码、配置、状态、插件扫描和输入法服务已经分开。
+
+| 层 | Labwc | Hyprland / Omarchy |
+|---|---|---|
+| Shell 源码 | `modules/anchor-shell/` | Nixarchy 包 `/nix/store/...-omarchy-*` 和 `...-nixarchy-omarchy-tree` |
+| 用户布局 | `~/.config/anchor-shell/` | `~/.config/omarchy/` |
+| 用户插件 | `~/.config/anchor-shell/plugins/` | `~/.config/omarchy/plugins/` |
+| 状态 | `~/.local/state/anchor-shell/` | `~/.local/state/omarchy/` |
+| 启动 | `anchor-shell-labwc-probe.service` | Omarchy/Hyprland autostart |
+| 输入法 | `anchor-fcitx5.service` | `omarchy-fcitx5.service` |
+
+Anchor Shell 的 PluginRegistry 只扫描 `modules/anchor-shell/plugins/` 和
+`~/.config/anchor-shell/plugins/`。改本目录的插件不会改
+`~/.config/omarchy/plugins/`。
+
+Hyprland 会话在本仓库里的位置：
 
 ```text
-~/.config/quickshell/shell.json
-~/.config/omarchy/shell.toml
-~/.config/omarchy/lock-screen.json
-~/.local/state/omarchy/...
+modules/desktop.nix
+modules/home-manager/hypr/
+modules/home-manager/omarchy-plugins.list
+modules/home-manager/nixos-user.nix   中的 programs.nixarchy
+modules/packages/nixarchy-omarchy.nix
 ```
 
-迁移后 Anchor Shell 不再读取或写入 Omarchy 的用户状态目录；
-Hyprland/Omarchy 的配置和历史数据会保持原样。
+`desktop.nix` 里对 `nixarchyPackage` 的 `postInstall` 补丁（字体、去掉
+SystemSwitch、锁屏时禁止热重载）改的是 Hyprland 那份 shell。改 Labwc
+不要动那里。
 
-## 与 Hyprland/Omarchy 的隔离原则
+仍然连在一起、改 Labwc 时要避开的系统层：
 
-### Anchor Shell 可以拥有的内容
+- `labwc.nix` 往系统 PATH 放了一个高优先级 `quickshell` 包装器（Kirigami /
+  `QT_QUICK_CONTROLS_STYLE=Basic`）。Hyprland 如果直接调用 `quickshell`，
+  也会走到这个包装器。
+- `~/.local/bin/quickshell-mode` 会杀掉当前用户下任意 Quickshell 实例。
+  只在 Labwc 会话里用它。
+- 主题、keyd、Voxtype、PipeWire 是会话共享的系统服务，不属于任何一套
+  shell。
 
-- 顶栏布局和顶栏插件；
-- 锁屏界面及其 Quickshell IPC 服务；
-- 剪贴板历史界面和粘贴逻辑；
-- 语音输入后的粘贴适配；
-- 通知、闲置、工作区和活动窗口显示；
-- 与合成器无关的启动、截图和桌面操作脚本。
+`omarchy-*` 命令名、`omarchy.*` 插件 ID、`NIXARCHY_ROOT`、`OMARCHY_PATH`
+是兼容接口。在 Labwc 下它们指向 `compat/omarchy/`，不是把 Labwc 接回
+Nixarchy。
 
-### 不应由 Anchor Shell 修改的内容
+## 插件 ID
 
-- `~/.config/hypr/`；
-- `~/.config/omarchy/shell.json`；
-- `~/.config/omarchy/plugins/`；
-- Hyprland 的窗口规则、动画、工作区和显示器配置；
-- Omarchy 原有插件的源码和运行时状态。
+目录名可以和 runtime id 不同，`shell.json` 继续用原来的 id：
 
-### 必须明确标记的兼容内容
+| 源码目录 | Runtime ID |
+|---|---|
+| `plugins/bar/` | `omarchy.bar` 以及 `omarchy.workspaces`、`omarchy.active-window` 等 |
+| `plugins/clipboard/` | `iamcheyan.clipboard` |
+| `plugins/desktop-icons/` | `desktop-icons` |
+| `plugins/voxtype/` | `hancore.voxtype-enhance` |
+| `plugins/lock/` | `omarchy.lock` |
+| `plugins/launcher/` | `iamcheyan.launcher` |
 
-`omarchy-*` 命令名、`omarchy.*` 插件 ID、`NIXARCHY_ROOT` 和 `OMARCHY_PATH`
-等名称目前作为兼容接口保留。它们只能指向 Anchor Shell 的兼容副本或
-明确声明的只读兼容资源，不能重新成为 Hyprland 配置的隐式写入口。
+`hancore.overview-workspaces` 和独立的 `iamcheyan.active-window` 用户插件
+已经不再作为仓库插件维护；现行顶栏用 `plugins/bar/widgets/`。
 
-系统级的 keyd、Fcitx、Voxtype、PipeWire 和 systemd user 服务不属于任一套
-Shell，因此天然可能被两个桌面环境共享。修改这些服务时必须单独评估，不能
-把它们误认为 Anchor Shell 私有配置。
+## 修改范围
 
-## 修改流程
+改 Labwc 桌面层时，动这些：
 
-修改 Anchor Shell 源码时：
+- `modules/anchor-shell/`
+- `modules/labwc.nix`、`modules/labwc-plus.nix`、`modules/labwc/`
 
-```sh
-cd /home/tetsuya/nixos-config
-git add modules/anchor-shell/<changed-file>
-nixos-rebuild build --impure --flake .#hx90
-```
+不要动这些：
 
-确认构建成功后，再执行切换：
+- `~/.config/hypr/` 和 `modules/home-manager/hypr/`
+- `~/.config/omarchy/`
+- Nixarchy 包和 `programs.nixarchy`
+- `modules/desktop.nix` 里对 Omarchy 包的补丁
 
-```sh
-sudo nixos-rebuild switch --impure --flake /home/tetsuya/nixos-config#hx90
-```
-
-运行中的 Quickshell 不会自动变成新 store 路径。切换后应确认只有一个实例，
-并按当前环境重启 Anchor Shell；不要编辑 `/nix/store` 中的生成副本。
-
-## 验收标准
-
-迁移完成、可以考虑删除旧目录之前，必须确认：
-
-1. Labwc、Sway 或 KDE 启动的都是 `modules/anchor-shell` 对应的实例；
-2. Hyprland/Omarchy 仍使用自己的 shell、插件目录和配置；
-3. 两套环境的顶栏布局、剪贴板历史、通知状态和锁屏设置互不覆盖；
-4. Anchor Shell 中修改插件不会改变 `~/.config/omarchy/plugins/`；
-5. 在 Anchor Shell 下执行主题、锁屏、剪贴板和语音粘贴测试后，重新进入
-   Hyprland/Omarchy，原有功能仍保持不变；
-6. `nix flake check --no-build` 和 `nixos-rebuild build --impure --flake
-   .#hx90` 均通过；
-7. 旧 `modules/quickshell/` 只在确认无回退需求后才删除。
+合成器改动只放 `/home/tetsuya/labwc-plus/`，并且只在 QML 拿不到所需信息
+时才改。
 
 ## 回退
 
-如果 Anchor Shell 的新源码出现问题，可以暂时把 `modules/labwc.nix` 的源码
-路径恢复到旧的 `modules/quickshell/`，然后重新构建。Hyprland/Omarchy 不需要
-任何回退操作，因为它们的配置树没有被此迁移修改。
+Anchor Shell 出问题：
+
+1. `quickshell-mode nix` 回到上一次 store 构建；或
+2. 回退到上一个 NixOS generation。
+
+Hyprland 不需要为 Anchor Shell 的改动做任何回退。旧的
+`modules/quickshell/` 已经不存在，不能再把 `labwc.nix` 指回去。
