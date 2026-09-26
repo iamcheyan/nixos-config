@@ -7,15 +7,9 @@
 
 Voxtype Enhance is an Omarchy experience-enhancement plugin for Voxtype voice input. It adds a native top-bar microphone control and a compact settings panel for speech models, language, and output behavior.
 
-## Upstream source and local maintenance
+## Screenshot
 
-- Upstream repository: [iamcheyan/omarchy-voxtype-enhance](https://github.com/iamcheyan/omarchy-voxtype-enhance)
-- Upstream plugin directory: repository root, original plugin ID `hancore.voxtype-enhance`
-- Local maintained copy: `modules/anchor-shell/plugins/voxtype/`
-
-This copy is managed together with Anchor Shell and includes local Labwc/NixOS
-integration. Review upstream changes manually before applying them here; do not
-use `omarchy plugin update` for the active Anchor Shell copy.
+![Voxtype Enhance settings panel](screenshot-2026-08-22_13-24-42.png)
 
 **English:** The settings panel is opened from the microphone icon in the top bar. It shows the available speech models, language choices, and output modes.
 
@@ -42,9 +36,7 @@ use `omarchy plugin update` for the active Anchor Shell copy.
 
 ## Installation
 
-Install Voxtype first through the system configuration, then enable the local
-plugin through Anchor Shell. The upstream installation command below is retained
-only as a reference for the standalone Omarchy plugin:
+Install Voxtype first through Omarchy's AI / Dictation setup, then install the plugin:
 
 ```sh
 omarchy plugin add https://github.com/iamcheyan/omarchy-voxtype-enhance.git --enable
@@ -119,8 +111,6 @@ the same terminal policy as Omarchy's `clipboard.lua`:
 
 - Omarchy terminal/TUI windows receive `Shift+Insert`;
 - graphical applications receive `Ctrl+V`.
-- For a focused XWayland app such as WeChat, the hook mirrors the recognized text
-  to the X11 clipboard with `xclip` and sends `Ctrl+V` through `xdotool`.
 
 This avoids terminal applications interpreting `Ctrl+V` as a special action,
 such as an image-paste command. Labwc/Sway/KDE use the Wayland virtual

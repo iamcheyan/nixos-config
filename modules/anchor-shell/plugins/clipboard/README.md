@@ -1,130 +1,333 @@
-# `iamcheyan.clipboard`
+# omarchy-clipboard
 
-这是当前 Anchor Shell/Labwc 会话唯一使用的剪贴板插件。它不是只负责显示历史记录的 UI，而是完整拥有剪贴板历史的捕获、存储、展示和粘贴流程。
+## Unreleased
 
-## 上游来源与本地维护路径
+- Make `Super+Ctrl+V` resilient to Quickshell reloads. The runtime binding now
+  calls the plugin launcher, which can start the on-demand panel when the
+  widget's IPC handler is temporarily unavailable.
+- Reapply the binding shortly after a Hyprland configuration reload.
 
-- 上游仓库：[iamcheyan/omarchy-clipboard](https://github.com/iamcheyan/omarchy-clipboard)
-- 上游插件目录：仓库根目录，原始插件 ID 为 `iamcheyan.clipboard`
-- 本地维护副本：`modules/anchor-shell/plugins/clipboard/`
+## 1.0.2
 
-当前目录是 Anchor Shell 的仓库内副本，已经包含 Labwc、Anchor Shell 状态目录和本机运行时的适配。后续同步上游时应先比较变更、检查本地适配，再手动合并；不要对当前运行版本使用 `omarchy plugin update`。
+- Avoid binding the panel to a missing or placeholder screen during monitor
+  hotplug and lock transitions.
 
-## 当前职责
+## 1.0.1
 
-- 顶栏剪贴板按钮和历史面板；
-- 文本和图片剪贴板捕获；
-- 多显示器和光标位置打开；
-- 文本、图片及图片路径粘贴；
-- 历史条目删除和清空；
-- Labwc 快捷键通过 Quickshell IPC 打开面板；
-- Quickshell 重载后重新建立剪贴板 watcher。
+- Fixed clipboard preview rendering so clipboard content never passes through
+  `bash -c` or becomes a shell `printf` format string. Preview text is assigned
+  directly to the plain-text QML editor.
 
-插件 ID：
+omarchy-clipboard is an Omarchy bar-widget plugin for browsing and pasting
+clipboard history. It uses Omarchy's original clipboard implementation as its
+backend and adds a more convenient interface around it.
 
-```text
-iamcheyan.clipboard
+![omarchy-clipboard preview](preview.png)
+
+The panel keeps the image preview on the left and the clipboard history on the
+right.
+
+## What this plugin changes
+
+The plugin does not invent a new clipboard format or a second set of paste
+rules. It reuses Omarchy's native clipboard history, native image files, native
+paste helpers, and native terminal/GUI paste behavior.
+
+It adds two conveniences:
+
+- The image row has an action for pasting the image's source file path as text.
+- `Super+Ctrl+V` opens the panel at the mouse pointer and uses the same edge
+  avoidance behavior as Omarchy's original cursor-based panel placement. The
+  top-bar button continues to open it from the fixed bar position.
+
+## Features
+
+- Native Omarchy text and image clipboard history.
+- Native Omarchy image storage and paste behavior.
+- Top-bar clipboard button using Omarchy's bar integration.
+- Cursor-positioned shortcut with automatic screen-edge avoidance.
+- Image preview on the left and history menu on the right.
+- Image file-path paste from the arrow action on an image row.
+- Display-only cleanup of leading whitespace and punctuation-only entries;
+  native history data is not changed.
+- No `cliphist`, replacement clipboard watcher, or second clipboard daemon.
+
+## Installation
+
+Install the plugin with Omarchy's plugin manager:
+
+```sh
+omarchy plugin add https://github.com/iamcheyan/omarchy-clipboard.git --enable
 ```
 
-## 唯一数据流
+The plugin provides a `bar-widget` entry point. If the button is not placed
+automatically, add **omarchy-clipboard** to the right side of the top bar.
 
-Labwc 当前只使用一套 Anchor Shell 状态目录：
+Click the clipboard button to open the panel at the bar. Press `Super+Ctrl+V`
+to open it near the mouse pointer. Selecting an item pastes it into the focused
+application. For an image, click the arrow on the right side of its row to
+paste the native image file path instead.
 
-```text
-${ANCHOR_SHELL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/anchor-shell}/clipboard-history.json
-${ANCHOR_SHELL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/anchor-shell}/clipboard-images/
+## Shortcut recovery after a shell reload
+
+The shortcut is installed at runtime by the bar widget. `Super+Ctrl+V` invokes
+the plugin's `bin/iamcheyan-clipboard` launcher rather than depending only on a
+live Quickshell IPC handler. If the shell is reloaded, the widget reapplies the
+binding after Hyprland finishes reloading. If the IPC handler is still
+unavailable, the launcher starts an on-demand cursor-positioned panel.
+
+To manually refresh the shell after changing plugin files:
+
+```sh
+omarchy restart shell
 ```
 
-数据流如下：
+## Omarchy native integration
 
-```text
-Wayland clipboard
-    │
-    ├─ wl-paste --watch (text)
-    └─ wl-paste --watch (image/png)
-             │
-             ▼
-backend/capture.sh
-             │
-             ├─ clipboard-history.json
-             └─ clipboard-images/
-             │
-             ▼
-apps/iamcheyan-clipboard/services/Cliphist.qml
-             │
-             ▼
-ClipboardPanel.qml / bar/widget.qml
+The plugin intentionally reuses Omarchy's existing state and helper commands:
+
+- Text and image entries come from `~/.local/state/omarchy/clipboard-history.json`.
+- Native image files are stored under
+  `~/.local/state/omarchy/clipboard-images/`.
+- Image paste uses `omarchy-clipboard-paste-file`.
+- Text paste uses Omarchy's native history-aware paste helper.
+- The image-path action uses universal paste behavior: terminals receive
+  `Shift+Insert`, while graphical applications receive `Ctrl+V`.
+
+The plugin does not install `cliphist`, replace Omarchy's clipboard watcher, or
+copy the original image data into a second history store.
+
+## Dependencies
+
+The required runtime components are provided by Omarchy and the normal desktop
+installation:
+
+- Omarchy Quickshell;
+- Hyprland and `hyprctl`;
+- Wayland clipboard utilities `wl-copy` and `wl-paste`;
+- Python 3 standard library for the image-path universal-paste helper.
+
+No additional clipboard service is required.
+
+The image-path helper resolves `wl-copy`, `sleep`, `python3`, and `hyprctl`
+only from fixed system directories (`/usr/bin`,
+`/run/current-system/sw/bin`, and `/bin`). It fails closed if a required
+executable is unavailable; it never trusts the ambient `PATH` for this
+clipboard/input path.
+
+## Uninstallation
+
+Disable or remove the plugin through Omarchy's plugin manager. This removes the
+top-bar widget and the plugin-owned runtime binding. Omarchy's native clipboard
+history and image files remain available after the plugin is removed.
+
+## Validation
+
+From the plugin repository root:
+
+```sh
+omarchy plugin validate .
+qmllint -I "${NIXARCHY_ROOT:-/usr/share/omarchy}/shell" \
+  ClipboardPanel.qml bar/widget.qml \
+  apps/iamcheyan-clipboard/modules/clipboard/ClipboardDialog.qml
+python3 -m py_compile scripts/*.py
 ```
 
-文本粘贴脚本也从同一个 `clipboard-history.json` 读取，使用历史索引时不能再读取 `labwc/` 或 `omarchy/` 下的旧文件。
+## License
 
-## 与旧实现的关系
+MIT. See [LICENSE](LICENSE).
 
-Labwc 的插件注册表只加载 `modules/anchor-shell/plugins/` 下的插件，因此该会话只运行 `iamcheyan.clipboard`。未引用的旧版 `Clipboard.qml` 重复 UI 已移除。
+---
 
-独立的 Hyprland Omarchy 兼容会话仍保留它自己的 `omarchy.clipboard` 插件副本；它与 Labwc 会话不会同时运行，也不属于这条 Anchor Shell 数据流。Labwc 的快捷键和菜单统一使用 `iamcheyan.clipboard`。
+# 中文说明
 
-本插件不应再依赖：
+omarchy-clipboard 是一个 Omarchy 顶栏剪贴板插件，用于浏览和粘贴剪贴板历史。它使用 Omarchy 原版剪贴板实现作为后端，并在此基础上提供更方便的操作界面。
 
-- `modules/anchor-shell/compat/omarchy/shell/plugins/clipboard/`；
-- 其他 `clipboard-history.json` 或 `clipboard-images/` 状态目录；
-- `~/.local/state/omarchy/clipboard-history.json` 作为运行时主文件；
-- `~/.local/state/labwc/clipboard-history.json` 作为运行时主文件；
-- `cliphist` 作为后台捕获守护进程。
+![omarchy-clipboard 预览](preview.png)
 
-启动时仍可以从旧的 Omarchy 状态目录迁移一次历史和图片，这是数据迁移，不是运行时双写。迁移不会删除旧目录，便于回滚和兼容性检查。
+面板左侧是图片预览，右侧是剪贴板历史菜单。
 
-## 组件说明
+## 插件做了什么
 
-### `apps/iamcheyan-clipboard/services/ClipboardCapture.qml`
+插件没有创造新的剪贴板格式，也没有建立第二套粘贴规则。它直接复用 Omarchy 原生的剪贴板历史、原生图片文件、原生粘贴脚本，以及原生的终端/图形应用粘贴行为。
 
-由 manifest 的 `service` 入口加载，负责启动和重启两个 `wl-paste --watch` 进程。启动时会清理旧版 Omarchy watcher 和本插件旧实例，确保当前会话只有一组 watcher。
+插件额外提供两个便利功能：
 
-### `backend/capture.sh`
+- 图片条目增加“把图片源文件地址作为文本粘贴”的操作。
+- 按下 `Super+Ctrl+V` 时，面板会出现在鼠标光标附近，并使用与 Omarchy 原版光标面板相同的屏幕边缘避让逻辑。点击顶栏按钮时，仍然从顶栏固定位置打开。
 
-接收 watcher 的文本或图片数据，过滤敏感剪贴板内容，写入统一的 Anchor Shell 状态目录，并使用文件锁和原子替换避免并发损坏历史文件。
+## 功能
 
-### `apps/iamcheyan-clipboard/services/Cliphist.qml`
+- 使用 Omarchy 原生的文本和图片剪贴板历史。
+- 使用 Omarchy 原生的图片存储和粘贴行为。
+- 在顶栏提供剪贴板按钮，并使用 Omarchy 的顶栏集成。
+- 快捷键打开时跟随光标，并自动避开屏幕边缘。
+- 左侧图片预览、右侧历史菜单。
+- 点击图片条目右侧箭头，把图片文件地址粘贴为文本。
+- 只在显示层清理行首空白、隐藏只有标点符号的条目，不修改原生历史数据。
+- 不安装 `cliphist`，不替换系统剪贴板监听器，也不增加第二个剪贴板守护进程。
 
-读取统一历史文件，为面板提供条目、过滤、删除和清空操作，并调用本插件自己的粘贴脚本。
+## 安装
 
-### `backend/clipboard-paste-text`
+使用 Omarchy 插件管理器安装：
 
-通过历史索引从统一的 Anchor Shell 历史文件读取文本，写回 Wayland clipboard，然后根据参数发送 `Shift+Insert` 或普通文本输入。
-
-### `backend/clipboard-paste-file`
-
-将图片文件以原始 MIME 类型写回 Wayland clipboard，并按需发送终端兼容的粘贴按键。
-
-## Labwc 快捷键
-
-Labwc 的 `clipboard-history` 脚本只负责找到正在运行的 Quickshell，并调用：
-
-```text
-quickshell ipc --pid <pid> call iamcheyan.clipboard toggleAtCursor
+```sh
+omarchy plugin add https://github.com/iamcheyan/omarchy-clipboard.git --enable
 ```
 
-快捷键脚本不应启动第二个 Quickshell，也不应直接调用旧的 `omarchy.clipboard`。
+插件提供 `bar-widget` 入口。如果按钮没有自动加入顶栏，可以把 **omarchy-clipboard** 添加到顶栏右侧。
 
-## 维护规则
+点击顶栏剪贴板按钮，会在顶栏固定位置打开面板。按下 `Super+Ctrl+V`，会在鼠标附近打开面板并自动避让。选择条目即可粘贴到当前获得焦点的应用。对于图片，点击条目右侧箭头即可粘贴原生图片文件地址。
 
-- 只保留这一套 watcher、历史文件和图片目录；
-- UI、捕获脚本和粘贴脚本必须使用相同的状态根目录；
-- 不要把 `cliphist` 选择器重新接回当前主流程；
-- 修改后检查 `ps`，确认只有本插件的 text/image 两个 watcher；
-- 修改后用 Quickshell IPC 测试顶栏按钮、快捷键、文本粘贴和图片粘贴；
-- Labwc 快捷键和命令入口统一调用 `iamcheyan.clipboard`；Omarchy 兼容会话使用自己的独立插件。
+## Shell 重载后的快捷键恢复
 
-## 运行时检查
+快捷键由顶栏 widget 在运行时注册。`Super+Ctrl+V` 现在调用插件自己的
+`bin/iamcheyan-clipboard` launcher，不再只依赖当前 Quickshell IPC handler。
+Shell 重载时，widget 会在 Hyprland 重载完成后重新注册快捷键；如果 IPC
+handler 暂时仍不可用，launcher 会自动启动一个跟随鼠标位置的 on-demand 面板。
 
-```bash
-quickshell list --all
-ps -eo pid,ppid,args | rg 'wl-paste.*clipboard'
-test -f "${XDG_STATE_HOME:-$HOME/.local/state}/anchor-shell/clipboard-history.json"
+修改插件文件后可以手动刷新 Shell：
+
+```sh
+omarchy restart shell
 ```
 
-正常情况下，watcher 命令应指向：
+## 与 Omarchy 原生实现的关系
 
-```text
-modules/anchor-shell/plugins/clipboard/backend/capture.sh
+插件有意复用 Omarchy 已有的状态和辅助脚本：
+
+- 文本和图片条目来自 `~/.local/state/omarchy/clipboard-history.json`。
+- 原生图片文件保存在 `~/.local/state/omarchy/clipboard-images/`。
+- 图片粘贴使用 `omarchy-clipboard-paste-file`。
+- 文本粘贴使用 Omarchy 原生的历史感知粘贴辅助脚本。
+- 图片地址操作使用万能粘贴逻辑：终端发送 `Shift+Insert`，图形应用发送 `Ctrl+V`。
+
+插件不会安装 `cliphist`，不会替换 Omarchy 原有的剪贴板监听器，也不会把原始图片复制到第二套历史存储中。
+
+## 依赖
+
+所需运行环境由 Omarchy 和正常的桌面安装提供：
+
+- Omarchy Quickshell；
+- Hyprland 和 `hyprctl`；
+- Wayland 剪贴板工具 `wl-copy`、`wl-paste`；
+- 用于图片地址万能粘贴辅助脚本的 Python 3 标准库。
+
+不需要额外安装剪贴板服务。
+
+## 卸载
+
+通过 Omarchy 插件管理器禁用或删除插件。插件自己的顶栏按钮和运行时快捷键会被移除；Omarchy 原生剪贴板历史和图片文件会继续保留。
+
+## 验证
+
+在插件仓库根目录执行：
+
+```sh
+omarchy plugin validate .
+qmllint -I "${NIXARCHY_ROOT:-/usr/share/omarchy}/shell" \
+  ClipboardPanel.qml bar/widget.qml \
+  apps/iamcheyan-clipboard/modules/clipboard/ClipboardDialog.qml
+python3 -m py_compile scripts/*.py
 ```
+
+## 许可证
+
+MIT，详见 [LICENSE](LICENSE)。
+
+---
+
+# 日本語
+
+omarchy-clipboard は、クリップボード履歴を閲覧して貼り付けるための Omarchy 用トップバープラグインです。バックエンドには Omarchy 標準のクリップボード実装をそのまま使用し、その上に使いやすい操作画面を提供します。
+
+![omarchy-clipboard プレビュー](preview.png)
+
+パネルでは左側に画像プレビュー、右側にクリップボード履歴を表示します。
+
+## このプラグインの方針
+
+新しいクリップボード形式や別の貼り付けルールは作りません。Omarchy 標準のクリップボード履歴、画像ファイル、貼り付けヘルパー、ターミナルと GUI アプリの標準動作をそのまま再利用します。
+
+追加する便利な機能は次の二つです。
+
+- 画像行に、画像の元ファイルパスをテキストとして貼り付ける操作を追加します。
+- `Super+Ctrl+V` ではマウスポインター付近にパネルを開き、Omarchy 標準のカーソル位置パネルと同じ画面端回避を行います。トップバーのボタンから開く場合は、従来どおり固定されたバー位置を使います。
+
+## 主な機能
+
+- Omarchy 標準のテキスト・画像クリップボード履歴。
+- Omarchy 標準の画像保存と貼り付け動作。
+- Omarchy のトップバー統合を使うクリップボードボタン。
+- ショートカット使用時はカーソル位置に表示し、画面端を自動回避。
+- 左側の画像プレビューと右側の履歴メニュー。
+- 画像行の矢印から画像ファイルパスをテキストとして貼り付け。
+- 表示時だけ行頭の空白を整理し、句読点だけの項目を非表示。標準の履歴データは変更しません。
+- `cliphist`、別の監視機構、別のクリップボードデーモンは追加しません。
+
+## インストール
+
+Omarchy のプラグインマネージャーからインストールします。
+
+```sh
+omarchy plugin add https://github.com/iamcheyan/omarchy-clipboard.git --enable
+```
+
+このプラグインは `bar-widget` エントリーポイントを提供します。ボタンが自動的に配置されない場合は、トップバー右側に **omarchy-clipboard** を追加してください。
+
+トップバーのボタンをクリックするとバーの固定位置に開きます。`Super+Ctrl+V` ではマウスポインター付近に開き、画面端を避けます。項目を選択するとフォーカス中のアプリケーションへ貼り付けます。画像の場合は行の右端の矢印から、標準の画像ファイルパスを貼り付けられます。
+
+## Shell 再読み込み後のショートカット復旧
+
+ショートカットはトップバー widget が実行時に登録します。`Super+Ctrl+V`
+は現在、実行中の Quickshell IPC handler だけに依存せず、プラグイン自身の
+`bin/iamcheyan-clipboard` launcher を呼び出します。Shell の再読み込み時は
+Hyprland の再読み込み完了後に widget がバインドを再登録し、IPC handler が
+一時的に利用できない場合も launcher がカーソル位置の on-demand パネルを起動します。
+
+プラグインファイルを変更した後は、次のコマンドで Shell を手動更新できます。
+
+```sh
+omarchy restart shell
+```
+
+## Omarchy 標準機能との統合
+
+- テキストと画像の項目は `~/.local/state/omarchy/clipboard-history.json` から読み込みます。
+- 標準の画像ファイルは `~/.local/state/omarchy/clipboard-images/` に保存されます。
+- 画像の貼り付けには `omarchy-clipboard-paste-file` を使用します。
+- テキストの貼り付けには Omarchy 標準の履歴対応ヘルパーを使用します。
+- 画像パスの貼り付けは Universal Paste を使い、ターミナルには `Shift+Insert`、GUI アプリには `Ctrl+V` を送信します。
+
+`cliphist` はインストールせず、Omarchy のクリップボード監視を置き換えず、元画像を別の履歴ストレージへ複製もしません。
+
+## 依存関係
+
+必要な実行環境は Omarchy と通常のデスクトップ環境が提供します。
+
+- Omarchy Quickshell；
+- Hyprland と `hyprctl`；
+- Wayland の `wl-copy`、`wl-paste`；
+- 画像パスの Universal Paste ヘルパーに使用する Python 3 標準ライブラリ。
+
+追加のクリップボードサービスは必要ありません。
+
+## アンインストール
+
+Omarchy のプラグインマネージャーから無効化または削除してください。トップバーのボタンとプラグインが登録した実行時ショートカットだけが削除され、Omarchy 標準のクリップボード履歴と画像ファイルは残ります。
+
+## 検証
+
+プラグインリポジトリのルートで実行します。
+
+```sh
+omarchy plugin validate .
+qmllint -I "${NIXARCHY_ROOT:-/usr/share/omarchy}/shell" \
+  ClipboardPanel.qml bar/widget.qml \
+  apps/iamcheyan-clipboard/modules/clipboard/ClipboardDialog.qml
+python3 -m py_compile scripts/*.py
+```
+
+## ライセンス
+
+MIT。詳細は [LICENSE](LICENSE) を参照してください。

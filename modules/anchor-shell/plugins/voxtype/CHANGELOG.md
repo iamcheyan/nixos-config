@@ -11,4 +11,4 @@
 - Added an optional middle-mouse dictation toggle in the settings panel.
   It is disabled by default; when enabled, the first middle-click starts
   recording and the second stops and transcribes, while consuming the middle
- button so primary-selection paste does not fire.
+  button so primary-selection paste does not fire.

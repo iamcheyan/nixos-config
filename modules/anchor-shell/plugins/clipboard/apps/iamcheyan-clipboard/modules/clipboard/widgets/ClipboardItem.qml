@@ -18,7 +18,7 @@ Rectangle {
     // File paths: "file:///..." URIs or absolute POSIX paths ("/...").
     // The raw entry has a leading id prefix ("5220\t..."); strip it first.
     readonly property bool isFilePath: /^\s*file:\/\//.test(root.cleanText) || /^\s*\//.test(root.cleanText)
-    readonly property string cleanText: ClipboardStyle.cleanEntry(entry)
+    readonly property string cleanText: ClipboardStyle.cleanCliphistEntry(entry)
 
     // Give ListView a concrete size while its ScriptModel is being replaced.
     height: 34

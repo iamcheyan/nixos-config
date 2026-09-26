@@ -5,9 +5,7 @@ import Quickshell.Io
 Item {
     id: root
     readonly property string captureScript: Qt.resolvedUrl("../../../backend/capture.sh").toString().replace("file://", "")
-    // Remove watchers left by either the old Omarchy implementation or a
-    // previous instance of this plugin before starting the single active pair.
-    readonly property string watcherPattern: "wl-paste .*--watch .*(/shell/plugins/clipboard/capture\\.sh|iamcheyan\\.clipboard/backend/capture\\.sh)"
+    readonly property string watcherPattern: "wl-paste .*--watch .*/omarchy.*/shell/plugins/clipboard/capture\\.sh"
 
     function startWatchers() {
         textWatch.running = true;

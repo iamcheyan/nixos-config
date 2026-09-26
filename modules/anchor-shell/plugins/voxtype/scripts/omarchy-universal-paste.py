@@ -230,84 +230,6 @@ def paste_to_focused_kitty() -> bool:
     return False
 
 
-def active_app_id() -> str:
-    """Read the active app id from the running compositor-neutral shell."""
-    try:
-        listing = subprocess.check_output(
-            ["quickshell", "list", "--all"],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        )
-        pid = next(
-            (
-                line.split(":", 1)[1].strip()
-                for line in listing.splitlines()
-                if line.strip().startswith("Process ID:")
-            ),
-            "",
-        )
-        if not pid.isdigit():
-            return ""
-        return subprocess.check_output(
-            ["quickshell", "ipc", "--pid", pid, "call", "shell", "activeAppId"],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        ).strip().lower()
-    except (OSError, subprocess.CalledProcessError):
-        return ""
-
-
-def paste_to_focused_xwayland_app() -> bool:
-    """Bridge the text and use XTEST when focus belongs to an XWayland app."""
-    xdotool = shutil.which("xdotool")
-    xclip = shutil.which("xclip")
-    app_id = active_app_id()
-    if not xdotool or not xclip or not app_id:
-        return False
-    try:
-        classes = subprocess.check_output(
-            [xdotool, "getwindowfocus", "getwindowclassname"],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        ).splitlines()
-    except (OSError, subprocess.CalledProcessError):
-        return False
-
-    if not any(
-        app_id == window_class.strip().lower()
-        or app_id in window_class.strip().lower()
-        or window_class.strip().lower() in app_id
-        for window_class in classes
-        if window_class.strip()
-    ):
-        return False
-
-    try:
-        payload = subprocess.check_output(
-            ["wl-paste", "--no-newline", "--type", "text/plain"],
-            stderr=subprocess.DEVNULL,
-        )
-        if not payload:
-            return False
-        subprocess.run(
-            [xclip, "-selection", "clipboard", "-in"],
-            input=payload,
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        time.sleep(0.05)
-        subprocess.run(
-            [xdotool, "key", "--clearmodifiers", "ctrl+v"],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    except (OSError, subprocess.CalledProcessError):
-        return False
-    return True
-
-
 def _walk_dicts(value):
     if isinstance(value, dict):
         yield value
@@ -385,8 +307,6 @@ def main() -> None:
     if action != "paste" or not clipboard_changed():
         return
     if paste_to_focused_kitty():
-        return
-    if paste_to_focused_xwayland_app():
         return
     if paste_via_shared_universal_clipboard():
         return

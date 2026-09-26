@@ -7,7 +7,7 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    readonly property string themePath: `${Quickshell.env("ANCHOR_SHELL_STATE_DIR") || ((Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/anchor-shell")}/clipboard-theme.json`
+    readonly property string themePath: `${Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state"}/labwc/clipboard-theme.json`
     // Keep the original menu structure, but use the same restrained popup
     // palette as Omarchy's native panels: one surface, a quiet border, and
     // the accent only for selection/focus.
@@ -27,6 +27,8 @@ Singleton {
 
     readonly property string fontFamily: "MesloLGS Nerd Font"
     readonly property int fontPixelSmall: 12
+
+    readonly property string cliphistDecode: (Quickshell.env("HOME") ?? "") + "/.cache/media/cliphist"
 
     FileView {
         id: themeFile
@@ -49,7 +51,7 @@ Singleton {
         }
     }
 
-    function cleanEntry(str: string): string {
+    function cleanCliphistEntry(str: string): string {
         const text = String(str).replace(/^\d+\t/, "");
         // Normalize only the presentation. The original clipboard payload
         // remains untouched for preview and paste.
