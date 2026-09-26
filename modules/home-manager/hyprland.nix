@@ -15,9 +15,57 @@ let
 
   active-monitor-screenshot = pkgs.writeShellApplication {
     name = "nixarchy-screenshot-active-monitor";
-    runtimeInputs = [ pkgs.coreutils pkgs.grim pkgs.hyprland pkgs.jq pkgs.libnotify pkgs.wl-clipboard ];
+    runtimeInputs = [ pkgs.coreutils pkgs.grim pkgs.hyprland pkgs.jq pkgs.libnotify pkgs.wl-clipboard pkgs.wlr-randr pkgs.xdotool ];
     text = ''
-      monitor="$(hyprctl -j activeworkspace | jq -er '.monitor')"
+      if [ "$#" -gt 0 ]; then
+        monitor="$1"
+        if ! wlr-randr | awk -v target="$monitor" '/^[^[:space:]]/ && $1 == target { found = 1 } END { exit !found }'; then
+          printf 'Unknown monitor: %s\n' "$monitor" >&2
+          exit 1
+        fi
+      else
+        if monitor="$(hyprctl -j activeworkspace 2>/dev/null | jq -er '.monitor' 2>/dev/null)"; then
+          :
+        else
+          # Labwc bindings pass the focused window's output explicitly. For
+          # other callers, fall back to mapping the pointer to wlr-randr data.
+          pointer="$(xdotool getmouselocation --shell | awk -F= '$1 == "X" { x = $2 } $1 == "Y" { y = $2 } END { if (x != "" && y != "") print x, y }')"
+          if [ -z "$pointer" ]; then
+            printf '%s\n' "Could not determine the active monitor." >&2
+            exit 1
+          fi
+          monitor="$(wlr-randr | awk -v pointer="$pointer" '
+            BEGIN { split(pointer, p, " "); px = p[1]; py = p[2] }
+            function finish_output() {
+              if (enabled == "yes" && width > 0 && height > 0 && scale > 0 &&
+                  px >= x && px < x + width / scale &&
+                  py >= y && py < y + height / scale) {
+                print name
+                found = 1
+              }
+            }
+            /^[^[:space:]]/ {
+              if (name != "") finish_output()
+              name = $1; enabled = "no"; width = 0; height = 0
+              x = 0; y = 0; scale = 1
+            }
+            /^[[:space:]]+Enabled: yes/ { enabled = "yes" }
+            /^[[:space:]]+[0-9]+x[0-9]+ px,/ && /current/ {
+              split($1, dimensions, "x"); width = dimensions[1]; height = dimensions[2]
+            }
+            /^[[:space:]]+Position:/ {
+              position = $2; split(position, coordinates, ",")
+              x = coordinates[1]; y = coordinates[2]
+            }
+            /^[[:space:]]+Scale:/ { scale = $2 }
+            END { if (!found && name != "") finish_output() }
+          ')"
+          if [ -z "$monitor" ]; then
+            printf '%s\n' "Could not map the pointer to an active monitor." >&2
+            exit 1
+          fi
+        fi
+      fi
       pictures_dir="''${XDG_PICTURES_DIR:-$HOME/Pictures}"
       mkdir -p "$pictures_dir"
       filepath="$pictures_dir/screenshot-$(date +%Y-%m-%d_%H-%M-%S).png"

@@ -187,7 +187,17 @@
       <action name="Execute" command="~/.config/labwc/scripts/omarchy-delayed-screenshot 3 fullscreen" />
     </keybind>
     <keybind key="C-S-Print">
-      <action name="Execute" command="~/.config/labwc/scripts/omarchy-capture-screenshot fullscreen copy" />
+      <action name="If">
+        <query><monitor>HDMI-A-1</monitor></query>
+        <then><action name="Execute" command="nixarchy-screenshot-active-monitor HDMI-A-1" /></then>
+        <else>
+          <action name="If">
+            <query><monitor>HDMI-A-2</monitor></query>
+            <then><action name="Execute" command="nixarchy-screenshot-active-monitor HDMI-A-2" /></then>
+            <else><action name="Execute" command="nixarchy-screenshot-active-monitor" /></else>
+          </action>
+        </else>
+      </action>
     </keybind>
     <keybind key="W-S-a">
       <action name="Execute" command="~/.config/labwc/scripts/omarchy-capture-screenshot region copy" />
