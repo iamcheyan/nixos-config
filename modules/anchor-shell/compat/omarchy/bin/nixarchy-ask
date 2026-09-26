@@ -62,7 +62,7 @@ fi
 
 # Prepended to every task. Read-first and propose-don't-apply are the two rules
 # that make an agent with shell access on someone's only machine reasonable.
-preamble='You are working on a NixOS machine running Nixarchy. This machine is
+preamble='You are working on a NixOS machine running Labwc / Anchor Shell. This machine is
 declarative: nothing is installed with a package manager, changes are made by
 editing the configuration and rebuilding, and an imperative install does not
 survive the next rebuild. Read the named skill before doing anything else, and
@@ -163,7 +163,7 @@ anything else in /var."
 
 $extra
 
-Pick whichever of this machine's skills fits -- nixos, nixarchy, nixos-gpu,
+Pick whichever of this machine's skills fits -- nixos, anchor-desktop, nixos-gpu,
 nixos-ai, nixos-services, nixos-secrets, nixos-performance, nixos-security,
 nixos-doctor, nixos-config-repo, devenv -- and read it before answering."
     ;;

@@ -28,7 +28,7 @@ Nixarchy 的做法是把 `SKILL.md` 安装到只读系统资源中，再将每�
 系统 skills 源在 `modules/anchor-shell/compat/omarchy/default/agents/skills/`，
 Home Manager 为 `.agents/skills`、`.codex/skills`、`.claude/skills`、
 `.pi/agent/skills` 声明每个 skill 的目录链接。更新源文件再 rebuild 即可更新，
-不依赖一次性 provision。`nixarchy` 是保留的桌面 skill 名，内容已改为本地
+不依赖一次性 provision。桌面 skill `anchor-desktop` 的内容是本地
 Labwc / Anchor Shell 与备用 Hyprland 的维护规则。
 
 ## 内容边界

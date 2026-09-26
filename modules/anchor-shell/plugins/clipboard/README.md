@@ -127,7 +127,7 @@ From the plugin repository root:
 
 ```sh
 omarchy plugin validate .
-qmllint -I "${NIXARCHY_ROOT:-/usr/share/omarchy}/shell" \
+qmllint -I "${OMARCHY_PATH:-/usr/share/omarchy}/shell" \
   ClipboardPanel.qml bar/widget.qml \
   apps/iamcheyan-clipboard/modules/clipboard/ClipboardDialog.qml
 python3 -m py_compile scripts/*.py
@@ -225,7 +225,7 @@ omarchy restart shell
 
 ```sh
 omarchy plugin validate .
-qmllint -I "${NIXARCHY_ROOT:-/usr/share/omarchy}/shell" \
+qmllint -I "${OMARCHY_PATH:-/usr/share/omarchy}/shell" \
   ClipboardPanel.qml bar/widget.qml \
   apps/iamcheyan-clipboard/modules/clipboard/ClipboardDialog.qml
 python3 -m py_compile scripts/*.py
@@ -322,7 +322,7 @@ Omarchy のプラグインマネージャーから無効化または削除して
 
 ```sh
 omarchy plugin validate .
-qmllint -I "${NIXARCHY_ROOT:-/usr/share/omarchy}/shell" \
+qmllint -I "${OMARCHY_PATH:-/usr/share/omarchy}/shell" \
   ClipboardPanel.qml bar/widget.qml \
   apps/iamcheyan-clipboard/modules/clipboard/ClipboardDialog.qml
 python3 -m py_compile scripts/*.py

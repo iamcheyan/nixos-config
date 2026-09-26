@@ -8,7 +8,7 @@ Item {
   id: root
 
   property var shell: null
-  property string integrationPath: Quickshell.env("NIXARCHY_ROOT")
+  property string integrationPath: Quickshell.env("OMARCHY_PATH")
 
   readonly property int batteryThreshold: 10
   property string pendingPowerSource: ""

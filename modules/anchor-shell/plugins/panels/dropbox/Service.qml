@@ -8,7 +8,7 @@ Item {
   id: root
 
   property var settings: ({})
-  property string integrationPath: Quickshell.env("NIXARCHY_ROOT")
+  property string integrationPath: Quickshell.env("OMARCHY_PATH")
 
   property bool installed: false
   property bool running: false

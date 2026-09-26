@@ -21,7 +21,7 @@
 - 编辑本仓库源文件，不直接修改 `/etc/nixos` 或 `/nix/store`。
 - `hardware-configuration.nix`、磁盘 UUID 和主机硬件参数按主机隔离。
 - `system.stateVersion` 不随日常升级修改。
-- Omarchy/Nixarchy 的系统集成属于本仓库；其用户偏好仍属于 chezmoi。
+- 本地 Omarchy 兼容资源的系统集成属于本仓库；用户偏好仍属于 chezmoi。
 - 不提交明文密码、Token、API Key、SSH 私钥或其他凭据。
 - 保留用户已有的未提交改动，不擅自覆盖或移动。
 

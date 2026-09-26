@@ -23,8 +23,8 @@ ShellRoot {
   property string home: Quickshell.env("HOME")
 
   // The shell source and user data are owned by this repository. The historical
-  // NIXARCHY_ROOT name remains only as a compatibility interface for helpers.
-  property string integrationPath: Quickshell.env("NIXARCHY_ROOT")
+  // OMARCHY_PATH points to the locally packaged Omarchy compatibility resources.
+  property string integrationPath: Quickshell.env("OMARCHY_PATH")
   readonly property string shellPath: Quickshell.env("QUICKSHELL_ROOT") || Quickshell.shellDir
   readonly property string firstPartyPluginsDir: shellPath + "/plugins"
   readonly property string defaultsPath: shellPath + "/shell.json"

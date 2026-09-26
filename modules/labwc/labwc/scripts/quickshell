@@ -57,14 +57,13 @@ fi
 # The compatibility runtime keeps the historical Omarchy names while the
 # source is migrated into this repository.  Legacy remains the default until
 # the copied runtime has been verified in the running session.
-omarchy_root="${NIXARCHY_ROOT:-${OMARCHY_PATH:-}}"
+omarchy_root="${OMARCHY_PATH:-}"
 if [ -r "$runtime_file" ] && [ "$(cat "$runtime_file")" = compat ]; then
     omarchy_root="${QUICKSHELL_OMARCHY_COMPAT_ROOT:-$config_dir/compat/omarchy}"
 elif [ -n "${QUICKSHELL_OMARCHY_LEGACY_ROOT:-}" ]; then
     omarchy_root="$QUICKSHELL_OMARCHY_LEGACY_ROOT"
 fi
 if [ -n "$omarchy_root" ] && [ -d "$omarchy_root" ]; then
-    export NIXARCHY_ROOT="$omarchy_root"
     export OMARCHY_PATH="$omarchy_root"
     export PATH="$omarchy_root/bin:$PATH"
 fi

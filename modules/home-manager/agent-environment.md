@@ -14,9 +14,9 @@
 
 ## 处理 NixOS 与桌面任务
 
-处理本机系统包、服务、硬件、驱动、Nix 配置、NixOS generation 或本地桌面系统接线时，先找到并阅读适用的 `nixos`、`nixarchy` 或其他专项 skill，再依据 skill 和 `~/nixos-config/AGENTS.md` 操作。系统改动要编辑仓库源文件；构建或切换前先检查改动。用户级桌面偏好属于 `~/chezmoi`，桌面系统集成属于 `~/nixos-config`。
+处理本机系统包、服务、硬件、驱动、Nix 配置、NixOS generation 或本地桌面系统接线时，先找到并阅读适用的 `nixos`、`anchor-desktop` 或其他专项 skill，再依据 skill 和 `~/nixos-config/AGENTS.md` 操作。系统改动要编辑仓库源文件；构建或切换前先检查改动。用户级桌面偏好属于 `~/chezmoi`，桌面系统集成属于 `~/nixos-config`。
 
-Nixarchy 外部依赖已移除。`nixarchy` skill 名和 `omarchy-*` 命令是本仓库保留的兼容接口，不使用旧的 `nixarchy apply` 或 `~/.config/nixarchy/*.nix`。本机 Labwc 构建需 `--impure`，因为合成器源码在 `~/labwc-plus`。
+Nixarchy 外部依赖已移除。`omarchy-*` 命令保留为兼容接口；桌面 skill 为 `anchor-desktop`。本机 Labwc 构建需 `--impure`，因为合成器源码在 `~/labwc-plus`。
 
 NixOS 是声明式系统：不要用临时安装命令替代持久配置；不要为解决无关问题更新整个 flake；保留已有未提交更改。
 

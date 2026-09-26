@@ -116,7 +116,7 @@ sudo nixos-rebuild switch --impure --flake /home/tetsuya/nixos-config#hx90
 quickshell list --all
 pid=$(quickshell list --all | awk '/Process ID:/ {print $3; exit}')
 tr '\0' ' ' < /proc/$pid/cmdline; echo
-tr '\0' '\n' < /proc/$pid/environ | rg '^QUICKSHELL_|^ANCHOR_|^OMARCHY_PATH=|^NIXARCHY_ROOT='
+tr '\0' '\n' < /proc/$pid/environ | rg '^QUICKSHELL_|^ANCHOR_|^OMARCHY_PATH='
 ```
 
 保持一个实例。不要 `pkill`；Labwc 的 systemd 服务会立刻拉起旧进程，
@@ -142,13 +142,11 @@ ANCHOR_SHELL_CONFIG_DIR      ~/.config/anchor-shell
 ANCHOR_SHELL_STATE_DIR       ~/.local/state/anchor-shell
 ANCHOR_SHELL_PLUGINS_DIR     ~/.config/anchor-shell/plugins
 OMARCHY_PATH                 modules/anchor-shell/compat/omarchy 的副本
-NIXARCHY_ROOT                同上，只是兼容变量名
 XDG_CURRENT_DESKTOP          labwc
 ```
 
-`OMARCHY_PATH` / `NIXARCHY_ROOT` 在 Labwc 进程里指向本仓库兼容层。
-系统 `/etc/set-environment` 里仍有一份指向 Nixarchy 包的 `OMARCHY_PATH`，
-那是给 Hyprland 会话用的；Labwc 的 systemd 服务会覆盖进程环境。
+`OMARCHY_PATH` 在 Labwc 进程里指向本仓库兼容层。系统会话变量与用户服务都由
+本仓库声明，Hyprland 的 shell 资源在它自己的会话内使用同一个兼容包。
 
 输入法：
 
@@ -198,9 +196,8 @@ SystemSwitch、锁屏时禁止热重载）改的是 Hyprland 那份 shell。改 
 - 主题、keyd、Voxtype、PipeWire 是会话共享的系统服务，不属于任何一套
   shell。
 
-`omarchy-*` 命令名、`omarchy.*` 插件 ID、`NIXARCHY_ROOT`、`OMARCHY_PATH`
-是兼容接口。在 Labwc 下它们指向 `compat/omarchy/`，不是把 Labwc 接回
-Nixarchy。
+`omarchy-*` 命令名和 `omarchy.*` 插件 ID 保留为兼容接口。`OMARCHY_PATH`
+指向 `compat/omarchy/`。
 
 ## 插件 ID
 

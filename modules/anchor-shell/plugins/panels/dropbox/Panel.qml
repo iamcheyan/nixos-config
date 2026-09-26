@@ -13,7 +13,7 @@ Panel {
   ipcTarget: "omarchy.dropbox"
   manageIpc: false
 
-  property string integrationPath: Quickshell.env("NIXARCHY_ROOT")
+  property string integrationPath: Quickshell.env("OMARCHY_PATH")
   property string focusSection: "login"
   property int fileIndex: 0
   property bool cursorActive: false

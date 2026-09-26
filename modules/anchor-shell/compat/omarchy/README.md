@@ -4,7 +4,7 @@ This directory is the first migration batch for the Quickshell desktop. It
 contains the runtime closure currently consumed by the shell and its plugins:
 
 - `bin/` keeps the historical `omarchy-*` command names;
-- `shell/plugins/` keeps the helper scripts imported through `NIXARCHY_ROOT`;
+- `shell/plugins/` keeps the helper scripts imported through `OMARCHY_PATH`;
 - `default/omarchy/` and `config/omarchy/` keep compatibility defaults and
   state/configuration paths used by first-party widgets;
 - `applications/` keeps desktop entries needed by the launcher compatibility

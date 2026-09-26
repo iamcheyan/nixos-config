@@ -18,7 +18,7 @@ import "Model.js" as Model
 Item {
   id: root
 
-  property string integrationPath: Quickshell.env("NIXARCHY_ROOT")
+  property string integrationPath: Quickshell.env("OMARCHY_PATH")
   property var shell: null
   property var manifest: null
 

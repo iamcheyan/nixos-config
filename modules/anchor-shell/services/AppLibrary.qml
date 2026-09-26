@@ -11,7 +11,7 @@ import "AppSearch.js" as AppSearch
 Item {
   id: root
 
-  property string integrationPath: Quickshell.env("NIXARCHY_ROOT")
+  property string integrationPath: Quickshell.env("OMARCHY_PATH")
   readonly property string shellRoot: Quickshell.env("QUICKSHELL_ROOT") || Quickshell.shellDir
 
   property var configuredHiddenEntryIds: ({})

@@ -190,7 +190,7 @@ so.
 ## Reading the Configuration
 
 ```bash
-echo "${NIXARCHY_FLAKE:-/etc/nixos}"       # where the config lives
+echo "${NIXOS_CONFIG:-$HOME/nixos-config}"       # where the config lives
 nixos-option services.nginx                # value AND which file set it
 nixos-version --json
 systemctl cat foo                          # the unit Nix actually generated

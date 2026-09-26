@@ -37,7 +37,7 @@ let
   # Power actions become searchable desktop entries in the Wofi launcher
   # opened by Win+Space. Hibernate is copied only when the kernel supports it.
   powerDesktopFiles = {
-    logout = pkgs.writeText "nixarchy-logout.desktop" ''
+    logout = pkgs.writeText "labwc-logout.desktop" ''
       [Desktop Entry]
       Type=Application
       Name=Log Out
@@ -47,7 +47,7 @@ let
       Terminal=false
       Categories=System;
     '';
-    suspend = pkgs.writeText "nixarchy-suspend.desktop" ''
+    suspend = pkgs.writeText "labwc-suspend.desktop" ''
       [Desktop Entry]
       Type=Application
       Name=Suspend
@@ -57,7 +57,7 @@ let
       Terminal=false
       Categories=System;
     '';
-    hibernate = pkgs.writeText "nixarchy-hibernate.desktop" ''
+    hibernate = pkgs.writeText "labwc-hibernate.desktop" ''
       [Desktop Entry]
       Type=Application
       Name=Hibernate
@@ -67,7 +67,7 @@ let
       Terminal=false
       Categories=System;
     '';
-    reboot = pkgs.writeText "nixarchy-reboot.desktop" ''
+    reboot = pkgs.writeText "labwc-reboot.desktop" ''
       [Desktop Entry]
       Type=Application
       Name=Restart
@@ -77,7 +77,7 @@ let
       Terminal=false
       Categories=System;
     '';
-    shutdown = pkgs.writeText "nixarchy-shutdown.desktop" ''
+    shutdown = pkgs.writeText "labwc-shutdown.desktop" ''
       [Desktop Entry]
       Type=Application
       Name=Shut Down
@@ -201,7 +201,7 @@ let
       ANCHOR_SHELL_CONFIG_DIR ANCHOR_SHELL_STATE_DIR ANCHOR_SHELL_PLUGINS_DIR \
       QUICKSHELL_ROOT QUICKSHELL_PLUGINS_DIR QUICKSHELL_CONFIG \
       ANCHOR_SHELL_PYTHON \
-      NIXARCHY_ROOT OMARCHY_PATH
+      OMARCHY_PATH
     # Keep both systemd and D-Bus activated applications on the Labwc
     # session's GTK and Qt theme settings.
     ${pkgs.dbus}/bin/dbus-update-activation-environment --systemd \
@@ -213,14 +213,20 @@ let
     # there, and expose Hibernate only when the kernel supports `disk`.
     power_applications="$HOME/.local/share/applications"
     ${pkgs.coreutils}/bin/mkdir -p "$power_applications"
-    ${pkgs.coreutils}/bin/cp -f --no-preserve=mode "${powerDesktopFiles.logout}" "$power_applications/nixarchy-logout.desktop"
-    ${pkgs.coreutils}/bin/cp -f --no-preserve=mode "${powerDesktopFiles.suspend}" "$power_applications/nixarchy-suspend.desktop"
-    ${pkgs.coreutils}/bin/cp -f --no-preserve=mode "${powerDesktopFiles.reboot}" "$power_applications/nixarchy-reboot.desktop"
-    ${pkgs.coreutils}/bin/cp -f --no-preserve=mode "${powerDesktopFiles.shutdown}" "$power_applications/nixarchy-shutdown.desktop"
+    ${pkgs.coreutils}/bin/rm -f \
+      "$power_applications/nixarchy-logout.desktop" \
+      "$power_applications/nixarchy-suspend.desktop" \
+      "$power_applications/nixarchy-hibernate.desktop" \
+      "$power_applications/nixarchy-reboot.desktop" \
+      "$power_applications/nixarchy-shutdown.desktop"
+    ${pkgs.coreutils}/bin/cp -f --no-preserve=mode "${powerDesktopFiles.logout}" "$power_applications/labwc-logout.desktop"
+    ${pkgs.coreutils}/bin/cp -f --no-preserve=mode "${powerDesktopFiles.suspend}" "$power_applications/labwc-suspend.desktop"
+    ${pkgs.coreutils}/bin/cp -f --no-preserve=mode "${powerDesktopFiles.reboot}" "$power_applications/labwc-reboot.desktop"
+    ${pkgs.coreutils}/bin/cp -f --no-preserve=mode "${powerDesktopFiles.shutdown}" "$power_applications/labwc-shutdown.desktop"
     if ${pkgs.gnugrep}/bin/grep -qw disk /sys/power/state 2>/dev/null; then
-      ${pkgs.coreutils}/bin/cp -f --no-preserve=mode "${powerDesktopFiles.hibernate}" "$power_applications/nixarchy-hibernate.desktop"
+      ${pkgs.coreutils}/bin/cp -f --no-preserve=mode "${powerDesktopFiles.hibernate}" "$power_applications/labwc-hibernate.desktop"
     else
-      ${pkgs.coreutils}/bin/rm -f "$power_applications/nixarchy-hibernate.desktop"
+      ${pkgs.coreutils}/bin/rm -f "$power_applications/labwc-hibernate.desktop"
     fi
 
     # labwc does not reliably activate graphical-session.target.  Voxtype may
@@ -260,7 +266,6 @@ in
         Environment = [
           "PATH=/run/current-system/sw/bin:/run/wrappers/bin:/bin"
           "QS_ICON_THEME=Pop"
-          "NIXARCHY_ROOT=${quickshellCompatRoot}"
           "OMARCHY_PATH=${quickshellCompatRoot}"
           "QUICKSHELL_ROOT=${quickshellRoot}"
           "QUICKSHELL_PLUGINS_DIR=${quickshellRoot}/plugins"

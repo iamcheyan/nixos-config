@@ -5,7 +5,7 @@
 HX90 保留 NixOS、Labwc + Anchor Shell、SDDM、Plasma 以及备用 Hyprland 会话。
 移除的是外部 Nixarchy flake 和它的模块/overlay/应用目录生成机制。
 Omarchy 的现有 shell、命令和主题仍是桌面的兼容资源；历史 `omarchy-*`、
-`nixarchy-ask`、`nixarchy` skill 名不代表系统继续依赖 Nixarchy。
+历史命令别名不代表系统继续依赖 Nixarchy；桌面 skill 已更名为 `anchor-desktop`。
 
 ## 接管清单
 
@@ -60,3 +60,11 @@ store 资源，需要在安全的未锁屏状态重启对应用户 shell 服务�
 
 检查日志保存在本次任务的 `/tmp/nixarchy-migration-{check,build,test,switch}.log`；
 临时日志不作为长期维护源。
+
+
+### 清除活动会话中的旧路径（2026-09-26）
+
+Snapper `root` 快照 11 与 `home` 快照 11 在切换前创建。系统配置中已无 Nixarchy flake
+输入，当前系统闭包也不再包含原 Nixarchy store 包。清除了活动 Labwc/Anchor Shell
+运行环境的 `NIXARCHY_ROOT`，统一使用 `OMARCHY_PATH` 指向本仓库的本地兼容资源；
+桌面 session importer 改用中性名称，桌面 skill 改为 `anchor-desktop`。

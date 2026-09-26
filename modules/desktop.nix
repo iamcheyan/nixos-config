@@ -48,9 +48,8 @@ in
     ./fonts.nix
   ];
 
-  # Nixarchy v4.0.2-4 expects this package from nixpkgs, but the pinned
-  # NixOS 26.05 branch predates its addition. Keep the stable nixpkgs pin and
-  # provide the small compatibility package locally until nixpkgs includes it.
+  # NixOS 26.05 predates this Hyprland package; keep the stable nixpkgs pin
+  # and provide the small compatibility package locally.
   nixpkgs.overlays = [
     (final: _prev: {
       "hyprland-preview-share-picker" = final.callPackage ./packages/hyprland-preview-share-picker.nix { };
@@ -87,17 +86,14 @@ in
     SDL_IM_MODULE = "fcitx";
   };
 
-  # Nixarchy disables Fcitx5's notification-item addon by default because its
-  # stock shell does not rely on a traditional tray icon. This desktop keeps
-  # an actual tray (`omarchy.tray`), and the input-method indicator is useful
-  # to the user, so keep the addon enabled in the generated user service.
+  # Keep Fcitx5's notification-item addon enabled for the desktop tray.
   systemd.user.services.omarchy-fcitx5.serviceConfig.ExecStart =
     lib.mkForce "${config.i18n.inputMethod.package}/bin/fcitx5";
 
   # Compositors create a different Wayland socket (and may use a different
   # desktop name) on each login.  Keep the user service generic and let the
   # active compositor refresh systemd's environment at session startup.
-  home-manager.users.tetsuya.home.file.".local/bin/nixarchy-import-session-environment" = {
+  home-manager.users.tetsuya.home.file.".local/bin/desktop-import-session-environment" = {
     executable = true;
     text = ''
       #!${pkgs.bash}/bin/bash

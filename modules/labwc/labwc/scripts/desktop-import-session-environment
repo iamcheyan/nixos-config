@@ -1,6 +1,6 @@
 #!/bin/sh
-# Keep the historical Nixarchy command name while making the session bridge
-# independent from the Nixarchy package.  Labwc and other standalone
+# Keep the desktop session command while making the session bridge
+# owned by this repository.  Labwc and other standalone
 # compositors need to publish their Wayland environment before user services
 # such as Fcitx5 are restarted.
 
@@ -12,7 +12,7 @@ systemctl --user import-environment \
     WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP \
     XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS \
     QUICKSHELL_ROOT QUICKSHELL_PLUGINS_DIR QUICKSHELL_CONFIG \
-    NIXARCHY_ROOT OMARCHY_PATH 2>/dev/null || true
+    OMARCHY_PATH 2>/dev/null || true
 
 for unit in omarchy-fcitx5.service fcitx5.service; do
     if systemctl --user cat "$unit" >/dev/null 2>&1; then

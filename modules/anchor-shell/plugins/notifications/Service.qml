@@ -17,7 +17,7 @@ Item {
   // Injected by omarchy-shell (the first-party service loader).
   property var shell: null
 
-  property string integrationPath: Quickshell.env("NIXARCHY_ROOT")
+  property string integrationPath: Quickshell.env("OMARCHY_PATH")
   readonly property string home: Quickshell.env("HOME")
   // History + DND live under XDG_STATE_HOME: they're persistent user state
   // (the notifications received, the last-set DND preference), not

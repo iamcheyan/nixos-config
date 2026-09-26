@@ -250,7 +250,7 @@ sudo nft list ruleset | grep 8080    # did the firewall actually open it
 Check an edit evaluates **without** a password prompt or an activation:
 
 ```bash
-nixos-rebuild build --flake "${NIXARCHY_FLAKE:-/etc/nixos}"
+nixos-rebuild build --flake "${NIXOS_CONFIG:-$HOME/nixos-config}"
 ```
 
 Then `test` before `switch` for anything risky — `test` does not touch the boot
