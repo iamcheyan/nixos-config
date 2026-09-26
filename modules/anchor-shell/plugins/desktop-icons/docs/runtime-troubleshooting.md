@@ -251,3 +251,41 @@ delegate。若 `clearDrag()` 写在 `moveItemToScreen()` 后面，这段代码�
 8. 方向键只在当前屏的图标之间移动。
 
 视觉有争议时截图，不要只看 `desktop-icon-positions.json` 判断界面是好的。
+
+---
+
+## 7. 图标点不开、整屏消失、位置乱、多屏重叠
+
+### 现象
+
+双击有时没反应；重启或刷新后图标暂时没了；拖一下或点一下之后格子乱掉；
+两块屏之间、或一块屏断开后，图标叠在同一格。
+
+### 原因
+
+1. **启动时用默认格子覆盖了已保存的坐标。** 桌面索引如果比
+   `desktop-icon-positions.json` 先到，`maybeRepack` 会按空布局写文件，
+   再把这次写入当成“自己的”，把真正的坐标文件丢掉。
+2. **格子没有列/行上限。** 拖到屏幕外或换了更矮的输出后，`row`/`col`
+   仍是大数字，图标画在可见区域下面，看起来像消失。
+3. **新图标用全局序号占格，不看已占用的格子。** 和手动拖过的图标撞车。
+4. **索引输出顺序一变，Repeater 就整表重建。** 双击的两下之间 delegate
+   被拆掉，第二次点击落到空白处；SVG 也重新解码，看起来像闪没。
+5. **按下立刻 `beginDrag`。** Binding 用拖拽起点覆盖 `x/y`，轻微跳变会被
+   当成一次拖放并写回坐标；Qt 也不再发 double-click。
+6. **`desktop-index` 正在跑时丢掉后续刷新。** 一次拷贝/删除的一串
+   inotify 只处理第一次，桌面停在旧列表上，直到 30 秒兜底轮询。
+7. **systemd 单元没带 `ANCHOR_SHELL_PYTHON`。** 服务重启后走系统
+   `python3`，没有 PyGObject 时索引和打开都会静默失败。
+
+### 修法（不要改回去）
+
+- 位置文件读完（或确认不存在）之前不要 `savePositions()`。
+- `gridFor` 同时给出 `rows` 和 `cols`；`cellFromPixel` / `repair` /
+  `moveGroup` 都夹到屏幕内，撞车的进 `firstFree`。
+- 新图标按目标屏已占用格子找空位，不要用全局 `missing` 序号。
+- `visibleItems` 按 id 比较并保持原顺序；只改坐标时只更新 `placedCells`。
+- 指针移动超过 8px 再 `beginDrag`；松手时用 `dragId` 判断是不是拖拽。
+- `listProc` 跑着时置 `pendingRefresh`，退出后再刷一次。
+- Labwc 的 `anchor-shell-labwc-probe.service` 显式设置
+  `ANCHOR_SHELL_PYTHON`。

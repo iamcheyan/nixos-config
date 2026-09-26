@@ -8,7 +8,8 @@ const source = fs.readFileSync(sourcePath, "utf8")
   + `\nthis.layout = {\n`
   + [
     "empty", "cellFromPixel", "pixelFromCell", "homeOf", "normalize",
-    "repair", "visibleIds", "position", "moveOrSwap", "moveToScreen", "moveGroup"
+    "repair", "visibleIds", "position", "moveOrSwap", "moveToScreen", "moveGroup",
+    "clampCell", "cellMap", "firstFree"
   ].map(name => `${name},`).join("\n")
   + "}\n"
 
@@ -16,10 +17,10 @@ const context = { Math, JSON, String, Number, Object, Array }
 vm.createContext(context)
 vm.runInContext(source, context, { filename: sourcePath })
 const layout = context.layout
-const grid = { left: 24, top: 48, cellW: 96, cellH: 104, rows: 5 }
+const grid = { left: 24, top: 48, cellW: 96, cellH: 104, rows: 5, cols: 8 }
 const grids = {
   HDMI1: grid,
-  HDMI2: { left: 32, top: 64, cellW: 96, cellH: 104, rows: 8 }
+  HDMI2: { left: 32, top: 64, cellW: 96, cellH: 104, rows: 8, cols: 12 }
 }
 const items = [{ id: "a" }, { id: "b" }, { id: "c" }]
 const equalJson = (actual, expected) =>
@@ -35,6 +36,16 @@ assert.notStrictEqual(state.screens.HDMI1.a.col + "," + state.screens.HDMI1.a.ro
   state.screens.HDMI1.b.col + "," + state.screens.HDMI1.b.row)
 assert.strictEqual(layout.homeOf(state, "c"), "HDMI1")
 
+state = layout.normalize(
+  { version: 3, screens: { HDMI1: {
+    a: { col: 0, row: 0 },
+    b: { col: 0, row: 1 },
+    c: { col: 0, row: 2 }
+  } } },
+  items,
+  ["HDMI1", "HDMI2"],
+  grids
+)
 const swapped = layout.moveOrSwap(
   state, "HDMI1", "a", { col: 0, row: 0 }, { col: 0, row: 1 }
 )
@@ -102,7 +113,7 @@ const perScreen = layout.normalize(
   ["HDMI1", "HDMI2"],
   grids
 )
-equalJson(perScreen.screens.HDMI2.b, { col: 0, row: 1 })
+equalJson(perScreen.screens.HDMI2.b, { col: 0, row: 0 })
 
 const migrated = layout.normalize(
   { positions: { HDMI2: { a: { x: 32, y: 168 } } } },
@@ -124,5 +135,49 @@ assert.strictEqual(layout.homeOf(reconnected, "b"), "HDMI2")
 
 const oneScreen = layout.visibleIds(moved, items, ["HDMI1"], "HDMI1")
 equalJson(oneScreen.sort(), ["a", "b", "c"])
+
+const clamped = layout.normalize(
+  { version: 3, screens: { HDMI1: { a: { col: 99, row: 99 } } } },
+  [{ id: "a" }],
+  ["HDMI1"],
+  grids
+)
+equalJson(clamped.screens.HDMI1.a, { col: 7, row: 4 })
+equalJson(layout.cellFromPixel(-40, 9000, grid), { col: 0, row: 4 })
+
+const overlapFree = layout.normalize(
+  { version: 3, screens: { HDMI1: { a: { col: 0, row: 0 } } } },
+  [{ id: "a" }, { id: "b" }],
+  ["HDMI1"],
+  grids
+)
+equalJson(overlapFree.screens.HDMI1.a, { col: 0, row: 0 })
+assert.notStrictEqual(
+  overlapFree.screens.HDMI1.b.col + "," + overlapFree.screens.HDMI1.b.row,
+  "0,0"
+)
+
+const guests = layout.cellMap(
+  { version: 3, screens: { HDMI1: { a: { col: 0, row: 0 } } } },
+  ["a", "guest-1", "guest-2"],
+  "HDMI1",
+  grid
+)
+equalJson(guests.a, { col: 0, row: 0 })
+assert.notStrictEqual(guests["guest-1"].col + "," + guests["guest-1"].row, "0,0")
+assert.notStrictEqual(
+  guests["guest-1"].col + "," + guests["guest-1"].row,
+  guests["guest-2"].col + "," + guests["guest-2"].row
+)
+
+const blockedAfterClamp = layout.moveGroup(
+  groupState, "HDMI1", "HDMI1",
+  [
+    { id: "a", targetCell: { col: 0, row: 0 } },
+    { id: "b", targetCell: { col: 0, row: 0 } }
+  ],
+  grid
+)
+equalJson(blockedAfterClamp, groupState)
 
 console.log("desktop layout model: ok")

@@ -268,6 +268,7 @@ in
           "ANCHOR_SHELL_CONFIG_DIR=%h/.config/anchor-shell"
           "ANCHOR_SHELL_STATE_DIR=%h/.local/state/anchor-shell"
           "ANCHOR_SHELL_PLUGINS_DIR=%h/.config/anchor-shell/plugins"
+          "ANCHOR_SHELL_PYTHON=${anchorShellPython}/bin/python3"
           "XDG_CURRENT_DESKTOP=labwc"
           "XDG_SESSION_DESKTOP=labwc"
         ];

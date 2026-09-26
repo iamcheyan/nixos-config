@@ -15,17 +15,37 @@ function cellKey(col, row) {
   return String(col) + "," + String(row)
 }
 
-function cellFromPixel(x, y, grid) {
+function gridRows(grid) {
+  var rows = grid && grid.rows
+  return rows > 0 ? Math.floor(rows) : 1
+}
+
+function gridCols(grid) {
+  var cols = grid && grid.cols
+  return cols > 0 ? Math.floor(cols) : 32
+}
+
+function clampCell(cell, grid) {
+  var col = cell && cell.col !== undefined ? Math.floor(cell.col) : 0
+  var row = cell && cell.row !== undefined ? Math.floor(cell.row) : 0
   return {
-    col: Math.max(0, Math.round((x - grid.left) / grid.cellW)),
-    row: Math.max(0, Math.round((y - grid.top) / grid.cellH))
+    col: Math.max(0, Math.min(gridCols(grid) - 1, col)),
+    row: Math.max(0, Math.min(gridRows(grid) - 1, row))
   }
 }
 
+function cellFromPixel(x, y, grid) {
+  return clampCell({
+    col: Math.round((x - grid.left) / grid.cellW),
+    row: Math.round((y - grid.top) / grid.cellH)
+  }, grid)
+}
+
 function pixelFromCell(cell, grid) {
+  var clamped = clampCell(cell, grid)
   return {
-    x: grid.left + Math.max(0, cell.col) * grid.cellW,
-    y: grid.top + Math.max(0, cell.row) * grid.cellH
+    x: grid.left + clamped.col * grid.cellW,
+    y: grid.top + clamped.row * grid.cellH
   }
 }
 
@@ -68,6 +88,16 @@ function homeOf(state, id) {
       return screen
   }
   return ""
+}
+
+function occupiedFrom(entries) {
+  var occupied = {}
+  for (var id in entries || {}) {
+    var cell = entries[id]
+    if (cell && cell.col !== undefined && cell.row !== undefined)
+      occupied[cellKey(cell.col, cell.row)] = id
+  }
+  return occupied
 }
 
 function migrate(raw, ids, screens, grids) {
@@ -120,18 +150,17 @@ function migrate(raw, ids, screens, grids) {
   }
 
   for (var missing = 0; missing < ids.length; missing++) {
-    var id = ids[missing]
-    if (assigned[id])
+    var newId = ids[missing]
+    if (assigned[newId])
       continue
     var target = screens[missing % screens.length]
     var targetGrid = gridFor(grids, target)
     if (!state.screens[target])
       state.screens[target] = {}
-    state.screens[target][id] = {
-      col: Math.floor(missing / Math.max(1, targetGrid.rows)),
-      row: missing % Math.max(1, targetGrid.rows)
-    }
-    assigned[id] = target
+    var occupied = occupiedFrom(state.screens[target])
+    var free = firstFree(occupied, targetGrid, 0)
+    state.screens[target][newId] = free
+    assigned[newId] = target
   }
 
   for (var current = 0; current < screens.length; current++) {
@@ -150,25 +179,26 @@ function normalize(raw, items, screenNames, grids) {
 }
 
 function repair(state, activeScreens, grids) {
-  var screens = screenNamesFrom(activeScreens)
   for (var screen in state.screens) {
-    var cells = {}
-    var duplicates = []
+    var grid = gridFor(grids, screen)
     var entries = state.screens[screen] || {}
+    var occupied = {}
+    var overflow = []
     for (var id in entries) {
-      var cell = entries[id]
+      var cell = clampCell(entries[id], grid)
       var key = cellKey(cell.col, cell.row)
-      if (cells[key]) {
-        duplicates.push(id)
+      if (occupied[key]) {
+        overflow.push(id)
         delete entries[id]
       } else {
-        cells[key] = id
+        entries[id] = cell
+        occupied[key] = id
       }
     }
-    for (var i = 0; i < duplicates.length; i++) {
-      var free = firstFree(cells, gridFor(grids, screen), i)
-      entries[duplicates[i]] = free
-      cells[cellKey(free.col, free.row)] = duplicates[i]
+    for (var i = 0; i < overflow.length; i++) {
+      var free = firstFree(occupied, grid, 0)
+      entries[overflow[i]] = free
+      occupied[cellKey(free.col, free.row)] = overflow[i]
     }
   }
 
@@ -176,13 +206,15 @@ function repair(state, activeScreens, grids) {
 }
 
 function firstFree(occupied, grid, start) {
-  var index = Math.max(0, start || 0)
-  var limit = 4096
-  while (limit-- > 0) {
-    var cell = { col: Math.floor(index / grid.rows), row: index % grid.rows }
+  var rows = gridRows(grid)
+  var cols = gridCols(grid)
+  var capacity = Math.max(1, rows * cols)
+  var index = Math.max(0, start || 0) % capacity
+  for (var n = 0; n < capacity; n++) {
+    var i = (index + n) % capacity
+    var cell = { col: Math.floor(i / rows), row: i % rows }
     if (!occupied[cellKey(cell.col, cell.row)])
       return cell
-    index++
   }
   return { col: 0, row: 0 }
 }
@@ -204,11 +236,45 @@ function visibleIds(state, items, activeScreens, screenName) {
   return result
 }
 
+function cellMap(state, ids, screenName, grid) {
+  var map = {}
+  var occupied = {}
+  var entries = state && isObject(state.screens) ? (state.screens[screenName] || {}) : {}
+  var overflow = []
+  for (var i = 0; i < (ids || []).length; i++) {
+    var id = String(ids[i] || "")
+    if (!id)
+      continue
+    if (entries[id]) {
+      var cell = clampCell(entries[id], grid)
+      var key = cellKey(cell.col, cell.row)
+      if (occupied[key])
+        overflow.push(id)
+      else {
+        map[id] = cell
+        occupied[key] = id
+      }
+    } else {
+      overflow.push(id)
+    }
+  }
+  for (var j = 0; j < overflow.length; j++) {
+    var guest = overflow[j]
+    var free = firstFree(occupied, grid, 0)
+    map[guest] = free
+    occupied[cellKey(free.col, free.row)] = guest
+  }
+  return map
+}
+
 function position(state, screenName, id, fallbackIndex, grid) {
   var entries = state && isObject(state.screens) ? (state.screens[screenName] || {}) : {}
   if (entries[id])
     return pixelFromCell(entries[id], grid)
-  return pixelFromCell({ col: Math.floor(fallbackIndex / grid.rows), row: fallbackIndex % grid.rows }, grid)
+  return pixelFromCell({
+    col: Math.floor(fallbackIndex / gridRows(grid)),
+    row: fallbackIndex % gridRows(grid)
+  }, grid)
 }
 
 function moveOrSwap(state, screenName, id, sourceCell, targetCell) {
@@ -232,7 +298,7 @@ function moveOrSwap(state, screenName, id, sourceCell, targetCell) {
 // Move a set of icons as a rigid grid group. A group move is rejected when
 // any destination cell is occupied by an icon outside the group, preventing
 // partial moves and overlaps.
-function moveGroup(state, fromScreen, toScreen, moves) {
+function moveGroup(state, fromScreen, toScreen, moves, grid) {
   var next = clone(state)
   var targetEntries = next.screens[toScreen] || {}
   var moving = {}
@@ -240,13 +306,21 @@ function moveGroup(state, fromScreen, toScreen, moves) {
 
   for (var i = 0; i < moves.length; i++) {
     var move = moves[i]
+    var target = grid ? clampCell(move.targetCell, grid) : {
+      col: move.targetCell.col,
+      row: move.targetCell.row
+    }
+    var destKey = cellKey(target.col, target.row)
+    if (destinations[destKey])
+      return clone(state)
     moving[String(move.id)] = true
-    destinations[cellKey(move.targetCell.col, move.targetCell.row)] = true
+    destinations[destKey] = true
+    move.targetCell = target
   }
 
   for (var targetId in targetEntries) {
-    var target = targetEntries[targetId]
-    if (!moving[targetId] && destinations[cellKey(target.col, target.row)])
+    var occupant = targetEntries[targetId]
+    if (!moving[targetId] && destinations[cellKey(occupant.col, occupant.row)])
       return clone(state)
   }
 

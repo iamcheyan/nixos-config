@@ -260,14 +260,20 @@ Item {
                 || (mouse.modifiers & (Qt.ControlModifier | Qt.ShiftModifier)))
                 surface.host.selectItem(iconRoot.modelData, mouse.modifiers);
             focusItem.forceActiveFocus();
-            if (mouse.button === Qt.LeftButton)
-                surface.host.beginDrag(iconRoot.modelData, surface.screenName, iconRoot.lastSceneX, iconRoot.lastSceneY, mouse.x, mouse.y);
+            // Wait until the pointer actually moves before starting a drag.
+            // Starting on press jumps the Binding and eats double-clicks.
         }
         onPositionChanged: function (mouse) {
             if (!(mouse.buttons & Qt.LeftButton))
                 return;
             iconRoot.lastSceneX = surface.modelData.x + iconRoot.x + mouse.x;
             iconRoot.lastSceneY = surface.modelData.y + iconRoot.y + mouse.y;
+            var moved = Math.abs(iconRoot.x - iconRoot.pressX) > 8 || Math.abs(iconRoot.y - iconRoot.pressY) > 8
+                || Math.abs(mouse.x - iconRoot.dragOffsetX) > 8 || Math.abs(mouse.y - iconRoot.dragOffsetY) > 8;
+            if (surface.host.dragId === "" && moved)
+                surface.host.beginDrag(iconRoot.modelData, surface.screenName, iconRoot.lastSceneX, iconRoot.lastSceneY, iconRoot.dragOffsetX, iconRoot.dragOffsetY);
+            if (surface.host.dragId === "")
+                return;
             surface.host.updateGroupDrag(iconRoot.x - iconRoot.pressX, iconRoot.y - iconRoot.pressY);
             surface.host.updateDragPointer(iconRoot.lastSceneX, iconRoot.lastSceneY);
         }
@@ -283,11 +289,9 @@ Item {
             var sceneY = iconRoot.lastSceneY;
             var grabX = iconRoot.dragOffsetX;
             var grabY = iconRoot.dragOffsetY;
-            var pressX = iconRoot.pressX;
-            var pressY = iconRoot.pressY;
             var dropX = iconRoot.x;
             var dropY = iconRoot.y;
-            var wasDragged = Math.abs(dropX - pressX) > 8 || Math.abs(dropY - pressY) > 8;
+            var wasDragged = surface.host.dragId !== "";
             var draggedIds = surface.host.dragIds.slice();
             var draggedStarts = JSON.parse(JSON.stringify(surface.host.dragStarts));
             // Hide the follow-cursor ghost before any layout change.

@@ -54,11 +54,21 @@ PanelWindow {
     property real marqueeStartY: 0
     property real marqueeEndX: 0
     property real marqueeEndY: 0
-    property bool _initialized: false
-    property var _knownIds: ({})
+    property var placedCells: ({})
 
     function posFor(item, index) {
-        return DesktopLayout.position(host.layoutState, panel.screenName, item ? item.id : "", index, host.gridFor(panel.modelData));
+        var grid = host.gridFor(panel.modelData);
+        var cell = panel.placedCells[item && item.id];
+        if (cell)
+            return DesktopLayout.pixelFromCell(cell, grid);
+        return DesktopLayout.position(host.layoutState, panel.screenName, item ? item.id : "", index, grid);
+    }
+
+    function refreshPlacedCells() {
+        var ids = [];
+        for (var i = 0; i < panel.visibleItems.length; i++)
+            ids.push(panel.visibleItems[i].id);
+        panel.placedCells = DesktopLayout.cellMap(host.layoutState, ids, panel.screenName, host.gridFor(panel.modelData));
     }
 
     function snap(x, y) {
@@ -66,13 +76,18 @@ PanelWindow {
         return DesktopLayout.pixelFromCell(DesktopLayout.cellFromPixel(x, y, grid), grid);
     }
 
+    function itemFieldsMatch(a, b) {
+        return !!(a && b && a.id === b.id && a.name === b.name && a.icon === b.icon && a.preview === b.preview && a.trusted === b.trusted && a.isDir === b.isDir && a.kind === b.kind && a.path === b.path);
+    }
+
     function itemsMatch(current, next) {
         if (!current || !next || current.length !== next.length)
             return false;
-        for (var i = 0; i < next.length; i++) {
-            var a = current[i];
-            var b = next[i];
-            if (!a || !b || a.id !== b.id || a.name !== b.name || a.icon !== b.icon || a.preview !== b.preview || a.trusted !== b.trusted || a.isDir !== b.isDir || a.kind !== b.kind || a.path !== b.path)
+        var byId = {};
+        for (var i = 0; i < current.length; i++)
+            byId[current[i].id] = current[i];
+        for (var j = 0; j < next.length; j++) {
+            if (!panel.itemFieldsMatch(byId[next[j].id], next[j]))
                 return false;
         }
         return true;
@@ -80,9 +95,30 @@ PanelWindow {
 
     function refreshVisibleItems() {
         var next = host.itemsForScreen(panel.screenName);
-        if (panel.itemsMatch(panel.visibleItems, next))
+        if (panel.itemsMatch(panel.visibleItems, next)) {
+            panel.refreshPlacedCells();
             return;
-        panel.visibleItems = next;
+        }
+        var byId = {};
+        for (var i = 0; i < next.length; i++)
+            byId[next[i].id] = next[i];
+        var ordered = [];
+        var seen = {};
+        for (var j = 0; j < panel.visibleItems.length; j++) {
+            var keep = byId[panel.visibleItems[j].id];
+            if (keep && !seen[keep.id]) {
+                ordered.push(keep);
+                seen[keep.id] = true;
+            }
+        }
+        for (var k = 0; k < next.length; k++) {
+            if (!seen[next[k].id]) {
+                ordered.push(next[k]);
+                seen[next[k].id] = true;
+            }
+        }
+        panel.visibleItems = ordered;
+        panel.refreshPlacedCells();
     }
 
     function itemAt(x, y, exceptId) {
@@ -120,43 +156,6 @@ PanelWindow {
                 return panel.posFor(panel.visibleItems[i], i);
         }
         return null;
-    }
-
-    // Place newly added icons at the bottom-most free grid cell (just past
-    // the last occupied icon), skipping any cell already taken. This keeps
-    // them out of the way of manually dragged icons while still landing at
-    // the bottom of the list when the grid is tidy. Existing icons keep
-    // their positions; stale positions for removed items are cleaned up.
-    // Triggered only on add/remove, never on a drag or a routine refresh.
-    function assignMissing() {
-        host.reconcileLayout();
-        host.savePositions();
-    }
-
-    // Detect add/remove (item id set change) and place only new icons.
-    // First load still assigns missing positions so unsaved items do not
-    // land on top of dragged ones; existing saved positions stay put.
-    function maybeRepack() {
-        var cur = {};
-        for (var i = 0; i < panel.visibleItems.length; i++)
-            cur[panel.visibleItems[i].id] = true;
-        if (!panel._initialized) {
-            panel._knownIds = cur;
-            panel._initialized = true;
-            if (panel.width > host.cellW && panel.height > host.cellH)
-                panel.assignMissing();
-            return;
-        }
-        var changed = false;
-        for (var id in cur)
-            if (!panel._knownIds[id])
-                changed = true;
-        for (var id in panel._knownIds)
-            if (!cur[id])
-                changed = true;
-        panel._knownIds = cur;
-        if (changed)
-            panel.assignMissing();
     }
 
     function closeMenu() {
@@ -446,15 +445,12 @@ PanelWindow {
             target: host
             function onItemsChanged() {
                 panel.refreshVisibleItems();
-                panel.maybeRepack();
             }
             function onLayoutStateChanged() {
                 panel.refreshVisibleItems();
             }
             function onScreenTopologyChanged() {
-                host.reconcileLayout();
                 panel.refreshVisibleItems();
-                panel.maybeRepack();
             }
         }
 

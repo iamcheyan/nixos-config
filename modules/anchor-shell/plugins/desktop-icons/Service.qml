@@ -33,6 +33,8 @@ Item {
   property string renamingScreen: ""
   property bool renameBusy: false
   property string lastWrittenPositions: ""
+  property bool positionsReady: false
+  property bool pendingRefresh: false
   property string dragId: ""
   property var dragEntry: null
   property var dragIds: []
@@ -197,8 +199,9 @@ Item {
         targetCell: { col: source.col + deltaCol, row: source.row + deltaRow }
       })
     }
+    var grid = root.gridFor(root.screenByName(toScreen))
     root.layoutState = DesktopLayout.moveGroup(
-      root.layoutState, fromScreen, toScreen, moves
+      root.layoutState, fromScreen, toScreen, moves, grid
     )
     root.savePositions()
   }
@@ -223,23 +226,43 @@ Item {
 
   function gridFor(screen) {
     var height = screen && screen.height ? screen.height : 1080
+    var width = screen && screen.width ? screen.width : 1920
     var top = root.padTopFor(screen)
+    var left = root.padLeftFor(screen)
     return {
-      left: root.padLeftFor(screen),
+      left: left,
       top: top,
       cellW: root.cellW,
       cellH: root.cellH,
-      rows: Math.max(1, Math.floor((height - top - root.padBottom) / root.cellH))
+      rows: Math.max(1, Math.floor((height - top - root.padBottom) / root.cellH)),
+      cols: Math.max(1, Math.floor((width - left) / root.cellW))
+    }
+  }
+
+  function layoutFingerprint(state) {
+    try {
+      return JSON.stringify(state || {})
+    } catch (e) {
+      return ""
     }
   }
 
   function reconcileLayout() {
+    var before = root.layoutFingerprint(root.layoutState)
     root.layoutState = DesktopLayout.normalize(
       root.layoutState,
       root.items,
       root.screenNames(),
       root.gridsForScreens()
     )
+    return root.layoutFingerprint(root.layoutState) !== before
+  }
+
+  function reconcileAndSave() {
+    if (!root.positionsReady)
+      return
+    if (root.reconcileLayout())
+      root.savePositions()
   }
 
   function gridsForScreens() {
@@ -278,8 +301,8 @@ Item {
     }
     if (!target)
       return
-    var snapped = root.snapForScreen(target, x, y)
     var grid = root.gridFor(target)
+    var snapped = root.snapForScreen(target, x, y)
     var targetCell = DesktopLayout.cellFromPixel(snapped.x, snapped.y, grid)
     root.layoutState = DesktopLayout.moveToScreen(
       root.layoutState,
@@ -452,10 +475,16 @@ Item {
   }
 
   function refresh() {
-    if (root.renameBusy)
+    if (root.renameBusy) {
+      root.pendingRefresh = true
       return
-    if (!listProc.running)
-      listProc.running = true
+    }
+    if (listProc.running) {
+      root.pendingRefresh = true
+      return
+    }
+    root.pendingRefresh = false
+    listProc.running = true
   }
 
   function scheduleRefresh() {
@@ -795,11 +824,13 @@ Item {
       root.desktopPath = desktop
       root.itemsJson = next
       root.items = items
-      Qt.callLater(root.reconcileLayout)
+      if (root.positionsReady)
+        root.reconcileAndSave()
       if (root.pendingRenameId && !root.renamingId) {
         // The layout may not know the new file yet; reconcile first so
         // screenShowing() finds the surface that will display it.
-        root.reconcileLayout()
+        if (root.positionsReady)
+          root.reconcileLayout()
         var pending = root.findItem(root.pendingRenameId)
         if (pending && root.beginRenameOnVisibleScreen(pending))
           root.pendingRenameId = ""
@@ -836,9 +867,14 @@ Item {
     } catch (e) {
       root.layoutState = DesktopLayout.empty()
     }
+    root.positionsReady = true
+    if (root.items.length > 0)
+      root.reconcileLayout()
   }
 
   function savePositions() {
+    if (!root.positionsReady)
+      return
     var text = JSON.stringify(root.layoutState || DesktopLayout.empty(), null, 2) + "\n"
     root.lastWrittenPositions = root.canonicalPositions(text)
     posFile.setText(text)
@@ -857,6 +893,17 @@ Item {
     command: [root.pythonBin, root.indexScript]
     stdout: StdioCollector {
       onStreamFinished: root.applyList(text)
+    }
+    stderr: StdioCollector {
+      onStreamFinished: {
+        var err = String(text || "").trim()
+        if (err)
+          console.warn("desktop-icons: index:", err)
+      }
+    }
+    onExited: {
+      if (root.pendingRefresh)
+        Qt.callLater(root.refresh)
     }
   }
 
@@ -898,7 +945,12 @@ Item {
     atomicWrites: true
     printErrors: false
     onLoaded: root.applyPositions(text())
-    onLoadFailed: root.layoutState = DesktopLayout.empty()
+    onLoadFailed: {
+      root.layoutState = DesktopLayout.empty()
+      root.positionsReady = true
+      if (root.items.length > 0)
+        root.reconcileAndSave()
+    }
     onFileChanged: reload()
   }
 
@@ -930,6 +982,8 @@ Item {
     repeat: true
     onTriggered: root.refresh()
   }
+
+  onScreenTopologyChanged: root.reconcileAndSave()
 
   Component.onCompleted: root.refresh()
 
