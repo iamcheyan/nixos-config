@@ -58,14 +58,8 @@ done
 _bg_pid=$!
 disown "$_bg_pid" 2>/dev/null || true
 
-# Restart Quickshell with the same configuration used by autostart. The
-# wrapper's process name is `.quickshell-wrapped`, so `pkill -x quickshell`
-# does not reliably find it; match the executable command line instead.
-pkill -x qs 2>/dev/null || true
-for _pid in $(ps -eo pid=,comm= | awk '$2 ~ /quickshell/ {print $1}'); do
-    [ "$_pid" = "$$" ] || kill "$_pid" 2>/dev/null || true
-done
-"$HOME/.config/labwc/scripts/quickshell" \
-    >"${XDG_RUNTIME_DIR:-/tmp}/quickshell-labwc.log" 2>&1 &
-_qs_pid=$!
-disown "$_qs_pid" 2>/dev/null || true
+# Leave development mode on a compositor reload so the desktop comes back
+# with the store copy, then restart the one systemd-owned shell. Do not
+# launch a second background Quickshell here: that stacks two bars.
+"$HOME/.config/labwc/scripts/restart-anchor-shell" --leave-dev \
+    >>"$LOG" 2>&1 || echo "  restart-anchor-shell FAILED" >> "$LOG"

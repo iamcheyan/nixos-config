@@ -46,15 +46,21 @@ case "${1:-}" in
         ;;
 esac
 
-# Labwc's autostart supervisor notices the exit and starts the selected root.
-# The CLI's `--newest` selector is not accepted consistently across Quickshell
-# versions, so resolve the actual PID first and stop exactly that instance.
-if command -v quickshell >/dev/null 2>&1; then
-    instance_pid="$(quickshell list --all 2>/dev/null | awk '/Process ID:/ {print $3; exit}')"
-    case "$instance_pid" in
-        ''|*[!0-9]*) ;;
-        *) quickshell kill --pid "$instance_pid" >/dev/null 2>&1 || true ;;
-    esac
+# Stop every instance, including orphans from older reload helpers, then let
+# the systemd unit start exactly one shell with the mode written above.
+restart="$HOME/.config/labwc/scripts/restart-anchor-shell"
+if [ -x "$restart" ]; then
+    "$restart"
+else
+    if command -v quickshell >/dev/null 2>&1; then
+        quickshell list --all 2>/dev/null | awk '/Process ID:/ { print $3 }' | while read -r instance_pid; do
+            case "$instance_pid" in
+                ''|*[!0-9]*) ;;
+                *) quickshell kill --pid "$instance_pid" >/dev/null 2>&1 || true ;;
+            esac
+        done
+    fi
+    systemctl --user restart --no-block anchor-shell-labwc-probe.service >/dev/null 2>&1 || true
 fi
 
 printf 'Quickshell mode set to %s; the shell is restarting.\n' "$1"

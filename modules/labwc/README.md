@@ -86,7 +86,8 @@ modules/labwc/
 ### 3. 热重载机制 (Live Reload)
 - 执行 `~/.config/labwc/scripts/reload`（或右键菜单中点击 **Reload Configuration**）：
   - 向 Labwc 进程发送 `SIGHUP` 信号，实时重新加载 `rc.xml` 和 `menu.xml`。
-  - 通过 `disown` 保护重启 `wbg` 壁纸和 `quickshell` 顶栏，避免进程在子 Shell 退出时被误杀。
+  - 重启壁纸。
+  - 若 Anchor Shell 处于开发模式，写回 `nix`，停掉全部 Quickshell 实例，再只通过 `anchor-shell-labwc-probe.service` 拉起一根顶栏。
 
 ---
 

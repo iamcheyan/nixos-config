@@ -11,10 +11,7 @@ choice=$(printf "Restart labwc\nRestart quickshell" | fuzzel --dmenu \
 case "$choice" in
     "Restart labwc")  labwc -r ;;
     "Restart quickshell")
-        pkill -x qs 2>/dev/null || true
-        pkill -x quickshell 2>/dev/null || true
-        "$HOME/.config/labwc/scripts/quickshell" \
-            >"${XDG_RUNTIME_DIR:-/tmp}/quickshell-labwc.log" 2>&1 &
+        "$HOME/.config/labwc/scripts/restart-anchor-shell"
         ;;
     *)                exit 0 ;;
 esac

@@ -1,0 +1,64 @@
+#!/bin/sh
+# Restart the single Labwc Anchor Shell instance.
+#
+# The systemd user service is the only process that should own Quickshell.
+# Older reload helpers launched a second copy in the background, which left
+# two bars on screen.
+#
+#   restart-anchor-shell           keep the current mode
+#   restart-anchor-shell --leave-dev
+#       if mode is dev, write nix so the next start uses the store copy
+
+set -eu
+
+leave_dev=0
+case "${1:-}" in
+    --leave-dev) leave_dev=1 ;;
+    "") ;;
+    *)
+        printf 'Usage: %s [--leave-dev]\n' "$0" >&2
+        exit 2
+        ;;
+esac
+
+anchor_config_dir="${ANCHOR_SHELL_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/anchor-shell}"
+mode_file="$anchor_config_dir/mode"
+
+if [ "$leave_dev" -eq 1 ]; then
+    mkdir -p "$anchor_config_dir"
+    if [ -r "$mode_file" ] && [ "$(tr -d '[:space:]' < "$mode_file")" = dev ]; then
+        printf 'nix\n' > "$mode_file"
+    fi
+fi
+
+stop_all_quickshell() {
+    if command -v quickshell >/dev/null 2>&1; then
+        quickshell list --all 2>/dev/null | awk '/Process ID:/ { print $3 }' | while read -r pid; do
+            case "$pid" in
+                ''|*[!0-9]*) ;;
+                *)
+                    quickshell kill --pid "$pid" >/dev/null 2>&1 || kill "$pid" 2>/dev/null || true
+                    ;;
+            esac
+        done
+    fi
+    pkill -x qs 2>/dev/null || true
+    for pid in $(ps -eo pid=,comm= | awk '$2 ~ /quickshell/ { print $1 }'); do
+        [ "$pid" = "$$" ] && continue
+        kill "$pid" 2>/dev/null || true
+    done
+}
+
+stop_all_quickshell
+
+# Give the compositor a beat to drop the old layer-shell surfaces before the
+# replacement process maps a new bar.
+sleep 0.15
+
+if command -v systemctl >/dev/null 2>&1 \
+    && systemctl --user restart --no-block anchor-shell-labwc-probe.service; then
+    exit 0
+fi
+
+# Fallback for a session without the user unit: one launcher, nothing else.
+exec "$HOME/.config/labwc/scripts/quickshell"
