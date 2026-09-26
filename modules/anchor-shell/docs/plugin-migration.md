@@ -19,5 +19,5 @@
 1. `modules/anchor-shell/plugins/`：仓库维护的全部插件；
 2. `~/.config/anchor-shell/plugins/`：用户安装的插件。
 
-迁移期间仍保留旧路径，方便逐个比较和回退。后续验证完成后，才会考虑停止
-读取旧的 Omarchy 用户插件目录。
+旧的 Omarchy 用户插件目录不由 Anchor Shell 扫描；Anchor Shell 用户插件从
+`~/.config/anchor-shell/plugins/` 加载。

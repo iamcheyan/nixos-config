@@ -7,10 +7,9 @@
 
 - `compat/omarchy/`：当前使用的 Omarchy 运行时快照，包括 `bin/`、first-party
   shell、默认配置、命令名和 `omarchy-*` 兼容接口。
-- `third-party/`：当前用户插件的完整源代码、manifest 和测试：
-  `hancore.overview-workspaces`、`hancore.voxtype-enhance`、
-  `iamcheyan.active-window`、`iamcheyan.clipboard`、`iamcheyan.launcher`、
-  `iamcheyan.lock-screen`。
+- `plugins/`：Anchor Shell 使用的插件源码。剪贴板与 Voxtype 插件位于
+  `plugins/clipboard/` 和 `plugins/voxtype/`，保留原有 manifest ID；其他已迁移
+  插件也由该目录统一管理。
 - `nixarchy-import-session-environment`：保留历史命令名，但实现已经由本仓库
   管理，不再依赖用户目录里的旧脚本。
 - Quickshell 的运行时选择：`runtime legacy` 和 `runtime compat`；两者都继续

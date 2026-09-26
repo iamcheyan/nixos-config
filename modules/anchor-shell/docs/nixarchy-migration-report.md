@@ -42,7 +42,6 @@ systemd user service 和软件声明位置。
 ```text
 modules/anchor-shell/
 ├── plugins/       first-party 插件
-├── third-party/   已迁入并实际使用的第三方插件
 ├── compat/        保留旧命名和脚本接口的本地兼容层
 ├── docs/          迁移和运行文档
 └── shell.qml      Quickshell 入口
