@@ -20,6 +20,15 @@ in
 
   home.stateVersion = "26.05";
 
+  home.packages = lib.optionals pkgs.stdenv.hostPlatform.isx86_64 [
+    (pkgs.callPackage ../../packages/wind7z.nix { })
+    # Wine (64-bit + WoW64, staging branch) and winetricks to run Windows-only
+    # creative tools, currently the Photoshop CC v19 installer from
+    # ~/development/photoshopCClinux-lightroom. winetricks takes wine from PATH.
+    pkgs.wineWow64Packages.staging
+    pkgs.winetricks
+  ];
+
   # Keep the complete Omarchy plugin inventory with the NixOS/Home Manager
   # configuration.  The plugin checkouts themselves remain a separate Git
   # workspace because Omarchy updates them outside the Nix store.

@@ -16,6 +16,9 @@
     noto-fonts
     noto-fonts-cjk-sans
     noto-fonts-color-emoji
+    # Wine-rendered legacy Chinese UIs benefit from this hinted screen font
+    # at their small Windows-style menu sizes.
+    wqy_microhei
 
     # Icon and Symbol Glyphs for Statusbars, TUI & Editor UI
     material-symbols

@@ -48,6 +48,18 @@
         "image/svg+xml" = [ "org.kde.gwenview.desktop" ];
         "image/tiff" = [ "org.kde.gwenview.desktop" ];
         "application/pdf" = [ "okularApplication_pdf.desktop" ];
+        "application/x-7z-compressed" = [ "wind7z.desktop" ];
+        "application/zip" = [ "wind7z.desktop" ];
+        "application/x-rar-compressed" = [ "wind7z.desktop" ];
+        "application/vnd.rar" = [ "wind7z.desktop" ];
+        "application/x-xz" = [ "wind7z.desktop" ];
+        "application/x-xz-compressed" = [ "wind7z.desktop" ];
+        "application/x-bzip" = [ "wind7z.desktop" ];
+        "application/x-bzip2" = [ "wind7z.desktop" ];
+        "application/gzip" = [ "wind7z.desktop" ];
+        "application/x-gzip" = [ "wind7z.desktop" ];
+        "application/x-tar" = [ "wind7z.desktop" ];
+        "application/x-compressed-tar" = [ "wind7z.desktop" ];
         "inode/directory" = [ "org.kde.dolphin.desktop" ];
       };
       associations.added = {
