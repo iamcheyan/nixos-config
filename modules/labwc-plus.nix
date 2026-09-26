@@ -6,17 +6,31 @@ let
   # --impure. There is no fallback to the upstream GitHub package anymore.
   localSource = "/home/tetsuya/labwc-plus";
 
-  # The pinned nixpkgs branch currently carries wlroots 0.20.0, while this
-  # fork follows the upstream 0.20.1 API baseline.
-  wlroots0201 = pkgs.wlroots_0_20.overrideAttrs (_: {
-    version = "0.20.1";
+  # XWayland and wlroots need the matching HiDPI patches: XWayland renders X11
+  # clients at the declared global scale, and wlroots avoids blurring that
+  # buffer on Labwc outputs. Keep this private to Labwc so Hyprland continues
+  # using its own XWayland behavior.
+  xwaylandHiDpi = pkgs.xwayland.overrideAttrs (old: {
+    patches = (old.patches or [ ]) ++ [ ./patches/labwc-hidpi/xwayland-24.1.13-hidpi.patch ];
+  });
+
+  wlroots0202 = (pkgs.wlroots_0_20.override {
+    xwayland = xwaylandHiDpi;
+  }).overrideAttrs (_: {
+    version = "0.20.2";
     src = pkgs.fetchFromGitLab {
       domain = "gitlab.freedesktop.org";
       owner = "wlroots";
       repo = "wlroots";
-      rev = "0.20.1";
-      hash = "sha256-uuc1dn13FXvFSBvE3+QOi35rLJZmWIUst64oaXGdPFk=";
+      rev = "0.20.2";
+      hash = "sha256-VdYymvzYp6/R255AK20j4xTd+JbCZgNiRfgeRJD+UZY=";
     };
+    patches = [
+      ./patches/labwc-hidpi/0001-revert-wl-surface-error-size.patch
+      ./patches/labwc-hidpi/0002-wlroots-xwayland-hidpi.patch
+      ./patches/labwc-hidpi/0003-wlroots-configure-notify.patch
+      ./patches/labwc-hidpi/0004-wlroots-size-hints.patch
+    ];
   });
 
   labwcPlusSource = lib.cleanSourceWith {
@@ -44,7 +58,7 @@ let
     # package instead of silently compiling against the old ABI.
     buildInputs =
       (lib.filter (input: input != pkgs.wlroots_0_19) old.buildInputs)
-      ++ [ wlroots0201 ];
+      ++ [ wlroots0202 ];
 
     # NixOS/Home Manager already provides the session lifecycle wiring.  Do
     # not let Meson install a user unit into the systemd package output.

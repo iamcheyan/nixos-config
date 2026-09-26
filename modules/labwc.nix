@@ -3,16 +3,13 @@
 let
   cfg = config.programs.labwcPreview;
 
-  # Own the compositor-neutral Quickshell sources in this repository. This is the first
-  # migration step away from Nixarchy's packaged Omarchy shell; the current
-  # plugins still use NIXARCHY_ROOT for a few helper commands and are kept
-  # compatible until those helpers are replaced one by one.
+  # Labwc Quickshell source lives in this repository. Hyprland keeps the
+  # separate Nixarchy Omarchy package; do not point this derivation at it.
   quickshellRoot = pkgs.runCommand "anchor-shell" { } ''
     cp -r "${./anchor-shell}"/. "$out/"
   '';
-  # Local compatibility copy of the historical Omarchy runtime. Labwc uses
-  # this repository-owned tree directly; it must not fall back to the
-  # Nixarchy-provided package used by the separate Hyprland session.
+  # Helper commands still use the historical omarchy-* names. This copy is
+  # owned by Labwc; the Hyprland session continues to use Nixarchy's package.
   quickshellCompatRoot = pkgs.runCommand "anchor-shell-omarchy-compat" { } ''
     cp -r "${./anchor-shell/compat/omarchy}"/. "$out/"
   '';
@@ -182,6 +179,19 @@ let
 
     # Labwc owns the desktop wallpaper via set-wallpaper script.
     "$HOME/.config/labwc/scripts/set-wallpaper" wayland >/dev/null 2>&1 &
+
+    # Use the Labwc-only XWayland/wlroots HiDPI patch pair at the 4K output's
+    # integer scale. Retry briefly because XWayland can start lazily.
+    (
+      for attempt in $(${pkgs.coreutils}/bin/seq 1 40); do
+        if ${pkgs.xprop}/bin/xprop -root \
+          -f _XWAYLAND_GLOBAL_OUTPUT_SCALE 32c \
+          -set _XWAYLAND_GLOBAL_OUTPUT_SCALE 2 >/dev/null 2>&1; then
+          break
+        fi
+        ${pkgs.coreutils}/bin/sleep 0.25
+      done
+    ) &
 
     # Labwc does not necessarily activate graphical-session.target itself.
     # Reuse the Labwc-owned declarative service instead of launching an
