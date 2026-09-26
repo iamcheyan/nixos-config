@@ -1,7 +1,0 @@
-#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
-
-# omarchy:summary=Restart tmux if running with the latest configuration
-
-if tmux has-session 2>/dev/null; then
-  tmux source-file ~/.config/tmux/tmux.conf
-fi

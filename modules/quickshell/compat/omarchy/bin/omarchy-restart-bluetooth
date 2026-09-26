@@ -1,7 +1,0 @@
-#!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
-
-# omarchy:summary=Unblock and restart the bluetooth service.
-
-echo -e "Unblocking bluetooth...\n"
-rfkill unblock bluetooth
-rfkill list bluetooth

@@ -1,7 +1,0 @@
-: "${OMARCHY_PATH:=/nix/store/qa1fnlzxq6mi3ixzhz3zjx9gp7bs66bz-omarchy-4.0.2/share/omarchy}"
-source "$OMARCHY_PATH/default/bash/envs"
-source "$OMARCHY_PATH/default/bash/shell"
-source "$OMARCHY_PATH/default/bash/aliases"
-source "$OMARCHY_PATH/default/bash/functions"
-source "$OMARCHY_PATH/default/bash/init"
-[[ $- == *i* ]] && bind -f "$OMARCHY_PATH/default/bash/inputrc"
