@@ -18,6 +18,37 @@ in
   # Tailscale mesh VPN; authentication is performed after activation.
   services.tailscale.enable = true;
   services.flatpak.enable = true;
+  services.syncthing = {
+    enable = true;
+    user = "tetsuya";
+    group = "users";
+    dataDir = "/home/tetsuya";
+    configDir = "/home/tetsuya/.local/state/syncthing";
+    openDefaultPorts = false;
+    settings = {
+      devices.debian = {
+        id = "A43UXGE-Q2NW3JR-AWKZZNG-LAKZGYW-VGBLPA2-TYB6MIA-S5WHR75-VSKTKAK";
+        addresses = [ "tcp://192.168.3.82:22000" ];
+      };
+      folders = {
+        "mir2ei-client" = {
+          id = "mir2ei-client";
+          label = "Mir2EI client — Debian source";
+          path = "/home/tetsuya/mir2ei";
+          type = "receiveonly";
+          devices = [ "debian" ];
+        };
+        "mir2ei-webdata" = {
+          id = "mir2ei-webdata";
+          label = "Mir2EI WebData — Debian source";
+          path = "/home/tetsuya/mir2ei-webdata";
+          type = "receiveonly";
+          devices = [ "debian" ];
+        };
+      };
+      options.listenAddresses = [ "tcp://0.0.0.0:22000" ];
+    };
+  };
   environment.sessionVariables.XDG_DATA_DIRS = [
     "/home/tetsuya/.local/share/flatpak/exports/share"
     "/var/lib/flatpak/exports/share"
@@ -43,13 +74,16 @@ in
   ];
 
   # The peer is bound to this host's LAN address; only the local subnet may
-  # connect to TCP/8377.
+  # connect to TCP/8377 and the Syncthing data port.
   networking.firewall.extraCommands = ''
     iptables -w -A nixos-fw -s 192.168.3.0/24 -p tcp --dport 8377 -j nixos-fw-accept
+    iptables -w -A nixos-fw -s 192.168.3.0/24 -p tcp --dport 22000 -j nixos-fw-accept
   '';
   networking.firewall.extraStopCommands = ''
     iptables -w -D nixos-fw -s 192.168.3.0/24 -p tcp --dport 8377 -j nixos-fw-accept 2>/dev/null || true
+    iptables -w -D nixos-fw -s 192.168.3.0/24 -p tcp --dport 22000 -j nixos-fw-accept 2>/dev/null || true
   '';
+  systemd.tmpfiles.rules = [ "d /home/tetsuya/mir2ei-webdata 0750 tetsuya users -" ];
 
   home-manager.users.tetsuya = { ... }: {
     systemd.user.services.hermes-peer = {

@@ -79,7 +79,7 @@
     isNormalUser = true;
     shell = pkgs.zsh;
     description = "tetsuya";
-    extraGroups = [ "networkmanager" "wheel" "audio" "video" ];
+    extraGroups = [ "networkmanager" "wheel" "audio" "video" "uinput" ];
   };
 
   environment.systemPackages = with pkgs; [

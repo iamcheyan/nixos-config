@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -e
+
+REPO_DIR="/home/tetsuya/nixos-config"
+ANCHOR_CONFIG_DIR="${ANCHOR_SHELL_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/anchor-shell}"
+MODE_FILE="$ANCHOR_CONFIG_DIR/mode"
+
+echo "=========================================="
+echo "   Anchor Shell: Deploy & Exit Dev Mode   "
+echo "=========================================="
+echo
+
+if [ ! -d "$REPO_DIR" ]; then
+    echo "Error: nixos-config repository not found at $REPO_DIR" >&2
+    read -r -p "Press Enter to exit..."
+    exit 1
+fi
+
+cd "$REPO_DIR"
+
+echo "[1/4] Staging changes in repository..."
+git add modules/anchor-shell/ modules/labwc/ modules/labwc.nix 2>/dev/null || true
+
+echo
+echo "Current git status:"
+git status --short
+echo
+
+echo "[2/4] Building and switching NixOS configuration (hx90)..."
+echo "Note: Sudo password may be requested."
+echo
+
+if sudo nixos-rebuild switch --impure --flake "$REPO_DIR#hx90"; then
+    echo
+    echo "=========================================="
+    echo "   NixOS switch completed successfully!   "
+    echo "=========================================="
+    echo
+    echo "[3/4] Switching shell mode to 'nix'..."
+    mkdir -p "$(dirname "$MODE_FILE")"
+    printf '%s\n' "nix" > "$MODE_FILE"
+
+    echo "[4/4] Restarting Anchor Shell in production mode..."
+    RESTART_HELPER="$HOME/.config/labwc/scripts/restart-anchor-shell"
+    if [ -x "$RESTART_HELPER" ]; then
+        "$RESTART_HELPER"
+    else
+        if command -v quickshell >/dev/null 2>&1; then
+            quickshell list --all 2>/dev/null | awk '/Process ID:/ { print $3 }' | while read -r instance_pid; do
+                case "$instance_pid" in
+                    ''|*[!0-9]*) ;;
+                    *) quickshell kill --pid "$instance_pid" >/dev/null 2>&1 || true ;;
+                esac
+            done
+        fi
+        systemctl --user restart --no-block anchor-shell-labwc-probe.service >/dev/null 2>&1 || true
+    fi
+
+    echo
+    echo "Done! You have successfully deployed your changes and exited Dev Mode."
+else
+    echo
+    echo "=========================================="
+    echo "   ERROR: nixos-rebuild switch failed!    "
+    echo "=========================================="
+    echo "Dev mode remains active. Changes were not switched to nix mode."
+fi
+
+echo
+read -r -p "Press Enter to close this window..."

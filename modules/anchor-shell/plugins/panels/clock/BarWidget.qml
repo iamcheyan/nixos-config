@@ -99,12 +99,47 @@ BarWidget {
     if (!target) return
     if ("bar" in target) target.bar = root.bar
     if ("settings" in target) target.settings = root.settings
-    if ("anchorItem" in target) target.anchorItem = button
+    if ("anchorItem" in target) target.anchorItem = root.vertical ? buttonVert : button
     if ("hostWidget" in target) target.hostWidget = root
   }
 
-  implicitWidth: button.implicitWidth
-  implicitHeight: button.implicitHeight
+  readonly property string modeFilePath: (Quickshell.env("ANCHOR_SHELL_CONFIG_DIR")
+    || ((Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/anchor-shell"))
+    + "/mode"
+  property string storedMode: ""
+
+  FileView {
+    id: modeFileWatcher
+    path: root.modeFilePath
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.storedMode = text().trim()
+    onFileChanged: reload()
+    onLoadFailed: root.storedMode = ""
+  }
+
+  readonly property string shellRootPath: root.bar && root.bar.shell ? root.bar.shell.shellPath : (Quickshell.env("QUICKSHELL_ROOT") || "")
+  readonly property bool isDevMode: storedMode === "dev" || (shellRootPath !== "" && !shellRootPath.startsWith("/nix/store"))
+
+  function exitDevModeAndDeploy() {
+    var cmd = "xdg-terminal-exec --app-id=org.omarchy.terminal --title='Anchor Shell Deploy' /home/tetsuya/nixos-config/modules/anchor-shell/bin/anchor-shell-deploy"
+    Util.execDetached(cmd)
+  }
+
+  function reloadDevMode() {
+    Util.execDetached("quickshell-mode dev")
+  }
+
+  function exitDevModeOnly() {
+    Util.execDetached("quickshell-mode nix")
+  }
+
+  implicitWidth: root.vertical
+    ? (root.bar ? root.bar.barSize : Style.bar.sizeHorizontal)
+    : (button.implicitWidth + (root.isDevMode ? devButton.implicitWidth + contentRow.spacing : 0))
+  implicitHeight: root.vertical
+    ? (buttonVert.implicitHeight + (root.isDevMode ? devButtonVert.implicitHeight + contentCol.spacing : 0))
+    : (root.bar ? root.bar.barSize : Style.bar.sizeHorizontal)
 
   onBarChanged: injectPanel()
   onSettingsChanged: injectPanel()
@@ -137,42 +172,195 @@ BarWidget {
     function show(): void { root.open() }
     function hide(): void { root.close() }
     function toggle(): void { root.togglePanel() }
+    function toggleDevMenu(): void { devMenu.open = !devMenu.open }
   }
 
-  WidgetButton {
-    id: button
-    anchors.fill: parent
-    bar: root.bar
-    text: root.vertical ? "" : root.displayText
-    labelVisible: !root.vertical
-    hasVisualContent: root.vertical ? root.verticalLines.length > 0 : text !== ""
-    fixedHeight: root.vertical ? root.verticalLines.length * Style.bar.iconSlot : -1
-    horizontalMargin: 8.75
-    verticalPadding: 8.75
+  // Horizontal layout
+  Row {
+    id: contentRow
+    visible: !root.vertical
+    anchors.centerIn: parent
+    spacing: Style.space(2)
 
-    onPressed: function(b) {
-      if (b === Qt.RightButton) root.cycleFormat()
-      else if (b === Qt.MiddleButton) root.cycleFormat()
-      else root.togglePanel()
+    BarIconButton {
+      id: devButton
+      visible: root.isDevMode
+      bar: root.bar
+      text: "󰅩"
+      slotSize: Style.bar.iconSlot
+      tooltipText: "Developer Mode (Click for actions)"
+      active: true
+      useActiveColor: true
+      activeColor: "#eab308"
+      onPressed: function(b) {
+        devMenu.open = !devMenu.open
+      }
     }
 
+    WidgetButton {
+      id: button
+      bar: root.bar
+      text: root.displayText
+      labelVisible: true
+      hasVisualContent: text !== ""
+      horizontalMargin: 8.75
+      verticalPadding: 8.75
+
+      onPressed: function(b) {
+        if (b === Qt.RightButton) root.cycleFormat()
+        else if (b === Qt.MiddleButton) root.cycleFormat()
+        else root.togglePanel()
+      }
+    }
+  }
+
+  // Vertical layout
+  Column {
+    id: contentCol
+    visible: root.vertical
+    anchors.centerIn: parent
+    spacing: Style.space(2)
+
+    BarIconButton {
+      id: devButtonVert
+      visible: root.isDevMode
+      bar: root.bar
+      text: "󰅩"
+      slotSize: Style.bar.iconSlot
+      tooltipText: "Developer Mode (Click for actions)"
+      active: true
+      useActiveColor: true
+      activeColor: "#eab308"
+      onPressed: function(b) {
+        devMenu.open = !devMenu.open
+      }
+    }
+
+    WidgetButton {
+      id: buttonVert
+      bar: root.bar
+      text: ""
+      labelVisible: false
+      hasVisualContent: root.verticalLines.length > 0
+      fixedHeight: root.verticalLines.length * Style.bar.iconSlot
+      horizontalMargin: 8.75
+      verticalPadding: 8.75
+
+      onPressed: function(b) {
+        if (b === Qt.RightButton) root.cycleFormat()
+        else if (b === Qt.MiddleButton) root.cycleFormat()
+        else root.togglePanel()
+      }
+
+      Column {
+        anchors.fill: parent
+
+        Repeater {
+          model: root.verticalLines
+
+          OpticalGlyph {
+            required property string modelData
+            width: buttonVert.width
+            height: Style.bar.iconSlot
+            text: modelData
+            fontFamily: buttonVert.fontFamily
+            fontSize: modelData.length > 3
+              ? buttonVert.fontSize * 0.9
+              : buttonVert.fontSize
+            color: buttonVert.foreground
+          }
+        }
+      }
+    }
+  }
+
+  PopupCard {
+    id: devMenu
+    anchorItem: root.vertical ? devButtonVert : devButton
+    bar: root.bar
+    owner: root
+    open: false
+    contentWidth: devMenu.fittedContentWidth(Style.space(270))
+    contentHeight: devMenu.fittedContentHeight(devMenuCol.implicitHeight)
+
     Column {
-      visible: root.vertical
-      anchors.fill: parent
+      id: devMenuCol
+      width: parent.width
+      spacing: Style.space(6)
 
-      Repeater {
-        model: root.verticalLines
+      Row {
+        spacing: Style.space(8)
+        anchors.left: parent.left
+        anchors.right: parent.right
 
-        OpticalGlyph {
-          required property string modelData
-          width: button.width
-          height: Style.bar.iconSlot
-          text: modelData
-          fontFamily: button.fontFamily
-          fontSize: modelData.length > 3
-            ? button.fontSize * 0.9
-            : button.fontSize
-          color: button.foreground
+        Text {
+          text: "󰅩"
+          font.family: Style.font.family
+          font.pixelSize: Style.font.title
+          color: "#eab308"
+          anchors.verticalCenter: parent.verticalCenter
+        }
+
+        Column {
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: 1
+
+          Text {
+            text: "Developer Mode"
+            font.family: Style.font.family
+            font.pixelSize: Style.font.body
+            font.weight: Font.DemiBold
+            color: Color.popups.text
+          }
+
+          Text {
+            text: "Running from workspace"
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            color: Util.alpha(Color.popups.text, 0.6)
+          }
+        }
+      }
+
+      Rectangle {
+        width: parent.width
+        height: 1
+        color: Util.alpha(Color.popups.text, 0.12)
+      }
+
+      Button {
+        width: parent.width
+        leftAlign: true
+        iconText: "󰏔"
+        text: "Exit Dev Mode & Deploy"
+        tooltipText: "Stage changes, run nixos-rebuild switch, and return to store mode"
+        onClicked: {
+          devMenu.open = false
+          root.exitDevModeAndDeploy()
+        }
+      }
+
+      Button {
+        width: parent.width
+        leftAlign: true
+        iconText: "󰑐"
+        text: "Reload Shell (Dev)"
+        tooltipText: "Restart Quickshell reloading current workspace files"
+        onClicked: {
+          devMenu.open = false
+          root.reloadDevMode()
+        }
+      }
+
+      Button {
+        width: parent.width
+        leftAlign: true
+        iconText: "󰈆"
+        text: "Exit Dev Mode (No Deploy)"
+        tooltipText: "Return to production store mode without rebuilding"
+        onClicked: {
+          devMenu.open = false
+          root.exitDevModeOnly()
         }
       }
     }
