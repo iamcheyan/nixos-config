@@ -45,6 +45,7 @@ unchanged for compatibility.
 | Idle          | `omarchy.idle`            | `service`               | `services/idle/Service.qml`           |
 | Night light   | `omarchy.nightlight`      | `service`               | `services/nightlight/Service.qml`     |
 | Lock screen   | `omarchy.lock`            | `service`               | `lock/Service.qml`                    |
+| Screen Recording | `anchor.screen-recording` | `service`            | `screen-recording/Service.qml`        |
 | OSD           | `omarchy.osd`             | `panel`                 | `osd/Osd.qml`                         |
 | Polkit agent  | `omarchy.polkit`          | `service`               | `polkit/PolkitAgent.qml`              |
 | Desktop Icons | `desktop-icons`           | `service`               | `desktop-icons/Service.qml`           |

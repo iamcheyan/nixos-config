@@ -6,7 +6,14 @@ pid_file="$runtime_dir/anchor-screen-recording.pid"
 output_file="$runtime_dir/anchor-screen-recording.output"
 log_file="${ANCHOR_SCREEN_RECORD_LOG:-$runtime_dir/anchor-screen-recording.log}"
 
+mode="region"
+output_name=""
+region_geom=""
+with_sound=0
+quiet=0
+
 notify() {
+  [[ "$quiet" -eq 1 ]] && return 0
   command -v notify-send >/dev/null 2>&1 || return 0
   notify-send -a "Anchor Shell" "$1" "$2" 2>/dev/null || true
 }
@@ -31,13 +38,49 @@ recorder_pid() {
   esac
 }
 
-recording_status() {
-  if recorder_pid >/dev/null; then
-    printf 'yes\n'
-  else
-    rm -f "$pid_file" "$output_file"
-    printf 'no\n'
+backend() {
+  if command -v gpu-screen-recorder >/dev/null 2>&1; then
+    printf 'gpu-screen-recorder\n'
+    return 0
   fi
+  if command -v wf-recorder >/dev/null 2>&1; then
+    printf 'wf-recorder\n'
+    return 0
+  fi
+  return 1
+}
+
+list_monitors() {
+  if command -v gpu-screen-recorder >/dev/null 2>&1; then
+    gpu-screen-recorder --list-monitors 2>/dev/null | awk -F'|' 'NF { print $1 }'
+    return 0
+  fi
+  if command -v wlr-randr >/dev/null 2>&1; then
+    wlr-randr 2>/dev/null | awk '/^[A-Za-z0-9-]+ / { print $1 }'
+    return 0
+  fi
+  return 1
+}
+
+monitor_exists() {
+  local wanted="$1" name
+  [[ -n "$wanted" ]] || return 1
+  while IFS= read -r name; do
+    [[ "$name" == "$wanted" ]] && return 0
+  done < <(list_monitors)
+  return 1
+}
+
+only_monitor() {
+  local names=() name
+  while IFS= read -r name; do
+    [[ -n "$name" ]] && names+=("$name")
+  done < <(list_monitors)
+  if [[ ${#names[@]} -eq 1 ]]; then
+    printf '%s\n' "${names[0]}"
+    return 0
+  fi
+  return 1
 }
 
 videos_dir() {
@@ -54,6 +97,25 @@ videos_dir() {
   printf '%s\n' "${XDG_VIDEOS_DIR:-$HOME/Videos}"
 }
 
+recording_status() {
+  if recorder_pid >/dev/null; then
+    printf 'recording\n'
+    return 0
+  fi
+  rm -f "$pid_file" "$output_file"
+  printf 'idle\n'
+}
+
+pause_recording() {
+  local pid
+  pid="$(recorder_pid || true)"
+  if [[ -z "$pid" ]]; then
+    echo "anchor-screen-recording: nothing is recording" >&2
+    return 1
+  fi
+  kill -USR2 "$pid" 2>/dev/null || return 1
+}
+
 stop_recording() {
   local pid output
   pid="$(recorder_pid || true)"
@@ -64,7 +126,6 @@ stop_recording() {
   fi
   output="$(cat "$output_file" 2>/dev/null || true)"
   kill -INT "$pid" 2>/dev/null || true
-  # SIGINT lets both backends write the MP4 trailer before exiting.
   while process_alive "$pid"; do sleep 0.1; done
   rm -f "$pid_file" "$output_file"
 
@@ -73,12 +134,12 @@ stop_recording() {
     printf '%s\n' "$output"
     return 0
   fi
-  notify "Screen recording" "No active recording was found."
+  notify "Screen recording" "No output file was found."
   return 1
 }
 
 start_recording() {
-  local backend output geometry x y width height
+  local be output geometry x y width height
   local -a command
 
   if recorder_pid >/dev/null; then
@@ -86,51 +147,62 @@ start_recording() {
     return 1
   fi
 
-  if command -v wf-recorder >/dev/null 2>&1; then
-    backend="wf-recorder"
-  elif command -v gpu-screen-recorder >/dev/null 2>&1; then
-    backend="gpu-screen-recorder"
-  else
-    notify "Screen recording unavailable" "Install wf-recorder or gpu-screen-recorder."
+  if ! be="$(backend)"; then
+    notify "Screen recording unavailable" "Install gpu-screen-recorder or wf-recorder."
     return 1
   fi
 
-  command -v slurp >/dev/null 2>&1 || {
-    notify "Screen recording unavailable" "slurp is required to select a region."
-    return 1
-  }
-
-  notify "Select a screen area" "Click and drag to choose what to record. Press Esc to cancel."
-  geometry="$(slurp -d -b '#00000066' -c '#f4f4f4ff' -s '#ffffff22' -w 2 2>/dev/null)" || {
-    notify "Screen recording" "Selection cancelled."
-    return 0
-  }
-  [[ -n "$geometry" ]] || return 0
-
-  mkdir -p "$(videos_dir)"
-  output="$(videos_dir)/screenrecording-$(date '+%Y-%m-%d_%H-%M-%S')-$$.mp4"
-
-  if [[ "$backend" == "wf-recorder" ]]; then
-    command=(wf-recorder -f "$output" -g "$geometry")
-    [[ "${1:-}" == "--sound" ]] && command+=(-a)
+  geometry="$region_geom"
+  if [[ "$mode" == "region" ]]; then
+    [[ -n "$geometry" ]] || {
+      notify "Screen recording" "No region was provided."
+      return 1
+    }
   else
-    if [[ "$geometry" =~ ^(-?[0-9]+),(-?[0-9]+)[[:space:]]([0-9]+)x([0-9]+)$ ]]; then
-      x="${BASH_REMATCH[1]}"
-      y="${BASH_REMATCH[2]}"
-      width="${BASH_REMATCH[3]}"
-      height="${BASH_REMATCH[4]}"
-      command=(gpu-screen-recorder -w "${width}x${height}+${x}+${y}" -k auto -f 60 -fm cfr -fallback-cpu-encoding yes -o "$output")
-      if [[ "${1:-}" == "--sound" ]]; then
-        command+=(-a default_output -ac aac)
-      fi
-    else
-      notify "Screen recording failed" "slurp returned invalid geometry: $geometry"
+    if [[ -z "$output_name" ]]; then
+      output_name="$(only_monitor || true)"
+    fi
+    if [[ -z "$output_name" ]] || ! monitor_exists "$output_name"; then
+      notify "Screen recording" "Could not resolve which display to record."
       return 1
     fi
   fi
 
+  mkdir -p "$(videos_dir)"
+  output="$(videos_dir)/screenrecording-$(date '+%Y-%m-%d_%H-%M-%S')-$$.mp4"
+
+  if [[ "$be" == "gpu-screen-recorder" ]]; then
+    command=(gpu-screen-recorder -k auto -f 60 -fm cfr -fallback-cpu-encoding yes -s 0x0 -o "$output")
+    if [[ -n "$geometry" ]]; then
+      if [[ "$geometry" =~ ^(-?[0-9]+),(-?[0-9]+)[[:space:]]([0-9]+)x([0-9]+)$ ]]; then
+        x="${BASH_REMATCH[1]}"
+        y="${BASH_REMATCH[2]}"
+        width="${BASH_REMATCH[3]}"
+        height="${BASH_REMATCH[4]}"
+        command+=(-w region -region "${width}x${height}+${x}+${y}")
+      else
+        notify "Screen recording failed" "Invalid geometry: $geometry"
+        return 1
+      fi
+    else
+      command+=(-w "$output_name")
+    fi
+    if [[ "$with_sound" -eq 1 ]]; then
+      command+=(-a default_output -ac aac)
+    fi
+  else
+    command=(wf-recorder -f "$output")
+    if [[ -n "$geometry" ]]; then
+      command+=(-g "$geometry")
+    else
+      command+=(-o "$output_name")
+    fi
+    [[ "$with_sound" -eq 1 ]] && command+=(-a)
+  fi
+
   {
-    printf '\n===== %s (%s) region %s =====\n' "$(date '+%F %T')" "$backend" "$geometry"
+    printf '\n===== %s (%s) mode=%s output=%s region=%s =====\n' \
+      "$(date '+%F %T')" "$be" "$mode" "${output_name:-}" "${geometry:-}"
   } >>"$log_file"
   (
     trap - INT
@@ -149,7 +221,52 @@ start_recording() {
   printf '%s\n' "$pid" >"$pid_tmp"
   mv -f "$pid_tmp" "$pid_file"
   printf '%s\n' "$output" >"$output_file"
+  printf '%s\n' "$output"
   notify "Recording started" "$output"
+}
+
+parse_start_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --region)
+        mode="region"
+        if [[ $# -ge 2 && "$2" != --* ]]; then
+          region_geom="$2"
+          shift
+        fi
+        ;;
+      --region=*)
+        mode="region"
+        region_geom="${1#--region=}"
+        ;;
+      --fullscreen|-f) mode="fullscreen" ;;
+      --output)
+        shift
+        output_name="${1:-}"
+        ;;
+      --output=*) output_name="${1#--output=}" ;;
+      --sound|-a|--with-desktop-audio) with_sound=1 ;;
+      --quiet|-q) quiet=1 ;;
+      *)
+        echo "anchor-screen-recording: unknown start option '$1'" >&2
+        return 2
+        ;;
+    esac
+    shift || true
+  done
+}
+
+usage() {
+  cat <<'USAGE'
+Usage: anchor-screen-recording <status|start|stop|pause|toggle> [options]
+
+  start --region "X,Y WxH"       Record the given compositor region
+  start --fullscreen --output N  Record display N
+  start --fullscreen             Record the only connected display
+  pause                          Toggle pause on the running recorder
+  stop                           Finish the current recording
+  status                         Print recording or idle
+USAGE
 }
 
 case "${1:-toggle}" in
@@ -158,23 +275,30 @@ case "${1:-toggle}" in
     ;;
   start)
     shift || true
-    start_recording "${1:-}"
+    parse_start_args "$@"
+    start_recording
+    ;;
+  pause|--pause)
+    pause_recording
     ;;
   stop|--stop)
     stop_recording
     ;;
   toggle)
-    if recorder_pid >/dev/null; then stop_recording; else start_recording "${2:-}"; fi
+    shift || true
+    if recorder_pid >/dev/null; then
+      stop_recording
+    else
+      parse_start_args "$@"
+      start_recording
+    fi
     ;;
   -h|--help|help)
-    cat <<'USAGE'
-Usage: anchor-screen-recording [start [--sound] | stop | status | toggle]
-
-Starting opens slurp to select a region, then records to the Videos directory.
-USAGE
+    usage
     ;;
   *)
     echo "anchor-screen-recording: unknown command '$1'" >&2
+    usage >&2
     exit 2
     ;;
 esac

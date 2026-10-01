@@ -34,7 +34,7 @@
           {
             "value": "ScreenRecording",
             "label": "Screen recording",
-            "description": "Start or stop screen recording"
+            "description": "Left click records a region. Right click chooses this display or a region."
           },
           {
             "value": "Reminder",
