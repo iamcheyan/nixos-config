@@ -12,7 +12,6 @@ let
   '';
   # Both sessions use locally packaged historical omarchy-* helper commands.
   quickshellCompatRoot = "${pkgs.callPackage ./packages/desktop-compat.nix { }}/share/omarchy";
-  quickshellDevRoot = "/home/tetsuya/nixos-config/modules/anchor-shell";
   # Henri desktop-icons uses Gio/GLib through PyGObject. Keep its interpreter
   # isolated instead of changing the system's generic python3 selection.
   anchorShellPython = pkgs.python3.withPackages (ps: [ ps.pygobject3 ]);
@@ -198,6 +197,7 @@ let
     ${pkgs.systemd}/bin/systemctl --user import-environment \
       WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP \
       XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS \
+      NIXOS_OZONE_WL CODEX_OZONE_PLATFORM \
       ANCHOR_SHELL_CONFIG_DIR ANCHOR_SHELL_STATE_DIR ANCHOR_SHELL_PLUGINS_DIR \
       QUICKSHELL_ROOT QUICKSHELL_PLUGINS_DIR QUICKSHELL_CONFIG \
       ANCHOR_SHELL_PYTHON \
@@ -205,7 +205,7 @@ let
     # Keep both systemd and D-Bus activated applications on the Labwc
     # session's GTK and Qt theme settings.
     ${pkgs.dbus}/bin/dbus-update-activation-environment --systemd \
-      QT_QPA_PLATFORMTHEME GTK_THEME
+      QT_QPA_PLATFORMTHEME GTK_THEME NIXOS_OZONE_WL CODEX_OZONE_PLATFORM
     # Refresh the Labwc-owned Fcitx5 service for this session's Wayland socket.
     ${pkgs.systemd}/bin/systemctl --user restart --no-block anchor-fcitx5.service &
 
@@ -240,6 +240,7 @@ let
     # Anchor Shell is supervised by the user systemd service below.  Keep
     # exactly one owner for the Quickshell process; a second shell here can
     # race the IPC/layer-shell instance and leave labwc looking black.
+    ${pkgs.systemd}/bin/systemctl --user reset-failed anchor-shell-labwc-probe.service 2>/dev/null || true
     ${pkgs.systemd}/bin/systemctl --user restart --no-block anchor-shell-labwc-probe.service &
   '';
 in
@@ -259,6 +260,10 @@ in
     systemd.user.services.anchor-shell-labwc-probe = {
       description = "Anchor Shell for the Labwc session";
       wants = [ "omarchy-sleep-lock.service" "omarchy-crash-watch.service" ];
+      # The user manager can keep running between graphical sessions. Do not
+      # let Restart=always launch Quickshell with stale or missing Wayland
+      # variables before Labwc imports the current session environment.
+      unitConfig.ConditionEnvironment = "WAYLAND_DISPLAY";
       serviceConfig = {
         # Route through the mode-aware launcher so `quickshell-mode dev`
         # selects the checkout and `quickshell-mode nix` selects this store copy.
@@ -277,8 +282,10 @@ in
           "XDG_CURRENT_DESKTOP=labwc"
           "XDG_SESSION_DESKTOP=labwc"
         ];
-        Restart = "always";
-        RestartSec = 1;
+        Restart = "on-failure";
+        RestartSec = 2;
+        StartLimitIntervalSec = 30;
+        StartLimitBurst = 5;
       };
     };
 

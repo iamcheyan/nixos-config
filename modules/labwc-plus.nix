@@ -1,10 +1,13 @@
 { config, lib, pkgs, ... }:
 
 let
-  # This machine is intentionally built from the local development checkout.
-  # The path is outside this flake, so nixos-rebuild must be run with
-  # --impure. There is no fallback to the upstream GitHub package anymore.
-  localSource = "/home/tetsuya/labwc-plus";
+  # The development checkout is supplied by the caller, never embedded in
+  # the module. This keeps the flake reusable across users and machines.
+  localSource =
+    let source = builtins.getEnv "LABWC_PLUS_SOURCE";
+    in assert lib.assertMsg (source != "")
+      "LABWC_PLUS_SOURCE must point to the Labwc-plus checkout";
+      source;
 
   # XWayland and wlroots need the matching HiDPI patches: XWayland renders X11
   # clients at the declared global scale, and wlroots avoids blurring that

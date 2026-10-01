@@ -1,6 +1,13 @@
 #!/bin/sh
 set -eu
 
+wayland_display="${WAYLAND_DISPLAY:-}"
+runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+if [ -z "$wayland_display" ] || [ ! -S "$runtime_dir/$wayland_display" ]; then
+    printf 'Wayland display socket (%s/%s) not found, exiting cleanly\n' "$runtime_dir" "$wayland_display" >&2
+    exit 0
+fi
+
 qs_bin=""
 for candidate in \
     "$HOME/.local/bin/quickshell" \

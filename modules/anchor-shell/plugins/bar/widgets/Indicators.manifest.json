@@ -34,7 +34,7 @@
           {
             "value": "ScreenRecording",
             "label": "Screen recording",
-            "description": "GPU screen recorder status"
+            "description": "Start or stop screen recording"
           },
           {
             "value": "Reminder",

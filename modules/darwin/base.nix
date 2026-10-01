@@ -10,8 +10,9 @@ let
       exit 2
     fi
 
+    : "''${NIX_CONFIG_ROOT:?Set NIX_CONFIG_ROOT to the Nix configuration checkout}"
     exec /run/current-system/sw/bin/darwin-rebuild \
-      switch --flake /Users/tetsuya/nixos-config#macbook-m1-max
+      switch --flake "''${NIX_CONFIG_ROOT}#macbook-m1-max"
   '';
 in
 
@@ -48,6 +49,7 @@ in
   # first activation still needs the normal sudo password so this rule can be
   # installed; later switches can use `sudo darwin-rebuild-macbook`.
   environment.etc."sudoers.d/10-darwin-rebuild-macbook".text = ''
+    Defaults env_keep += "NIX_CONFIG_ROOT DARWIN_HOME"
     tetsuya ALL=(root) NOPASSWD: /run/current-system/sw/bin/darwin-rebuild-macbook
   '';
 

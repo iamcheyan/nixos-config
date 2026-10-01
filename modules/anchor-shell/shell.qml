@@ -299,16 +299,22 @@ ShellRoot {
         console.warn("service plugin load failed for " + key + ": " + comp.errorString())
         return
       }
-      var inst = comp.createObject(serviceHost)
+      var inst = comp.createObject(serviceHost, {
+        integrationPath: shell.integrationPath,
+        shell: shell,
+        manifest: manifest,
+        barWidgetRegistry: shell.barWidgetRegistry,
+        pluginRegistry: shell.pluginRegistry
+      })
       if (!inst) {
         console.warn("service plugin createObject returned null for", key)
         return
       }
-      if ("integrationPath" in inst) inst.integrationPath = shell.integrationPath
-      if ("shell" in inst) inst.shell = shell
-      if ("manifest" in inst) inst.manifest = manifest
-      if ("barWidgetRegistry" in inst) inst.barWidgetRegistry = shell.barWidgetRegistry
-      if ("pluginRegistry" in inst) inst.pluginRegistry = shell.pluginRegistry
+      if ("integrationPath" in inst && !inst.integrationPath) inst.integrationPath = shell.integrationPath
+      if ("shell" in inst && !inst.shell) inst.shell = shell
+      if ("manifest" in inst && !inst.manifest) inst.manifest = manifest
+      if ("barWidgetRegistry" in inst && !inst.barWidgetRegistry) inst.barWidgetRegistry = shell.barWidgetRegistry
+      if ("pluginRegistry" in inst && !inst.pluginRegistry) inst.pluginRegistry = shell.pluginRegistry
       var snext = ({})
       for (var sk in _services) snext[sk] = _services[sk]
       snext[key] = inst

@@ -6,17 +6,23 @@ BarIndicator {
   id: root
 
   property bool recording: false
+  property bool selecting: false
+  readonly property var recorderService: root.bar && root.bar.shell
+    && typeof root.bar.shell.serviceFor === "function"
+    ? root.bar.shell.serviceFor("anchor.screen-recording") : null
 
-  active: recording
+  active: recording || selecting
   activeText: "󰻂"
   inactiveText: "󰻂"
-  activeTooltipText: "Stop recording"
+  activeTooltipText: recording ? "Stop recording" : "Select an area to record"
   inactiveTooltipText: "Screen Recording"
 
   function refresh() {
-    if (!root.bar || statusProc.running) return
-    statusProc.command = ["pgrep", "--quiet", "-f", "^gpu-screen-recorder"]
-    statusProc.running = true
+    if (root.recorderService) {
+      root.recorderService.refresh()
+      root.recording = root.recorderService.recording
+      root.selecting = root.recorderService.starting
+    }
   }
 
   onBarChanged: refresh()
@@ -28,16 +34,21 @@ BarIndicator {
     function onRefreshRequested() { root.refresh() }
   }
 
-  Process {
-    id: statusProc
-    onExited: function(exitCode) {
-      root.recording = exitCode === 0
+  Connections {
+    target: root.recorderService
+    ignoreUnknownSignals: true
+    function onRecordingChanged() {
+      root.recording = !!root.recorderService.recording
+    }
+    function onStartingChanged() {
+      root.selecting = !!root.recorderService.starting
     }
   }
 
   onPressed: function() {
     if (root.bar) {
-      root.bar.run(root.recording ? "omarchy-capture-screenrecording --stop-recording" : "omarchy-menu toggle trigger.capture.screenrecord")
+      if (root.recorderService) root.recorderService.toggle()
+      else root.bar.run("${QUICKSHELL_ROOT}/plugins/screen-recording/bin/anchor-screen-recording toggle")
     }
   }
 }

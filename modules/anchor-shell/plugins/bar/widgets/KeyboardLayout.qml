@@ -38,6 +38,7 @@ BarWidget {
   property bool refreshPending: false
 
   function refresh() {
+    if (!Style.isHyprlandSession) return
     if (queryProc.running) {
       refreshPending = true
       return
@@ -79,7 +80,7 @@ BarWidget {
 
   Component.onCompleted: {
     briefsProc.running = true
-    refresh()
+    if (Style.isHyprlandSession) refresh()
   }
 
   Connections {
@@ -196,7 +197,7 @@ BarWidget {
   // spawning hyprctl forever for an answer that cannot change.
   Timer {
     interval: 10000
-    running: !root.keyboardName || root.keyboardUnresolved || root.keyboardCount > 1
+    running: Style.isHyprlandSession && (!root.keyboardName || root.keyboardUnresolved || root.keyboardCount > 1)
     repeat: true
     onTriggered: root.refresh()
   }

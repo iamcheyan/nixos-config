@@ -179,7 +179,7 @@ Panel {
     // Labwc owns this Quickshell instance, so route locking through the
     // compositor-local helper instead of loginctl or omarchy-system-lock.
     if (action === "lock") Quickshell.execDetached([Quickshell.env("HOME") + "/.config/labwc/scripts/lock-screen"])
-    else if (action === "logout") Quickshell.execDetached(["loginctl", "terminate-user", Quickshell.env("USER") || "tetsuya"])
+    else if (action === "logout") Quickshell.execDetached(["labwc", "-e"])
     else if (action === "suspend") Quickshell.execDetached(["systemctl", "suspend"])
     else if (action === "hibernate" && root.hibernateAvailable) Quickshell.execDetached(["systemctl", "hibernate"])
     else if (action === "reboot") Quickshell.execDetached(["systemctl", "reboot"])

@@ -2,6 +2,13 @@ GOENV_ROOT=/home/tetsuya/.goenv
 PATH=/home/tetsuya/.goenv/shims:$PATH
 
 MOZ_ENABLE_WAYLAND=1
+# Prefer native Wayland backends for Chromium/Electron apps that ship the
+# NixOS Ozone wrapper support (including QQ). This lets each app use its
+# current output's Wayland scale instead of XWayland's session-wide scale.
+NIXOS_OZONE_WL=1
+# Codex's package otherwise explicitly defaults to X11 even in a Wayland
+# session; its launcher accepts this override to select Ozone Wayland.
+CODEX_OZONE_PLATFORM=wayland
 XCURSOR_SIZE=24
 GTK_THEME=BL-Lithium-dark
 QT_QPA_PLATFORMTHEME=kde

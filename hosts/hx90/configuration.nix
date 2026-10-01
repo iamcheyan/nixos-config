@@ -17,6 +17,11 @@ in
 
   # Tailscale mesh VPN; authentication is performed after activation.
   services.tailscale.enable = true;
+  services.flatpak.enable = true;
+  environment.sessionVariables.XDG_DATA_DIRS = [
+    "/home/tetsuya/.local/share/flatpak/exports/share"
+    "/var/lib/flatpak/exports/share"
+  ];
 
   # Labwc is HX90's normal desktop session. This also selects Labwc for SDDM
   # autologin, so restarting the display manager does not launch Omarchy first.
@@ -25,7 +30,6 @@ in
 
   # Keep the Hermes remote API peer available when the user is logged out.
   users.users.tetsuya.linger = true;
-  environment.variables.HERMES_HOME = "/home/tetsuya/.local/share/hermes-peer";
 
   environment.systemPackages = with pkgs; [
     curl
@@ -55,15 +59,15 @@ in
       };
       Service = {
         Type = "simple";
-        WorkingDirectory = "/home/tetsuya";
+        WorkingDirectory = "%h";
         Environment = [
-          "HERMES_HOME=/home/tetsuya/.local/share/hermes-peer"
+          "HERMES_HOME=%h/.local/share/hermes-peer"
           "API_SERVER_ENABLED=true"
           "API_SERVER_HOST=192.168.3.188"
           "API_SERVER_PORT=8377"
         ];
-        EnvironmentFile = "/home/tetsuya/.config/hermes-peer/api.env";
-        ExecStart = "/home/tetsuya/.local/share/hermes-agent/venv/bin/hermes gateway";
+        EnvironmentFile = "%h/.config/hermes-peer/api.env";
+        ExecStart = "%h/.local/share/hermes-agent/venv/bin/hermes gateway";
         Restart = "on-failure";
         RestartSec = 5;
       };
@@ -94,7 +98,7 @@ in
     capSysAdmin = true;
   };
   services.displayManager.autoLogin = {
-    enable = true;
+    enable = false;
     user = "tetsuya";
   };
 

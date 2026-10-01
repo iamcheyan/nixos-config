@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ inputs, lib, ... }:
 
 {
   imports = [
@@ -21,7 +21,11 @@
 
   users.users.tetsuya = {
     name = "tetsuya";
-    home = "/Users/tetsuya";
+    home =
+      let home = builtins.getEnv "DARWIN_HOME";
+      in assert lib.assertMsg (home != "")
+        "DARWIN_HOME must point to the primary user's home directory";
+        home;
   };
 
   home-manager.useGlobalPkgs = true;

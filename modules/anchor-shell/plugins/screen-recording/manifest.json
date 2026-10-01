@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "anchor.screen-recording",
+  "name": "Anchor Screen Recording",
+  "version": "1.0.0",
+  "author": "Anchor Shell",
+  "license": "MIT",
+  "description": "Record a selected screen region in the Labwc session.",
+  "keepLoaded": true,
+  "kinds": ["service"],
+  "entryPoints": {
+    "service": "Service.qml"
+  }
+}

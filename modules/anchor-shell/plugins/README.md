@@ -24,6 +24,7 @@ unchanged for compatibility.
 | Clipboard | `clipboard/` | `iamcheyan.clipboard` |
 | Desktop Icons | `desktop-icons/` | `desktop-icons` |
 | Lock Screen | `lock/` | `omarchy.lock` |
+| Screen Recording | `screen-recording/` | `anchor.screen-recording` |
 
 | Plugin        | id                        | kinds                   | entry point                           |
 |---------------|---------------------------|-------------------------|---------------------------------------|

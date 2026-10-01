@@ -3,37 +3,13 @@ let
   desktopPackage = pkgs.callPackage ./packages/desktop-compat.nix { };
   tree = "${desktopPackage}/share/omarchy";
   usingFcitx5 = config.i18n.inputMethod.enable && config.i18n.inputMethod.type == "fcitx5";
-  sessionLauncher = pkgs.writeShellScript "desktop-hyprland-session" ''
-    export OMARCHY_PATH=${tree}
-    exec ${pkgs.uwsm}/bin/uwsm start -N "Hyprland (local)" -D Hyprland -- \
-      ${config.programs.hyprland.package}/bin/start-hyprland -- --config ${tree}/config/hypr/hyprland.lua
-  '';
-  session = (pkgs.writeTextFile {
-    name = "local-hyprland-session";
-    destination = "/share/wayland-sessions/omarchy.desktop";
-    text = ''
-      [Desktop Entry]
-      Name=Hyprland (local)
-      Comment=Locally managed Hyprland compatibility session
-      Exec=${sessionLauncher}
-      Type=Application
-      DesktopNames=Hyprland
-    '';
-  }).overrideAttrs (_: { passthru.providedSessions = [ "omarchy" ]; });
 in {
-  imports = [ inputs.hyprland.nixosModules.default ];
   nix.settings = {
     experimental-features = lib.mkDefault [ "nix-command" "flakes" ];
     substituters = [ "https://hyprland.cachix.org" ];
     trusted-public-keys = [ "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIITemDosxrE9/Kb+PfYvE=" ];
   };
-  programs.git = { enable = lib.mkDefault true; config.safe.directory = [ "/home/tetsuya/nixos-config" ]; };
-  programs.hyprland = {
-    enable = true;
-    package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
-    portalPackage = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
-    withUWSM = true;
-  };
+  programs.git.enable = lib.mkDefault true;
   programs.nix-ld.enable = lib.mkDefault true;
   programs.bash.interactiveShellInit = "source ${tree}/default/bash/rc";
   programs.zsh.interactiveShellInit = lib.mkIf config.programs.zsh.enable "source ${tree}/default/zsh/rc";
@@ -41,10 +17,9 @@ in {
   environment.sessionVariables = {
     OMARCHY_PATH = tree;
     OMARCHY_SCREENSHOT_EDITOR = lib.mkDefault "satty-edit";
-    NIXOS_CONFIG = "/home/tetsuya/nixos-config";
     XDG_DATA_DIRS = [ "${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}" ];
   };
-  environment.systemPackages = [ desktopPackage session ] ++ (with pkgs; [
+  environment.systemPackages = [ desktopPackage ] ++ (with pkgs; [
     bash coreutils util-linux fontconfig findutils gnused gnugrep gawk jq gum curl socat systemd glib xdg-utils libnotify
     hyprpicker hyprsunset hyprlock quickshell wl-clipboard wtype grim slurp
     imagemagick ffmpeg gpu-screen-recorder mpv yt-dlp tesseract zbar qrencode pciutils brightnessctl ddcutil
@@ -52,7 +27,7 @@ in {
     xdg-terminal-exec uwsm foot chromium nautilus neovim mise lazygit lazydocker eza zoxide starship gtk3 udiskie git less man-db
     unzip pamixer alsa-utils imv evince tldr inxi ffmpegthumbnailer vips file libxkbcommon xdg-user-dirs satty wl-screenrec
     (pkgs.callPackage ./packages/ttfx.nix { })
-    gsettings-desktop-schemas gnome-themes-extra yaru-theme adwaita-icon-theme hyprland-preview-share-picker bibata-cursors
+    gsettings-desktop-schemas gnome-themes-extra yaru-theme adwaita-icon-theme bibata-cursors
     pinta libreoffice xournalpp obs-studio moonlight-qt kdePackages.kdenlive gnome-disk-utility sushi cliamp
   ]);
   services = {
@@ -64,7 +39,6 @@ in {
     upower.enable = lib.mkDefault true;
     pipewire.jack.enable = lib.mkDefault true;
     logind.settings.Login = { HandlePowerKey = lib.mkDefault "ignore"; InhibitDelayMaxSec = lib.mkDefault 15; };
-    displayManager.sessionPackages = [ session ];
   };
   environment.etc."omarchy/xcompose".source = "${tree}/default/xcompose";
   virtualisation.docker.enable = lib.mkDefault true;
