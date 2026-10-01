@@ -1,18 +1,25 @@
 # Reusable keyd mappings for Voxtype dictation.
 #
-# keyd owns only the keyboard-side behavior: a standalone press emits F24,
-# while a chord keeps the normal modifier behavior. The desktop-side F24
-# binding lives in chezmoi/dot_config/hypr/bindings.lua.
+# keyd owns only the keyboard-side behavior. A Control chord stays Control.
+# Holding Control alone for holdMs milliseconds emits F24 for the rest of the
+# press; releasing F24 ends the hold. The desktop-side F24 binding and the
+# voxtype-ptt watcher live next to this file in keyd.nix / Labwc / Hyprland.
+let
+  holdMs = 200;
+  holdToTalk = "timeout(layer(control), ${toString holdMs}, f24)";
+in
 {
+  inherit holdMs;
+
   leftControl = {
-    leftcontrol = "overload(control, f24)";
+    leftcontrol = holdToTalk;
   };
 
   rightControl = {
-    rightcontrol = "overload(control, f24)";
+    rightcontrol = holdToTalk;
   };
 
   capsLock = {
-    capslock = "overload(control, f24)";
+    capslock = holdToTalk;
   };
 }

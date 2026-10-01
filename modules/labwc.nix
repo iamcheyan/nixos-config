@@ -234,6 +234,7 @@ let
     # Quickshell IPC environment was imported; restart it so the paste hook
     # can identify the current application on every compositor.
     ${pkgs.systemd}/bin/systemctl --user restart --no-block voxtype.service &
+    ${pkgs.systemd}/bin/systemctl --user restart --no-block voxtype-ptt.service &
 
     ${pkgs.mako}/bin/mako &
 

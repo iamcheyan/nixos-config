@@ -2,12 +2,39 @@
 
 let
   voice = import ./keyd-voice.nix;
+  voxtypePtt = pkgs.writeScriptBin "voxtype-ptt" ''
+    #!${pkgs.python3.interpreter}
+    ${builtins.readFile ./voxtype-ptt.py}
+  '';
 in
 
 {
   # One shared MINILA-R profile for every host. The USB ID identifies the
   # keyboard, not a machine-specific configuration variant.
-  environment.systemPackages = [ pkgs.keyd ];
+  environment.systemPackages = [ pkgs.keyd voxtypePtt ];
+
+  # TAG+="uaccess" must be applied before systemd's 73-seat-late.rules.
+  # services.udev.extraRules lands in 99-local.rules, which is too late.
+  services.udev.packages = [
+    (pkgs.writeTextFile {
+      name = "keyd-voxtype-ptt-udev";
+      destination = "/lib/udev/rules.d/70-keyd-voxtype-ptt.rules";
+      text = ''
+        KERNEL=="event*", SUBSYSTEM=="input", ATTRS{name}=="keyd virtual keyboard", TAG+="uaccess"
+      '';
+    })
+  ];
+
+  systemd.user.services.voxtype-ptt = {
+    description = "Voxtype hold-to-talk from keyd F24";
+    wantedBy = [ "default.target" ];
+    path = [ pkgs.voxtype-onnx ];
+    serviceConfig = {
+      ExecStart = "${voxtypePtt}/bin/voxtype-ptt";
+      Restart = "always";
+      RestartSec = 1;
+    };
+  };
 
   services.keyd = {
     enable = true;
@@ -31,7 +58,7 @@ in
         escape = "grave";
       # The physical right Ctrl key is the MINILA-R arrow-up key.  Keep this
       # mapping authoritative; the voice layer must not turn it back into a
-      # Ctrl/F24 overload.
+      # Ctrl/F24 hold-to-talk mapping.
       } // voice.leftControl // voice.capsLock;
       settings.muhenkan = {
         # Emit C-M-v directly; F13 is not reliably received by Labwc.

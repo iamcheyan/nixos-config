@@ -72,5 +72,5 @@
       <action name="Execute" command="voxtype record toggle" />
     </keybind>
     <keybind key="F24" onRelease="yes">
-      <action name="Execute" command="voxtype record toggle" />
+      <action name="Execute" command="voxtype record stop" />
     </keybind>
