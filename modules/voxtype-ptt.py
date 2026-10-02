@@ -1,8 +1,10 @@
 """Watch the keyd virtual keyboard and drive Voxtype hold-to-talk.
 
 keyd maps a lone Control hold to F24 after a short timeout, and keeps
-Control chords as Control. This process starts recording on F24 press
-and transcribes on F24 release. Key repeat (value 2) is ignored.
+Control chords as Control even after that timeout. This process starts
+recording on F24 press and transcribes on F24 release. A non-modifier
+key while F24 is held is a Control chord, so recording is cancelled.
+Key repeat (value 2) is ignored.
 """
 import glob
 import json
@@ -17,6 +19,19 @@ EVENT_FORMAT = "llHHi"
 EVENT_SIZE = struct.calcsize(EVENT_FORMAT)
 EV_KEY = 0x01
 KEY_F24 = 194
+# Linux evdev keycodes. oneshotk(control, f24) also emits leftcontrol;
+# that must not cancel hold-to-talk.
+MODIFIER_KEYS = {
+    29,  # KEY_LEFTCTRL
+    97,  # KEY_RIGHTCTRL
+    42,  # KEY_LEFTSHIFT
+    54,  # KEY_RIGHTSHIFT
+    56,  # KEY_LEFTALT
+    100,  # KEY_RIGHTALT
+    125,  # KEY_LEFTMETA
+    126,  # KEY_RIGHTMETA
+    58,  # KEY_CAPSLOCK
+}
 
 
 def log(message):
@@ -58,7 +73,7 @@ def record(action):
     state = voxtype_state()
     if action == "start" and state != "idle":
         return
-    if action == "stop" and state != "recording":
+    if action in ("stop", "cancel") and state != "recording":
         return
     try:
         subprocess.run(["voxtype", "record", action], check=False, timeout=3)
@@ -67,17 +82,24 @@ def record(action):
 
 
 def handle_events(fd):
+    f24_held = False
     while True:
         chunk = os.read(fd, EVENT_SIZE)
         if len(chunk) < EVENT_SIZE:
             raise OSError("short read from keyd virtual keyboard")
         _sec, _usec, ev_type, code, value = struct.unpack(EVENT_FORMAT, chunk)
-        if ev_type != EV_KEY or code != KEY_F24:
+        if ev_type != EV_KEY or value == 2:
             continue
-        if value == 1:
-            record("start")
-        elif value == 0:
-            record("stop")
+        if code == KEY_F24:
+            if value == 1:
+                f24_held = True
+                record("start")
+            elif value == 0:
+                f24_held = False
+                record("stop")
+            continue
+        if f24_held and value == 1 and code not in MODIFIER_KEYS:
+            record("cancel")
 
 
 def main():

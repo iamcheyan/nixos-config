@@ -60,6 +60,7 @@ in
       # mapping authoritative; the voice layer must not turn it back into a
       # Ctrl/F24 hold-to-talk mapping.
       } // voice.leftControl // voice.capsLock;
+      extraConfig = voice.extraConfig;
       settings.muhenkan = {
         # Emit C-M-v directly; F13 is not reliably received by Labwc.
         v = "C-M-v";
