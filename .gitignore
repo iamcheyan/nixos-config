@@ -6,3 +6,8 @@
 /local/*
 !/local/
 !/local/README.md
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
