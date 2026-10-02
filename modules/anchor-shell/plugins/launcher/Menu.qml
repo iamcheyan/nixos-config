@@ -429,6 +429,28 @@ Item {
               focus: root.opened
               onTextChanged: root.filterApps()
 
+              function selectNext() {
+                var count = root.filteredApps.length
+                if (count <= 0) return
+                if (appList.currentIndex < 0 || appList.currentIndex >= count) {
+                  appList.currentIndex = 0
+                } else {
+                  appList.currentIndex = (appList.currentIndex + 1) % count
+                }
+                appList.positionViewAtIndex(appList.currentIndex, ListView.Contain)
+              }
+
+              function selectPrevious() {
+                var count = root.filteredApps.length
+                if (count <= 0) return
+                if (appList.currentIndex <= 0 || appList.currentIndex >= count) {
+                  appList.currentIndex = count - 1
+                } else {
+                  appList.currentIndex = appList.currentIndex - 1
+                }
+                appList.positionViewAtIndex(appList.currentIndex, ListView.Contain)
+              }
+
               Keys.onEscapePressed: root.close()
               Keys.onReturnPressed: {
                 var entry = appList.currentIndex >= 0
@@ -436,12 +458,30 @@ Item {
                   : root.filteredApps.length > 0 ? root.filteredApps[0] : null
                 if (entry) root.launch(entry)
               }
+              Keys.onTabPressed: function(event) {
+                selectNext()
+                event.accepted = true
+              }
+              Keys.onBacktabPressed: function(event) {
+                selectPrevious()
+                event.accepted = true
+              }
               Keys.onPressed: function(event) {
                 if (event.key === Qt.Key_Down) {
-                  appList.incrementCurrentIndex()
+                  selectNext()
                   event.accepted = true
                 } else if (event.key === Qt.Key_Up) {
-                  appList.decrementCurrentIndex()
+                  selectPrevious()
+                  event.accepted = true
+                } else if (event.key === Qt.Key_Tab) {
+                  if (event.modifiers & Qt.ShiftModifier) {
+                    selectPrevious()
+                  } else {
+                    selectNext()
+                  }
+                  event.accepted = true
+                } else if (event.key === Qt.Key_Backtab) {
+                  selectPrevious()
                   event.accepted = true
                 }
               }
