@@ -36,7 +36,7 @@ keyd 不应该直接执行截图、启动程序或修改桌面状态。它只负
 | 右 Alt | 下方向键 | 光标向下 |
 | Grave | Escape | 交换行为 |
 | Escape | Grave | 交换行为 |
-| 左 Ctrl | `timeout(layer(control), 200, f24)` | 200ms 内和弦是 Ctrl；单独按住超过 200ms 发出 F24 按住说话 |
+| 左 Ctrl | `timeout(layer(control), 300, oneshotk(control, f24))` | 300ms 内和弦是 Ctrl；单独按住超过 300ms 发出 F24 按住说话，之后再按其他键仍是 Ctrl 组合键 |
 
 ## 可复用的语音 Ctrl 映射
 
@@ -60,7 +60,7 @@ in
 
 可用片段：
 
-- `voice.leftControl`：单独按住左 Ctrl 超过 200ms 开始语音，松开转写；200ms 内的 Ctrl 组合键保持不变；
+- `voice.leftControl`：单独按住左 Ctrl 超过 300ms 开始语音，松开转写；Ctrl 组合键在超时前后都保持为 Control（慢按 Ctrl+A 仍是全选）；若超时后已经开始录音又按下其他键，则取消录音并发送组合键；
 - `voice.rightControl`：同样应用到右 Ctrl；
 - `voice.capsLock`：同样应用到 CapsLock（MINILA-R 上 CapsLock 也是语音键）。
 

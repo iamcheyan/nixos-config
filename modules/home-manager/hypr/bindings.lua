@@ -22,11 +22,11 @@ hl.bind("F9", hl.dsp.exec_cmd("voxtype record toggle"), {
   description = "Toggle dictation"
 })
 
--- MINILA-R only: keyd maps a lone Control hold to F24 after 200ms while
--- preserving Ctrl combinations.  F24 is only emitted by the MINILA-R keyd
--- profile, so this binding does not affect other keyboards.  Press starts
--- Voxtype; release transcribes.  Ctrl+C/Ctrl+W/etc. remain ordinary Ctrl
--- shortcuts.
+-- MINILA-R only: keyd maps a lone Control hold to F24 after 300ms while
+-- preserving Ctrl combinations even after that timeout.  F24 is only
+-- emitted by the MINILA-R keyd profile, so this binding does not affect
+-- other keyboards.  Press starts Voxtype; release transcribes.
+-- Ctrl+C/Ctrl+W/etc. remain ordinary Ctrl shortcuts.
 hl.unbind("F24")
 hl.bind("F24", hl.dsp.exec_cmd("voxtype record start"), {
   description = "MINILA-R Ctrl dictation start"
