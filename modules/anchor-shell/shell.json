@@ -47,11 +47,6 @@
           "id": "omarchy.tray"
         },
         {
-          "id": "hancore.voxtype-enhance",
-          "middleMouseToggle": true,
-          "recordingAnimation": true
-        },
-        {
           "id": "omarchy.bluetooth"
         },
         {
