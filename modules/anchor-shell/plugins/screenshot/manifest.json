@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "omarchy.screenshot",
+  "name": "Anchor Frozen Screenshot",
+  "version": "1.0.0",
+  "author": "Anchor Shell",
+  "license": "MIT",
+  "description": "Select, save, and copy a region from a frozen desktop image.",
+  "keepLoaded": true,
+  "kinds": ["service"],
+  "entryPoints": {
+    "service": "Service.qml"
+  }
+}

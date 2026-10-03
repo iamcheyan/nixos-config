@@ -12,6 +12,12 @@ processing="${2:-slurp}"
 timestamp="$(date +%Y-%m-%d_%H-%M-%S)"
 filepath="$output_dir/screenshot-$timestamp.png"
 
+# All interactive captures use the same frozen frame and selector. Fullscreen
+# remains a direct save because it has no region-selection step.
+if [[ "$mode" != fullscreen ]]; then
+  exec "$script_dir/omarchy-capture-frozen" --start
+fi
+
 notify() {
   notify-send "Screenshot" "$1" -t "${2:-2500}" 2>/dev/null || true
 }

@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ ${1:-} == "--start" ]]; then
+  shell_pid="$(quickshell list --all 2>/dev/null | awk '/Process ID:/ { print $3; exit }')"
+  if [[ ! $shell_pid =~ ^[0-9]+$ ]]; then
+    echo "Anchor Shell is not running" >&2
+    exit 1
+  fi
+  exec quickshell ipc --pid "$shell_pid" call omarchy.screenshot begin
+fi
+
+if [[ $# -ne 6 ]]; then
+  echo "usage: omarchy-capture-frozen IMAGE X Y WIDTH HEIGHT copy-save" >&2
+  exit 2
+fi
+
+image=$1 x=$2 y=$3 width=$4 height=$5 action=$6
+[[ $action == copy-save && -s $image ]] || exit 2
+
+runtime_dir=${XDG_RUNTIME_DIR:-/tmp}
+crop_file="$runtime_dir/anchor-screenshot-crop-$$.png"
+image_dir="$(dirname -- "$image")"
+cleanup_capture_dir=""
+case "${image_dir##*/}" in
+  anchor-frozen-screenshot-*) cleanup_capture_dir=$image_dir ;;
+esac
+cleanup() {
+  rm -f "$crop_file"
+  if [[ -n $cleanup_capture_dir ]]; then rm -rf -- "$cleanup_capture_dir"; fi
+}
+trap cleanup EXIT
+magick "$image" -crop "${width}x${height}+${x}+${y}" +repage "$crop_file"
+wl-copy --type image/png <"$crop_file"
+[[ -f ~/.config/user-dirs.dirs ]] && source ~/.config/user-dirs.dirs
+output_dir="${OMARCHY_SCREENSHOT_DIR:-${XDG_PICTURES_DIR:-$HOME/Pictures}}"
+mkdir -p "$output_dir"
+saved="$output_dir/screenshot-$(date +%Y-%m-%d_%H-%M-%S).png"
+cp "$crop_file" "$saved"
+cleanup_capture_dir=""
+notify-send "Screenshot" "Saved and copied: $saved" -t 2500 2>/dev/null || true
