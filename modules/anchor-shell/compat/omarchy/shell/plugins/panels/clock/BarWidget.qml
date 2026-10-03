@@ -99,12 +99,16 @@ BarWidget {
     if (!target) return
     if ("bar" in target) target.bar = root.bar
     if ("settings" in target) target.settings = root.settings
-    if ("anchorItem" in target) target.anchorItem = button
+    if ("anchorItem" in target) target.anchorItem = root.vertical ? buttonVert : button
     if ("hostWidget" in target) target.hostWidget = root
   }
 
-  implicitWidth: button.implicitWidth
-  implicitHeight: button.implicitHeight
+  implicitWidth: root.vertical
+    ? (root.bar ? root.bar.barSize : Style.bar.sizeHorizontal)
+    : button.implicitWidth
+  implicitHeight: root.vertical
+    ? buttonVert.implicitHeight
+    : (root.bar ? root.bar.barSize : Style.bar.sizeHorizontal)
 
   onBarChanged: injectPanel()
   onSettingsChanged: injectPanel()
@@ -139,42 +143,73 @@ BarWidget {
     function toggle(): void { root.togglePanel() }
   }
 
-  WidgetButton {
-    id: button
-    anchors.fill: parent
-    bar: root.bar
-    text: root.vertical ? "" : root.displayText
-    labelVisible: !root.vertical
-    hasVisualContent: root.vertical ? root.verticalLines.length > 0 : text !== ""
-    fixedHeight: root.vertical ? root.verticalLines.length * Style.bar.iconSlot : -1
-    horizontalMargin: 8.75
-    verticalPadding: 8.75
+  // Horizontal layout
+  Row {
+    id: contentRow
+    visible: !root.vertical
+    anchors.centerIn: parent
+    spacing: Style.space(2)
 
-    onPressed: function(b) {
-      if (b === Qt.RightButton) root.cycleFormat()
-      else if (b === Qt.MiddleButton) { if (root.bar) root.bar.run("omarchy-menu-timezone") }
-      else root.togglePanel()
+    WidgetButton {
+      id: button
+      bar: root.bar
+      text: root.displayText
+      labelVisible: true
+      hasVisualContent: text !== ""
+      horizontalMargin: 8.75
+      verticalPadding: 8.75
+
+      onPressed: function(b) {
+        if (b === Qt.RightButton) root.cycleFormat()
+        else if (b === Qt.MiddleButton) root.cycleFormat()
+        else root.togglePanel()
+      }
     }
+  }
 
-    Column {
-      visible: root.vertical
-      anchors.fill: parent
+  // Vertical layout
+  Column {
+    id: contentCol
+    visible: root.vertical
+    anchors.centerIn: parent
+    spacing: Style.space(2)
 
-      Repeater {
-        model: root.verticalLines
+    WidgetButton {
+      id: buttonVert
+      bar: root.bar
+      text: ""
+      labelVisible: false
+      hasVisualContent: root.verticalLines.length > 0
+      fixedHeight: root.verticalLines.length * Style.bar.iconSlot
+      horizontalMargin: 8.75
+      verticalPadding: 8.75
 
-        OpticalGlyph {
-          required property string modelData
-          width: button.width
-          height: Style.bar.iconSlot
-          text: modelData
-          fontFamily: button.fontFamily
-          fontSize: modelData.length > 3
-            ? button.fontSize * 0.9
-            : button.fontSize
-          color: button.foreground
+      onPressed: function(b) {
+        if (b === Qt.RightButton) root.cycleFormat()
+        else if (b === Qt.MiddleButton) root.cycleFormat()
+        else root.togglePanel()
+      }
+
+      Column {
+        anchors.fill: parent
+
+        Repeater {
+          model: root.verticalLines
+
+          OpticalGlyph {
+            required property string modelData
+            width: buttonVert.width
+            height: Style.bar.iconSlot
+            text: modelData
+            fontFamily: buttonVert.fontFamily
+            fontSize: modelData.length > 3
+              ? buttonVert.fontSize * 0.9
+              : buttonVert.fontSize
+            color: buttonVert.foreground
+          }
         }
       }
     }
   }
 }
+

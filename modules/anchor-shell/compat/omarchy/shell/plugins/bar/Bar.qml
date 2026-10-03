@@ -1,5 +1,4 @@
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
@@ -11,8 +10,8 @@ import "BarModel.js" as BarModel
 Item {
   id: root
 
-  // The omarchy-shell host injects omarchyPath from OMARCHY_PATH.
-  required property string omarchyPath
+  // The shell host injects the optional integration resource root.
+  required property string integrationPath
   // Injected by the host shell so bar slots can resolve enabled widgets.
   required property var barWidgetRegistry
   // Injected by the host shell every time shell.json is reloaded. Holds the
@@ -31,8 +30,10 @@ Item {
   // without an exclusion zone; updated by the FileView watcher further down.
   property bool barHidden: false
   property string home: Quickshell.env("HOME")
-  property string stateHome: home + "/.local/state"
-  property string omarchyConfigDir: home + "/.config/omarchy"
+  property string stateHome: Quickshell.env("ANCHOR_SHELL_STATE_DIR")
+      || ((Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")) + "/anchor-shell")
+  property string omarchyConfigDir: Quickshell.env("ANCHOR_SHELL_CONFIG_DIR")
+      || ((Quickshell.env("XDG_CONFIG_HOME") || (home + "/.config")) + "/anchor-shell")
   property var fallbackBarConfig: ({
     position: "top",
     transparent: false,
@@ -344,10 +345,8 @@ Item {
     }
   }
 
-  // The tray drawer reveals inward (away from the bar edge). Place it at the
-  // section's inner edge: start of the right section, end of the left/center
-  // sections. The drawer's reserved space then sits next to the bar center,
-  // not stranded mid-section.
+  // The tray drawer and indicators reveal inward (away from the bar edge).
+  // Place the combined tray group at the section's inner edge.
   function pinTrayToInner(entries, section) {
     return BarModel.pinTrayToInner(entries, section)
   }
@@ -484,12 +483,21 @@ Item {
     return window && window.screen ? String(window.screen.name || "") : ""
   }
 
-  // The output Hyprland has focused, which is where a keyboard-summoned panel
-  // belongs. Empty until Hyprland reports one, which leaves panel routing on
-  // its per-monitor fallback rather than guessing at an output.
+  // Route keyboard-summoned panels to the screen containing the active
+  // toplevel. ToplevelManager is compositor-neutral and works with Labwc,
+  // Sway, Hyprland, and other wlroots compositors.
   function focusedScreenName() {
-    var monitor = Hyprland.focusedMonitor
-    return monitor ? String(monitor.name || "") : ""
+    var active = ToplevelManager.activeToplevel
+    if (active) {
+      // Labwc may leave the singular screen property unset while the plural
+      // list is populated. Keep the active output available for panel routing.
+      var screens = active.screens || []
+      if (screens.length > 0 && screens[0])
+        return String(screens[0].name || "")
+      if (active.screen)
+        return String(active.screen.name || "")
+    }
+    return ""
   }
 
   // Resolve the live bar-widget instance for a plugin id (e.g. "omarchy.bluetooth").
@@ -612,18 +620,6 @@ Item {
     if (!command) return
 
     Util.execDetached(command)
-  }
-
-  function toggleTransparency() {
-    var nextTransparent = !(root.requestedTransparent === true)
-    if (root.shell && typeof root.shell.mutateShellConfig === "function") {
-      root.shell.mutateShellConfig(function(config) {
-        if (!Util.isPlainObject(config.bar)) config.bar = {}
-        config.bar.transparent = nextTransparent
-      })
-    } else {
-      root.setRequestedTransparency(nextTransparent)
-    }
   }
 
   function rawLayoutSection(config, region) {
@@ -938,11 +934,11 @@ Item {
   Process {
     id: barHiddenProbe
     running: true
-    command: ["bash", "-c", "[[ -f $HOME/.local/state/omarchy/toggles/bar-off ]] && echo yes || echo no"]
+    command: ["bash", "-c", "[[ -f \"" + root.stateHome + "/toggles/bar-off\" ]] && echo yes || echo no"]
     stdout: SplitParser { onRead: function(line) { root.barHidden = String(line).trim() === "yes" } }
   }
   FileView {
-    path: root.home + "/.local/state/omarchy/toggles"
+    path: root.stateHome + "/toggles"
     watchChanges: true
     printErrors: false
     onFileChanged: barHiddenProbe.running = true
@@ -1033,7 +1029,9 @@ Item {
 
     implicitWidth: root.vertical ? root.barSize : 0
     implicitHeight: root.vertical ? 0 : root.barSize
-    color: root.transparent ? "transparent" : root.background
+    // Keep the bar itself solid in layout, but render its background with 20%
+    // transparency so the desktop shows through without dimming widgets/text.
+    color: root.transparent ? "transparent" : Util.alpha(root.background, 0.8)
     surfaceFormat.opaque: false
     WlrLayershell.namespace: "omarchy-bar"
     WlrLayershell.layer: WlrLayer.Top
@@ -1418,11 +1416,10 @@ Item {
     pressAndHoldInterval: 200
 
     function startDrag(x, y) {
-      if (dragging) return
-      dragging = true
-      root.beginBarMove(root.targetWindow(gestureArea))
-      var scenePoint = gestureArea.mapToItem(null, x, y)
-      root.updateBarMove(root.windowScreenPoint(scenePoint, root.barMoveWindow))
+      // Labwc keeps the bar permanently at the top edge.  The original
+      // Omarchy gesture that moved the bar to the nearest screen edge is
+      // intentionally disabled in this fork.
+      return
     }
 
     onPressed: function(mouse) {
@@ -1474,16 +1471,6 @@ Item {
       }
     }
 
-    onDoubleClicked: function(mouse) {
-      if (suppressClick) {
-        suppressClick = false
-        return
-      }
-      if (mouse.button === Qt.LeftButton) {
-        root.toggleTransparency()
-        mouse.accepted = true
-      }
-    }
   }
 
   component ModuleList: Loader {
@@ -1673,7 +1660,10 @@ Item {
       property bool suppressClick: false
       property real pressedX: 0
       property real pressedY: 0
-      readonly property bool canReorder: root.shell && typeof root.shell.mutateShellConfig === "function"
+      // The clock is the bar's fixed center anchor; never allow it to be
+      // dragged into a side section or reordered away from the center.
+      readonly property bool canReorder: moduleName !== "omarchy.clock" &&
+        root.shell && typeof root.shell.mutateShellConfig === "function"
       readonly property real dragThreshold: Style.space(4)
 
       anchors.fill: parent

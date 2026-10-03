@@ -1,0 +1,135 @@
+#!/usr/bin/env node
+// The item list, organizations and folders start together after
+// authentication (bw spends most of each start idle); on a remembered session
+// the list also starts alongside `bw status`, but nothing from it shows, and
+// no metadata or agent load starts, until the status confirms.
+//
+//   node tests/initial-load.test.js
+
+const { createSuite, functionBody, readPluginSource } = require("./harness")
+
+const panelSrc = readPluginSource("Panel.qml")
+const { check, done } = createSuite("initial-load")
+
+const bodyOf = name => functionBody(panelSrc, name)
+
+const initial = bodyOf("beginInitialVaultLoad")
+check("initial loading starts the item list, then the metadata",
+  /loadItems\(/.test(initial) && /loadPendingMetadata\(\)/.test(initial)
+    && initial.indexOf("loadItems(") < initial.indexOf("loadPendingMetadata()"),
+  initial)
+const pendingMeta = bodyOf("loadPendingMetadata")
+check("metadata starts only for a confirmed session",
+  /if\s*\(status\s*!==\s*"unlocked"\s*\|\|\s*!metadataLoadPending\)\s*return/.test(pendingMeta)
+    && /loadOrganizations\(force\)/.test(pendingMeta) && /loadFolders\(force\)/.test(pendingMeta),
+  pendingMeta)
+
+const keyring = bodyOf("onKeyringLookupFinished")
+check("a remembered session reads the list alongside bw status",
+  /runStatusCheck\(\)/.test(keyring) && /if\s*\(token\)\s*beginInitialVaultLoad\(false,\s*false\)/.test(keyring)
+    && keyring.indexOf("runStatusCheck()") < keyring.indexOf("beginInitialVaultLoad("),
+  keyring)
+const startRead = bodyOf("startVaultListRead")
+check("an early read never feeds the SSH agent",
+  /listReadEarly\s*=\s*status\s*!==\s*"unlocked"/.test(startRead)
+    && /useAgent\s*=\s*!retrying\s*&&\s*!listReadEarly/.test(startRead),
+  startRead)
+const loadItemsBody = bodyOf("loadItems")
+check("a confirmed load waits on the early read instead of starting another",
+  /listProc\.running\s*&&\s*listReadEarly\s*&&\s*!vaultReadIsStale\("items"\)\)\s*return/.test(loadItemsBody),
+  loadItemsBody)
+const statusDone = bodyOf("onStatusFinished")
+check("a confirmed unlock starts the metadata the early read held back",
+  /ensureItemsFresh\(\)\s*\n\s*\/\/[^\n]*\n\s*loadPendingMetadata\(\)/.test(statusDone),
+  statusDone)
+
+for (const source of ["onUnlockSuccess", "onSessionHandoff"]) {
+  const body = bodyOf(source)
+  check(`${source} uses the items-first entry point`, /beginInitialVaultLoad\(/.test(body), body)
+  check(`${source} does not launch organization metadata directly`, !/loadOrganizations\(/.test(body), body)
+  check(`${source} does not launch folder metadata directly`, !/loadFolders\(/.test(body), body)
+}
+
+const listFinished = bodyOf("onListFinished")
+check("metadata deferral begins only after the item result is accepted",
+  /Model\.readSanitizedVault\(rawJson\)/.test(listFinished)
+    && /items\s*=\s*vault\.items/.test(listFinished)
+    && !/items\s*=\s*Model\.parseItems/.test(listFinished)
+    && /if\s*\(metadataLoadPending\s*\|\|\s*statusRefreshAfterItems\)\s*deferredMetadataTimer\.restart\(\)/.test(listFinished)
+    && listFinished.indexOf("items = vault.items") < listFinished.indexOf("deferredMetadataTimer.restart()"),
+  listFinished)
+// The list is parsed once: a second parser on the same text (the SSH
+// capability used to be read by its own full parse) doubles the GUI-thread
+// cost on every load.
+check("the vault list is parsed once per load",
+  (listFinished.match(/Model\.\w+\(rawJson\)/g) || []).length === 1
+    && !/inspectSanitizedVault|parseSanitizedItems/.test(listFinished),
+  listFinished)
+
+const listExited = bodyOf("onListProcessExited")
+check("item output is accepted only after the process exit status is known",
+  /exitCode\s*===\s*0/.test(listExited) && /onListFinished\(/.test(listExited), listExited)
+check("a failed item refresh clears all loading and deferred-work state",
+  /isLoading\s*=\s*false/.test(listExited)
+    && /isSyncing\s*=\s*false/.test(listExited)
+    && /metadataLoadPending\s*=\s*false/.test(listExited)
+    && /syncReloadPending\s*=\s*false/.test(listExited),
+  listExited)
+check("a failed item refresh does not run the post-load status refresh",
+  !/statusRefreshAfterItems[\s\S]{0,140}runStatusCheck\(/.test(listExited),
+  listExited)
+check("an early read's failure shows no error; after confirmation it is read again",
+  /var wasEarly = listReadEarly/.test(listExited)
+    && /if\s*\(wasEarly\s*&&\s*status\s*===\s*"unlocked"\s*&&\s*!vaultReadIsStale\("items"\)\)\s*\{\s*beginVaultRead\("items"\)\s*startVaultListRead\(false\)\s*return/.test(listExited)
+    && /!vaultReadIsStale\("items"\)\s*&&\s*!wasEarly\)\s*\{\s*errorMessage/.test(listExited),
+  listExited)
+
+const timerStart = panelSrc.indexOf("id: deferredMetadataTimer")
+const timer = timerStart === -1 ? "" : panelSrc.slice(timerStart, timerStart + 700)
+check("deferred metadata goes through the confirmed-session gate", /root\.loadPendingMetadata\(\)/.test(timer), timer)
+check("metadata waits long enough for an item-list frame",
+  /interval:\s*(?:[2-9][0-9]|[1-9][0-9]{2,})/.test(timer), timer)
+check("post-load status refresh is metadata-only",
+  /runStatusCheck\(false\)/.test(timer)
+    && /function runStatusCheck\(authoritative\)/.test(panelSrc)
+    && /statusCheckAuthoritative\s*=\s*authoritative\s*!==\s*false/.test(panelSrc)
+    && /if\s*\(!authoritative\)\s*\{[\s\S]{0,220}return/.test(bodyOf("onStatusFinished")),
+  bodyOf("runStatusCheck") + "\n" + bodyOf("onStatusFinished") + "\n" + timer)
+
+const sync = bodyOf("onSyncFinished")
+check("a successful server sync also reloads items before metadata",
+  /beginInitialVaultLoad\(/.test(sync) && !/loadOrganizations\(/.test(sync) && !/loadFolders\(/.test(sync), sync)
+
+check("the empty list says when items are loading", panelSrc.includes('"Loading items..."'), "missing loading label")
+const syncButton = panelSrc.slice(panelSrc.indexOf("// Sync Vault Button"), panelSrc.indexOf("// Send Button"))
+check("the compact sync control reports progress using supported PanelActionButton properties",
+  /tooltipText:\s*root\.isSyncing\s*\?\s*"Syncing\.\.\."/.test(syncButton)
+    && /enabled:\s*!root\.isSyncing/.test(syncButton)
+    && !/iconSpinning/.test(syncButton),
+  syncButton)
+check("the panel header reports sync progress in text",
+  /if\s*\(root\.isSyncing\)\s*return\s*"Syncing\.\.\."/.test(panelSrc),
+  "missing Syncing... header state")
+
+const listProcessStart = panelSrc.indexOf("id: listProc")
+const listProcess = listProcessStart === -1 ? "" : panelSrc.slice(listProcessStart, listProcessStart + 900)
+check("the item process waits for onExited instead of racing its stdout and stderr handlers",
+  /onExited:[\s\S]*onListProcessExited/.test(listProcess)
+    && !/onStreamFinished:[\s\S]*onListFinished/.test(listProcess),
+  listProcess)
+
+const processBlock = id => {
+  const idAt = panelSrc.indexOf(`id: ${id}`)
+  if (idAt === -1) return ""
+  const next = panelSrc.indexOf("\n  Process {", idAt)
+  return panelSrc.slice(idAt, next === -1 ? panelSrc.length : next)
+}
+for (const id of ["statusProc", "sessionHandoffProc", "listOrgsProc", "listFoldersProc",
+                  "orgCollectionsProc", "listSendsProc", "keyringLookupMasterProc",
+                  "getItemProc", "getTotpProc"]) {
+  const block = processBlock(id)
+  check(`${id} accepts output only after its exit status is known`,
+    /onExited:/.test(block) && !/onStreamFinished:/.test(block), block)
+}
+
+done()

@@ -242,7 +242,7 @@ QtObject {
       return { section: section, index: Math.min(requested, config.bar.layout[section].length) }
     }
 
-    var anchors = { left: "omarchy.workspaces", center: "omarchy.weather", right: "omarchy.tray" }
+    var anchors = { left: "omarchy.workspaces", center: "omarchy.clock", right: "omarchy.tray" }
     var anchor = findRelativeBarLocation(config, anchors[section], section)
     return {
       section: section,

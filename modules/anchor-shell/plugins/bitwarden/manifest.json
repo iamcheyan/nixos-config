@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "id": "tetsuya.bitwarden",
+  "name": "Bitwarden",
+  "version": "1.11.2",
+  "author": "David Spencer",
+  "license": "MIT",
+  "description": "Bitwarden vault integration for the Anchor Shell status bar and quick access panel.",
+  "kinds": [
+    "bar-widget",
+    "service"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml",
+    "service": "Service.qml"
+  },
+  "barWidget": {
+    "displayName": "Bitwarden",
+    "description": "Search, copy passwords and TOTP codes, and manage your Bitwarden vault from Anchor Shell.",
+    "category": "Utilities",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "autoLockMinutes": 15,
+      "lockOnScreenLock": true,
+      "lockOnSuspend": true,
+      "clearClipboardSec": 30,
+      "rememberSession": true,
+      "autoCopyTotpSec": 3,
+      "closeOnCopy": true,
+      "colorizeIcon": false,
+      "suggestOnOpen": true,
+      "fingerprintUnlock": false,
+      "fidoUnlock": false,
+      "pinUnlock": false,
+      "sshAgentEnabled": false,
+      "sshAgentUnlockOnDemand": false,
+      "sshAgentApprovalPopup": true,
+      "sshAgentApprovalWindowSec": 120
+    },
+    "schema": [
+      {
+        "key": "autoLockMinutes",
+        "type": "integer",
+        "label": "Auto-lock timeout (minutes)",
+        "description": "Lock vault automatically after minutes of inactivity (0 to disable)",
+        "min": 0,
+        "max": 1440,
+        "step": 5,
+        "defaultValue": 15
+      },
+      {
+        "key": "lockOnScreenLock",
+        "type": "boolean",
+        "label": "Lock when the screen locks",
+        "description": "Lock the vault as soon as the screen locks, instead of waiting out the auto-lock timeout. Uses the Omarchy lock screen's own state, so it follows a manual lock and an idle lock alike.",
+        "defaultValue": true
+      },
+      {
+        "key": "lockOnSuspend",
+        "type": "boolean",
+        "label": "Lock when the machine suspends",
+        "description": "Lock the vault when the system is going to sleep, so an unlocked session key is not left in the suspended machine's memory. Briefly delays the suspend to finish locking.",
+        "defaultValue": true
+      },
+      {
+        "key": "clearClipboardSec",
+        "type": "integer",
+        "label": "Clear clipboard timeout (seconds)",
+        "description": "Automatically clear copied password/TOTP from clipboard after seconds (0 to disable)",
+        "min": 0,
+        "max": 300,
+        "step": 5,
+        "defaultValue": 30
+      },
+      {
+        "key": "rememberSession",
+        "type": "boolean",
+        "label": "Remember session in OS keyring",
+        "description": "Keep the session key in the OS keyring while unlocked, so restarting the shell does not ask for your password again. The key is held in the keyring's memory-only session collection and stamped with the current boot, so a reboot always comes back locked.",
+        "defaultValue": true
+      },
+      {
+        "key": "autoCopyTotpSec",
+        "type": "integer",
+        "label": "Auto-copy TOTP delay (seconds)",
+        "description": "Automatically copy TOTP 2FA code to clipboard after copying password (0 to disable)",
+        "min": 0,
+        "max": 30,
+        "step": 1,
+        "defaultValue": 3
+      },
+      {
+        "key": "closeOnCopy",
+        "type": "boolean",
+        "label": "Close panel on Enter copy",
+        "description": "Automatically close panel after selecting an item with Enter",
+        "defaultValue": true
+      },
+      {
+        "key": "colorizeIcon",
+        "type": "boolean",
+        "label": "Colorize menu-bar icon",
+        "description": "Use the active Omarchy theme accent for the primary menu-bar icon.",
+        "defaultValue": false
+      },
+      {
+        "key": "suggestOnOpen",
+        "type": "boolean",
+        "label": "Contextual password suggestions",
+        "description": "Automatically match active window / browser tab to vault items on open",
+        "defaultValue": true
+      },
+      {
+        "key": "fingerprintUnlock",
+        "type": "boolean",
+        "label": "Unlock with fingerprint",
+        "description": "Use an enrolled fingerprint to unlock the vault. Requires 'omarchy setup security fingerprint'. Your master password is stored once, encrypted and sealed to this machine; this lets a verified fingerprint open it. A fingerprint releases no secret, so a program running as you could open it too -- the same trade-off as Bitwarden desktop biometrics. Turning this off removes the fingerprint's access.",
+        "defaultValue": false
+      },
+      {
+        "key": "fidoUnlock",
+        "type": "boolean",
+        "label": "Unlock with FIDO2 key",
+        "description": "Use a FIDO2 authenticator (YubiKey and friends) to unlock the vault. Requires 'omarchy setup security fido2'; that one registration also serves the system's own authentication prompts, and nothing is registered again. Your master password is stored once, encrypted and sealed to this machine; a touch asks the key for a secret only it can produce, and that secret opens it -- so unlocking needs the key itself, not just access to the keyring. Turning this off removes the key's access.",
+        "defaultValue": false
+      },
+      {
+        "key": "pinUnlock",
+        "type": "boolean",
+        "label": "Unlock with PIN",
+        "description": "Unlock the vault with a numeric PIN of at least 6 digits (8 or more recommended; 6 and 7 are flagged as weak while you type). Your master password is stored once, encrypted and sealed to this machine; the PIN opens it through Argon2id, so reading the keyring alone does not reveal it. A program running as you can still copy the stored item and try PINs offline on every core: every 6-digit PIN in about 16 hours, 8 digits in about 2 months, on a 16-thread laptop. Turning this off removes the PIN's access for every account.",
+        "defaultValue": false
+      },
+      {
+        "key": "sshAgentEnabled",
+        "type": "boolean",
+        "label": "Act as your SSH agent",
+        "description": "Serve SSH keys from your vault to ssh, Git and signing, while the vault is unlocked. Private keys are held only by a separate helper process, never written to disk, and dropped when the vault locks. Off by default; turning it on starts the helper and a socket under your per-login runtime directory.",
+        "defaultValue": false
+      },
+      {
+        "key": "sshAgentUnlockOnDemand",
+        "type": "boolean",
+        "label": "Unlock on demand",
+        "description": "Let an SSH client open the unlock prompt when the vault is locked. Off by default because ssh asks the agent for identities on every connection, including ones that authenticate with an on-disk key, so this would open the panel on the first ssh after every login.",
+        "defaultValue": false
+      },
+      {
+        "key": "sshAgentApprovalPopup",
+        "type": "boolean",
+        "label": "Use centered approval popup",
+        "description": "Show SSH unlock and signing requests in a transient card in the middle of the screen instead of opening the anchored panel. Disable to show them in the panel.",
+        "defaultValue": true
+      },
+      {
+        "key": "sshAgentApprovalWindowSec",
+        "type": "integer",
+        "label": "Approve for this long (seconds)",
+        "description": "How long one approval covers further signatures from the same program, so a rebase over twenty commits is not twenty prompts. Scoped to one key and one executable path, never written to disk, and dropped on lock, logout or exit. 0 asks every time.",
+        "min": 0,
+        "max": 900,
+        "step": 30,
+        "defaultValue": 120
+      }
+    ]
+  },
+  "homepage": "https://github.com/Elevate08/qs-bitwarden-cli",
+  "repository": "https://github.com/Elevate08/qs-bitwarden-cli"
+}

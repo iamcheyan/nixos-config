@@ -1,0 +1,54 @@
+// A Text on its default textFormat renders markup-like strings as HTML, which
+// vault strings make a real hazard. Pinned against Qt itself: parsed markup is
+// not drawn, so the parsed line's contentWidth is narrower.
+//
+//   QT_QPA_PLATFORM=offscreen qmltestrunner -input tests/qml
+//
+import QtQuick
+import QtTest
+import "../../BitwardenModel.js" as Model
+
+TestCase {
+  id: tc
+  name: "RichText"
+  when: windowShown
+
+  // A vault value crafted to be read as markup. The tags are what an attacker
+  // controls; the visible text is what the user is entitled to see.
+  readonly property string vaultName: "<b>Work</b> &amp; Home"
+
+  // Default textFormat -- Text.AutoText -- exactly as the shared kit controls
+  // render the labels we hand them.
+  Text { id: sniffing; font.pixelSize: 14 }
+
+  // What the plugin's own Text elements, and the kit's, declare.
+  Text { id: literal; textFormat: Text.PlainText; font.pixelSize: 14 }
+  Text { id: plainTwin; textFormat: Text.PlainText; font.pixelSize: 14 }
+
+  function test_auto_text_swallows_markup_in_a_vault_value() {
+    literal.text = tc.vaultName
+    sniffing.text = tc.vaultName
+    verify(sniffing.contentWidth > 0)
+    verify(sniffing.contentWidth < literal.contentWidth - 1)
+  }
+
+  function test_plain_text_draws_the_value_the_vault_holds() {
+    literal.text = tc.vaultName
+    compare(literal.textFormat, Text.PlainText)
+    verify(literal.contentWidth > 0)
+  }
+
+  // Omarchy 4.0.4's kit draws labels with Text.PlainText, so plainLabel hands
+  // the value through unchanged, and a plain-text control draws exactly it.
+  // (The escaped <span> it used to return was drawn literally by that kit.)
+  function test_plainLabel_hands_a_plain_text_control_the_literal_value() {
+    literal.text = Model.plainLabel(tc.vaultName)
+    compare(literal.text, tc.vaultName)
+    plainTwin.text = tc.vaultName
+    fuzzyCompare(literal.contentWidth, plainTwin.contentWidth, 0.5)
+  }
+
+  function test_plainLabel_leaves_an_ordinary_name_alone() {
+    compare(Model.plainLabel("Work"), "Work")
+  }
+}

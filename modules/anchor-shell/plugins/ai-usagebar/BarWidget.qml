@@ -8,19 +8,49 @@ BarWidget {
   id: root
   moduleName: "tetsuya.ai-usagebar"
 
-  property string label: "AI"
-  property string usageLabel: "AI"
+  property string label: ""
+  property string usageLabel: ""
   property string tip: "AI usage is not available yet"
   property string baseTip: "AI usage is not available yet"
   property var quotaProviders: []
   property var summaryItems: []
+  property var resetInventories: []
   property var quotaUpdatedAt: null
+  property var resetCreditsUpdatedAt: null
+  property string resetInventoryError: ""
+  property int clockTick: Date.now()
   property bool quotaPopupOpen: false
   property bool hasReport: false
+  property bool usageLoaded: false
+  property bool quotaLoaded: false
+  property bool resetCreditsLoaded: false
+  readonly property bool initialLoadComplete: usageLoaded && quotaLoaded && resetCreditsLoaded
+  readonly property int totalResetCredits: {
+    var total = 0
+    for (var i = 0; i < resetInventories.length; i++)
+      total += Math.max(0, Number(resetInventories[i].available || 0))
+    return total
+  }
+  readonly property var nextResetCredit: {
+    var earliest = null
+    for (var i = 0; i < resetInventories.length; i++) {
+      var inventory = resetInventories[i]
+      if (Number(inventory.available || 0) <= 0) continue
+      for (var j = 0; j < inventory.credits.length; j++) {
+        var credit = inventory.credits[j]
+        if (credit.expiresAt > 0 && (!earliest || credit.expiresAt < earliest.expiresAt))
+          earliest = { expiresAt: credit.expiresAt }
+      }
+    }
+    return earliest
+  }
+  readonly property color resetCreditColor: nextResetCredit
+    && nextResetCredit.expiresAt - clockTick < 86400000 ? "#f0444c" : "#f59e0b"
 
   function refresh() {
     if (!usageProc.running) usageProc.running = true
     if (!quotaProc.running) quotaProc.running = true
+    if (!resetCreditsProc.running) resetCreditsProc.running = true
   }
 
   function openDashboard() {
@@ -40,7 +70,7 @@ BarWidget {
       date = new Date(String(value))
     }
     if (!date || isNaN(date.getTime())) return String(value).replace("T", " ").replace(/Z$/, "")
-    return date.toLocaleString(Qt.locale(), "MM-dd HH:mm")
+    return date.toLocaleString(Qt.locale(), "yyyy-MM-dd HH:mm")
   }
 
   function resetEpoch(value) {
@@ -53,6 +83,64 @@ BarWidget {
       epoch = new Date(String(value)).getTime()
     }
     return isFinite(epoch) ? epoch : 0
+  }
+
+  function resetInventoryFromReport(report) {
+    var resetCapable = { anthropic: true, openai: true, supergrok: true }
+    var entries = Array.isArray(report.entries) ? report.entries : []
+    var inventories = []
+    for (var i = 0; i < entries.length; i++) {
+      var entry = entries[i]
+      var id = String(entry.id || entry.name || "").toLowerCase()
+      if (!resetCapable[id]) continue
+      var resetCredits = entry.reset_credits || null
+      var credits = []
+      var rawCredits = resetCredits && Array.isArray(resetCredits.credits) ? resetCredits.credits : []
+      for (var j = 0; j < rawCredits.length; j++) {
+        var expiresAt = root.resetEpoch(rawCredits[j].expires_at)
+        credits.push({
+          title: String(rawCredits[j].title || "Reset credit"),
+          expiresAt: expiresAt,
+          expiresLabel: expiresAt ? root.resetLabel(expiresAt) : "Expiry unavailable"
+        })
+      }
+      credits.sort(function(a, b) {
+        if (!a.expiresAt) return 1
+        if (!b.expiresAt) return -1
+        return a.expiresAt - b.expiresAt
+      })
+      var failed = entry.status === "error" && !resetCredits
+      inventories.push({
+        id: id,
+        name: String(entry.display_name || entry.short_name || entry.name || id),
+        available: resetCredits ? Number(resetCredits.available || 0) : (failed ? -1 : 0),
+        credits: credits,
+        unlisted: resetCredits ? Math.max(0, Number(resetCredits.available || 0) - credits.length) : 0,
+        stale: Boolean(entry.stale),
+        failed: failed
+      })
+    }
+    return inventories
+  }
+
+  function resetCreditsForProvider(id) {
+    // The quota view calls these products Codex, Antigravity, and Grok CLI,
+    // while the reset-credit endpoint uses their underlying account names.
+    var inventoryId = id === "codex" ? "openai"
+      : id === "agy" ? "anthropic"
+      : id === "grok" ? "supergrok" : ""
+    if (!inventoryId) return null
+    for (var i = 0; i < resetInventories.length; i++) {
+      if (resetInventories[i].id === inventoryId
+          && Number(resetInventories[i].available || 0) > 0)
+        return resetInventories[i]
+    }
+    return null
+  }
+
+  function resetExpiryText(epoch) {
+    if (!epoch) return "Expiry unavailable"
+    return epoch <= clockTick ? "Expired" : "in " + root.countdown(epoch)
   }
 
   function countdown(epoch) {
@@ -75,8 +163,9 @@ BarWidget {
     var summaries = []
     var codex = root.quotaProviders.find(function(provider) { return provider.id === "codex" })
     if (codex) {
-      var session = codex.buckets.find(function(bucket) { return /primary/i.test(bucket.label) && !/gpt.?reserve/i.test(bucket.label) })
-        || codex.buckets.find(function(bucket) { return /primary/i.test(bucket.label) })
+      var session = codex.buckets.find(function(bucket) {
+        return /(?:primary|\b5h\b)/i.test(bucket.label) && !/gpt.?reserve/i.test(bucket.label)
+      }) || codex.buckets.find(function(bucket) { return /(?:primary|\b5h\b)/i.test(bucket.label) })
       if (session) summaries.push({
         id: "codex", icon: Qt.resolvedUrl("icons/openai.svg"), used: 100 - session.remaining,
         reset: root.compactCountdown(session.resetAt)
@@ -92,7 +181,9 @@ BarWidget {
       })
     }
     root.summaryItems = summaries
-    root.label = summaries.length ? "" : root.usageLabel
+    // The generic CLI text is not useful in the bar; keep it icon-and-metrics
+    // only, and avoid showing partial provider results during the first load.
+    root.label = ""
   }
 
   function plainText(value) {
@@ -182,15 +273,15 @@ BarWidget {
           for (var tag of ["primary", "secondary"]) {
             var item = limit[tag]
             if (!item || item.usedPercent === undefined) continue
-            buckets.push({ label: (limit.limitName || limit.limitId || key) + " · " + tag,
+            var windowMins = Number(item.windowDurationMins || 0)
+            var windowLabel = windowMins >= 10080 ? Math.round(windowMins / 10080) + "w"
+              : windowMins >= 1440 ? Math.round(windowMins / 1440) + "d"
+              : windowMins >= 60 ? Math.round(windowMins / 60) + "h"
+              : tag === "primary" ? "5h" : "weekly"
+            buckets.push({ label: (limit.limitName || limit.limitId || key) + " · " + windowLabel,
               remaining_pct: 100 - Number(item.usedPercent), reset: item.resetsAt || "" })
           }
         }
-        var summary = ((report.usage || {}).summary) || {}
-        var tokenStats = []
-        if (summary.weeklyTokens !== undefined) tokenStats.push("7d " + root.formatCount(summary.weeklyTokens))
-        if (summary.lifetimeTokens !== undefined) tokenStats.push("lifetime " + root.formatCount(summary.lifetimeTokens))
-        providerDetail = tokenStats.join(" · ")
       } else if (provider[0] === "grok") {
         var cfg = (report.billing || {}).config || {}
         if (cfg.creditUsagePercent !== undefined) buckets.push({label:"Credits",
@@ -202,12 +293,13 @@ BarWidget {
         for (var k = 0; k < (usage.usageBreakdownList || []).length; k++) {
           var u = usage.usageBreakdownList[k]
           if (Number(u.usageLimit) > 0) buckets.push({label:u.displayName || u.resourceType || "Usage",
-            remaining_pct:100-Number(u.currentUsage)/Number(u.usageLimit)*100, reset:""})
+            remaining_pct:100-Number(u.currentUsage)/Number(u.usageLimit)*100, reset:usage.nextDateReset || ""})
         }
       } else if (provider[0] === "cursor") {
         var pu = ((report.usage || {}).planUsage) || {}
         for (var pair of [["Included", "totalPercentUsed"], ["Auto", "autoPercentUsed"], ["API", "apiPercentUsed"]]) {
-          if (pu[pair[1]] !== undefined) buckets.push({label:pair[0], remaining_pct:100-Number(pu[pair[1]]), reset:""})
+          if (pu[pair[1]] !== undefined) buckets.push({label:pair[0], remaining_pct:100-Number(pu[pair[1]]),
+            reset:report.billingCycleEnd || (report.usage || {}).billingCycleEnd || ""})
         }
       } else if (provider[0] === "dim") {
         var credits = report.credits || {}
@@ -247,14 +339,6 @@ BarWidget {
     return rows
   }
 
-  function formatCount(value) {
-    var n = Number(value)
-    if (!isFinite(n)) return String(value)
-    if (n >= 1000000) return (n / 1000000).toFixed(1) + "M"
-    if (n >= 1000) return (n / 1000).toFixed(0) + "K"
-    return String(Math.round(n))
-  }
-
   Process {
     id: usageProc
     command: ["ai-usagebar", "--json"]
@@ -269,12 +353,12 @@ BarWidget {
           root.updateTooltip()
           root.hasReport = true
         } catch (error) {
-          root.usageLabel = "AI"
           root.updateBarLabel()
           root.baseTip = "Could not read AI usage report"
           root.updateTooltip()
           root.hasReport = false
         }
+        root.usageLoaded = true
       }
     }
   }
@@ -293,6 +377,26 @@ BarWidget {
         } catch (error) {
           root.quotaProviders = []
         }
+        root.quotaLoaded = true
+      }
+    }
+  }
+
+  Process {
+    id: resetCreditsProc
+    command: ["ai-usagebar", "usage", "--json"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var report = JSON.parse(String(text || "{}"))
+          root.resetInventories = root.resetInventoryFromReport(report)
+          root.resetCreditsUpdatedAt = new Date()
+          root.resetInventoryError = ""
+        } catch (error) {
+          root.resetInventoryError = "Reset credit details could not be refreshed"
+        }
+        root.resetCreditsLoaded = true
       }
     }
   }
@@ -310,11 +414,16 @@ BarWidget {
     running: true
     repeat: true
     triggeredOnStart: true
-    onTriggered: root.updateBarLabel()
+    onTriggered: {
+      root.clockTick = Date.now()
+      root.updateBarLabel()
+    }
   }
 
-  implicitWidth: summaryItems.length ? compactSummary.implicitWidth + Style.space(18) : button.implicitWidth
+  implicitWidth: summaryItems.length > 0 || totalResetCredits > 0
+    ? compactSummary.implicitWidth + Style.space(18) : button.implicitWidth
   implicitHeight: button.implicitHeight
+  visible: initialLoadComplete && (summaryItems.length > 0 || totalResetCredits > 0)
 
   Row {
     id: compactSummary
@@ -374,6 +483,52 @@ BarWidget {
         }
       }
     }
+
+    Rectangle {
+      visible: root.totalResetCredits > 0
+      implicitWidth: resetBadge.implicitWidth + Style.space(14)
+      implicitHeight: resetBadge.implicitHeight + Style.space(6)
+      width: implicitWidth
+      height: implicitHeight
+      radius: height / 2
+      color: Qt.rgba(root.resetCreditColor.r, root.resetCreditColor.g,
+        root.resetCreditColor.b, 0.16)
+      border.width: Style.space(1)
+      border.color: Qt.rgba(root.resetCreditColor.r, root.resetCreditColor.g,
+        root.resetCreditColor.b, 0.72)
+      anchors.verticalCenter: parent.verticalCenter
+
+      Row {
+        id: resetBadge
+        anchors.centerIn: parent
+        spacing: Style.space(4)
+
+        Text {
+          text: "↻"
+          color: root.resetCreditColor
+          font.family: root.bar ? root.bar.fontFamily : "sans-serif"
+          font.pixelSize: Style.font.bodySmall
+          font.bold: true
+        }
+
+        Text {
+          text: root.totalResetCredits
+          color: root.resetCreditColor
+          font.family: root.bar ? root.bar.fontFamily : "sans-serif"
+          font.pixelSize: Style.font.caption
+          font.bold: true
+        }
+
+        Text {
+          visible: root.nextResetCredit !== null
+          text: root.nextResetCredit ? "· " + root.countdown(root.nextResetCredit.expiresAt) : ""
+          color: root.resetCreditColor
+          font.family: root.bar ? root.bar.fontFamily : "sans-serif"
+          font.pixelSize: Style.font.caption
+        }
+      }
+    }
+
   }
 
   WidgetButton {
@@ -381,8 +536,8 @@ BarWidget {
     anchors.fill: parent
     bar: root.bar
     text: root.label
-    labelVisible: root.summaryItems.length === 0
-    hasVisualContent: root.summaryItems.length > 0 || root.label !== ""
+    labelVisible: false
+    hasVisualContent: root.summaryItems.length > 0 || root.totalResetCredits > 0
     horizontalMargin: 8.75
     verticalPadding: 8.75
     tooltipText: ""
@@ -482,6 +637,8 @@ BarWidget {
             Text {
               visible: modelData.detail !== ""
               text: modelData.detail
+              width: quotaColumn.width
+              wrapMode: Text.Wrap
               color: Color.popups.text
               opacity: 0.62
               font.family: root.bar ? root.bar.fontFamily : "sans-serif"
@@ -511,7 +668,7 @@ BarWidget {
 
                   Text {
                     id: resetLabelText
-                    text: modelData.reset
+                    text: modelData.reset ? "↻ " + modelData.reset : ""
                     visible: text !== ""
                     color: Color.popups.text
                     opacity: 0.58
@@ -548,6 +705,103 @@ BarWidget {
                   text: modelData.detail || ""
                   color: Color.popups.text
                   opacity: 0.58
+                  font.family: root.bar ? root.bar.fontFamily : "sans-serif"
+                  font.pixelSize: Style.font.caption
+                }
+              }
+            }
+
+            Rectangle {
+              id: resetSection
+              readonly property var inventory: root.resetCreditsForProvider(modelData.id)
+              visible: inventory !== null
+              width: quotaColumn.width
+              implicitHeight: resetCard.implicitHeight + Style.space(14)
+              height: implicitHeight
+              radius: Style.space(6)
+              color: Qt.rgba(0.96, 0.62, 0.05, 0.07)
+              border.width: Style.space(1)
+              border.color: Qt.rgba(0.96, 0.62, 0.05, 0.3)
+
+              Column {
+                id: resetCard
+                anchors.fill: parent
+                anchors.leftMargin: Style.space(9)
+                anchors.rightMargin: Style.space(14)
+                anchors.topMargin: Style.space(8)
+                anchors.bottomMargin: Style.space(8)
+                spacing: Style.space(4)
+
+                Row {
+                  width: parent.width
+                  spacing: Style.space(6)
+
+                  Text {
+                    text: "↻  RESET CREDITS"
+                    color: "#f59e0b"
+                    font.family: root.bar ? root.bar.fontFamily : "sans-serif"
+                    font.pixelSize: Style.font.caption
+                    font.bold: true
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+
+                  Text {
+                    text: resetSection.inventory
+                      ? resetSection.inventory.available + " available" : ""
+                    color: Color.popups.text
+                    opacity: 0.68
+                    font.family: root.bar ? root.bar.fontFamily : "sans-serif"
+                    font.pixelSize: Style.font.caption
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+                }
+
+                Repeater {
+                  model: resetSection.inventory ? resetSection.inventory.credits : []
+
+                  delegate: Row {
+                    required property var modelData
+                    width: resetCard.width
+                    spacing: Style.space(7)
+
+                    Rectangle {
+                      width: Style.space(3)
+                      height: Style.space(14)
+                      radius: width / 2
+                      color: "#f59e0b"
+                      anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    Text {
+                      text: modelData.title
+                      width: Math.max(0, parent.width - expiryText.implicitWidth - Style.space(22))
+                      color: Color.popups.text
+                      font.family: root.bar ? root.bar.fontFamily : "sans-serif"
+                      font.pixelSize: Style.font.caption
+                      elide: Text.ElideRight
+                      anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    Text {
+                      id: expiryText
+                      text: modelData.expiresLabel
+                      color: Color.popups.text
+                      opacity: 0.64
+                      font.family: root.bar ? root.bar.fontFamily : "sans-serif"
+                      font.pixelSize: Style.font.caption
+                      anchors.verticalCenter: parent.verticalCenter
+                    }
+                  }
+                }
+
+                Text {
+                  visible: resetSection.inventory !== null && resetSection.inventory.unlisted > 0
+                  text: resetSection.inventory
+                    ? "+ " + resetSection.inventory.unlisted + " more (expiry unavailable)"
+                    : ""
+                  x: Style.space(10)
+                  color: Color.popups.text
+                  opacity: 0.6
                   font.family: root.bar ? root.bar.fontFamily : "sans-serif"
                   font.pixelSize: Style.font.caption
                 }

@@ -1,0 +1,181 @@
+import QtQuick
+import Quickshell
+import Quickshell.Wayland
+import qs.Commons
+import qs.Ui
+
+// A centered SSH authorization card on the bar's screen. The full-screen layer
+// window supplies the scrim, deny-on-outside-click and keyboard focus.
+PanelWindow {
+  id: popup
+
+  required property var panel
+  // The vault this panel shows (Service.qml); `panel` is the view that draws it.
+  required property var vault
+  required property Item anchorItem
+  readonly property alias unlockScreen: unlockScreen
+
+  // Every monitor's bar has this popup; only the presenting view shows it (two
+  // would fight over exclusive keyboard focus).
+  readonly property bool presenting: vault.presenter === panel
+  readonly property bool open: presenting && vault.sshAgentApprovalPopup
+    && (vault.sshPrompt !== null || vault.sshUnlockRequest !== null)
+  property bool focusPrimed: false
+  readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
+  readonly property int cardWidth: Math.max(1, Math.min(Style.space(460), width - Style.gapsOut * 2))
+  readonly property int cardHeight: Math.max(1, Math.min(
+    content.implicitHeight + card.contentTopInset + card.contentBottomInset,
+    height - Style.gapsOut * 2))
+
+  function beginFocusPrime() {
+    if (open && backingWindowVisible) focusPrimeTimer.restart()
+  }
+
+  // The screen on the card: the approval, or the unlock that precedes it.
+  readonly property var shownScreen: vault.sshPrompt ? approvalScreen : unlockScreen
+  // Until the screen on the card has armed, keys typed at the card are
+  // dropped (see SshApprovalScreen.qml).
+  readonly property bool armed: shownScreen.armed
+
+  // Every refocus (the card opening, the focus prime landing, the request or
+  // the vault's status changing) starts the screen's arming delay over.
+  function refocus() {
+    if (!open) return
+    Qt.callLater(function() {
+      if (!popup.open) return
+      popup.shownScreen.rearm()
+      popup.shownScreen.focusDefault()
+    })
+  }
+
+  screen: anchorItem && anchorItem.QsWindow.window ? anchorItem.QsWindow.window.screen : null
+  visible: open
+  color: "transparent"
+  exclusionMode: ExclusionMode.Ignore
+
+  WlrLayershell.namespace: "qs-bitwarden-ssh-approval"
+  WlrLayershell.layer: WlrLayer.Overlay
+  // Prime focus briefly so keyboard-summoned requests reliably receive it,
+  // then settle to OnDemand so another monitor is not pointer-blocked.
+  WlrLayershell.keyboardFocus: open
+    ? (focusPrimed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive)
+    : WlrKeyboardFocus.None
+
+  anchors {
+    top: true
+    bottom: true
+    left: true
+    right: true
+  }
+
+  onBackingWindowVisibleChanged: beginFocusPrime()
+  onOpenChanged: {
+    if (open) {
+      focusPrimed = false
+      beginFocusPrime()
+      refocus()
+    } else {
+      focusPrimeTimer.stop()
+      focusPrimed = false
+    }
+  }
+
+  Connections {
+    target: popup.vault
+    function onSshPromptChanged() { popup.refocus() }
+    function onSshUnlockRequestChanged() { popup.refocus() }
+    function onStatusChanged() { popup.refocus() }
+  }
+
+  Timer {
+    id: focusPrimeTimer
+    interval: 75
+    repeat: false
+    onTriggered: {
+      popup.focusPrimed = true
+      popup.refocus()
+    }
+  }
+
+  Rectangle {
+    anchors.fill: parent
+    color: Color.menu.scrim
+  }
+
+  MouseArea {
+    anchors.fill: parent
+    onClicked: popup.vault.denySshRequest()
+  }
+
+  BorderSurface {
+    id: card
+    width: popup.cardWidth
+    height: popup.cardHeight
+    anchors.centerIn: parent
+    radius: Style.cornerRadius
+    color: Color.popups.background
+    borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border,
+      Math.max(1, Style.space(2)))
+    padding: Style.spacing.panelPadding
+
+    // Clicks on the card itself are not a denial.
+    MouseArea { anchors.fill: parent; onClicked: {} }
+
+    Item {
+      id: keyScope
+      anchors.fill: parent
+      anchors.topMargin: card.contentTopInset
+      anchors.rightMargin: card.contentRightInset
+      anchors.bottomMargin: card.contentBottomInset
+      anchors.leftMargin: card.contentLeftInset
+      focus: popup.open
+
+      Keys.priority: Keys.BeforeItem
+      Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Escape) {
+          if (!(event.modifiers & ~Qt.KeypadModifier)) {
+            popup.vault.denySshRequest()
+            event.accepted = true
+          } else if (event.modifiers & Qt.ShiftModifier) {
+            popup.vault.denyAllSshRequests()
+            event.accepted = true
+          }
+          return
+        }
+        // Not armed yet: this scope may hold focus itself (before the first
+        // refocus), and Tab from here would walk to a tile.
+        if (!popup.armed) event.accepted = true
+      }
+
+      Flickable {
+        id: scroller
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: content.implicitHeight
+        clip: true
+        flickableDirection: Flickable.VerticalFlick
+        boundsBehavior: Flickable.StopAtBounds
+        interactive: contentHeight > height
+
+        Column {
+          id: content
+          width: scroller.width
+
+          SshUnlockScreen {
+            id: unlockScreen
+            panel: popup.panel
+            vault: popup.vault
+            active: popup.open && popup.vault.sshPrompt === null
+          }
+
+          SshApprovalScreen {
+            id: approvalScreen
+            panel: popup.panel
+            vault: popup.vault
+            active: popup.open && popup.vault.sshPrompt !== null
+          }
+        }
+      }
+    }
+  }
+}

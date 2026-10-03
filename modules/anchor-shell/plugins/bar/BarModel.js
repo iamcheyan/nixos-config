@@ -35,8 +35,11 @@ function pinTrayToInner(entries, section) {
     else result.push(values[i])
   }
   if (trayEntry) {
-    if (section === "right") result.unshift(trayEntry)
-    else result.push(trayEntry)
+    if (section === "right") {
+      // The tray hosts the active/inactive indicators too, so keep the whole
+      // combined group at the inner edge where its hover expansion opens space.
+      result.splice(0, 0, trayEntry)
+    } else result.push(trayEntry)
   }
   return result
 }

@@ -3,7 +3,7 @@
 # omarchy:summary=Add a shell plugin from git
 # omarchy:group=plugin
 # omarchy:args=[git-url] [--enable] [--yes]
-# omarchy:examples=omarchy plugin add https://github.com/acme/omarchy-weather.git --enable
+# omarchy:examples=omarchy plugin add https://github.com/acme/omarchy-focus-mode.git --enable
 # omarchy:alias=omarchy plugin install
 
 set -euo pipefail
@@ -89,7 +89,7 @@ done
 
 if [[ -z $url ]]; then
   interactive ||
-    fail "a git URL is required (e.g. omarchy plugin add https://github.com/acme/omarchy-weather.git)"
+    fail "a git URL is required (e.g. omarchy plugin add https://github.com/acme/omarchy-focus-mode.git)"
   url=$(gum input --prompt "Git URL of the plugin repo: ") || fail "cancelled"
   [[ -n $url ]] || fail "a git URL is required"
 fi

@@ -158,7 +158,7 @@ cat >> "$rc_file" << 'FOOTER'
           <action name="If">
             <query><monitor>HDMI-A-2</monitor></query>
             <then><action name="Execute" command="nixarchy-screenshot-active-monitor HDMI-A-2" /></then>
-            <else><action name="Execute" command="nixarchy-screenshot-active-monitor" /></else>
+            <else><action name="Execute" command="~/.config/labwc/scripts/screenshot-pointer-output" /></else>
           </action>
         </else>
       </action>

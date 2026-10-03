@@ -8,14 +8,19 @@ BarWidget {
   id: root
   moduleName: "omarchy.indicators"
 
-  readonly property var defaultIndicatorEntries: [ "Dictation", "ScreenRecording", "Reminder", "NightLight", "Dnd", "StayAwake" ]
+  readonly property var defaultIndicatorEntries: [ "DevMode", "Dictation", "ScreenRecording", "Reminder", "NightLight", "Dnd", "StayAwake" ]
   readonly property var indicatorEntries: indicatorEntriesFromSettings(settings)
   property var activeIndicatorIds: []
   property var indicatorActiveStates: ({})
   property bool indicatorAreaHovered: false
   property bool indicatorItemHovered: false
+  readonly property bool isHovered: indicatorAreaHovered || indicatorItemHovered
+  // The tray can host this widget and drive the same inactive-indicator reveal
+  // as its tray-item drawer, so both groups open and close together.
+  property bool externalReveal: false
+  property real inactiveIndicatorProgress: 0
   readonly property bool alwaysShowIndicators: setting("alwaysShow", false) === true
-  readonly property bool revealInactiveIndicators: alwaysShowIndicators || indicatorAreaHovered || indicatorItemHovered || (bar && bar.centerSectionRevealHeld === true && bar.centerHoverRevealSuppressed !== true)
+  readonly property bool revealInactiveIndicators: externalReveal || alwaysShowIndicators || indicatorAreaHovered || indicatorItemHovered || (bar && bar.centerSectionRevealHeld === true && bar.centerHoverRevealSuppressed !== true)
 
   signal refreshRequested()
 
@@ -156,6 +161,7 @@ BarWidget {
 
   function refresh() { root.refreshRequested() }
 
+  onRevealInactiveIndicatorsChanged: inactiveIndicatorProgress = revealInactiveIndicators ? 1 : 0
   onIndicatorEntriesChanged: syncActiveIndicatorOrder()
 
   implicitWidth: root.vertical
@@ -169,7 +175,7 @@ BarWidget {
     target: "omarchy.indicators"
 
     function refresh(): void {
-      root.broadcast("refresh")
+      root.refreshRequested()
     }
   }
 
@@ -182,7 +188,10 @@ BarWidget {
     }
   }
 
-  Component.onCompleted: root.refreshRequested()
+  Component.onCompleted: {
+    inactiveIndicatorProgress = revealInactiveIndicators ? 1 : 0
+    root.refreshRequested()
+  }
 
   Row {
     id: horizontalIndicators
@@ -197,7 +206,7 @@ BarWidget {
     Item {
       id: inactiveHorizontalArea
 
-      implicitWidth: root.revealInactiveIndicators ? inactiveHorizontalBlock.implicitWidth : 0
+      implicitWidth: Math.round(inactiveHorizontalBlock.implicitWidth * root.inactiveIndicatorProgress)
       implicitHeight: Math.max(inactiveHorizontalBlock.implicitHeight, root.barSize)
       width: implicitWidth
       height: implicitHeight
@@ -241,7 +250,7 @@ BarWidget {
       id: inactiveVerticalArea
 
       implicitWidth: Math.max(inactiveVerticalBlock.implicitWidth, root.barSize)
-      implicitHeight: root.revealInactiveIndicators ? inactiveVerticalBlock.implicitHeight : 0
+      implicitHeight: Math.round(inactiveVerticalBlock.implicitHeight * root.inactiveIndicatorProgress)
       width: implicitWidth
       height: implicitHeight
       clip: true
@@ -448,7 +457,7 @@ BarWidget {
     function injectProps() {
       var target = indicatorSource.item
       if (!target) return
-      if ("bar" in target) target.bar = root.bar
+      if ("bar" in target) target.bar = Qt.binding(function() { return root.bar })
       if ("moduleName" in target) target.moduleName = indicatorId
       if ("settings" in target) target.settings = indicatorSettings
       if ("indicatorBlock" in target) target.indicatorBlock = indicatorBlock

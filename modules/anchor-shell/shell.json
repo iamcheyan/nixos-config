@@ -18,9 +18,6 @@
       ],
       "center": [
         {
-          "id": "omarchy.indicators"
-        },
-        {
           "id": "omarchy.clock",
           "format": "dddd, d MMMM h:mm AP",
           "formatAlt": "d MMMM h:mm AP",
@@ -30,15 +27,15 @@
           "id": "omarchy.keyboard-layout"
         },
         {
-          "id": "omarchy.weather"
-        },
-        {
           "id": "omarchy.system-update"
         }
       ],
       "right": [
         {
           "id": "tetsuya.ai-usagebar"
+        },
+        {
+          "id": "tetsuya.bitwarden"
         },
         {
           "id": "iamcheyan.clipboard"
@@ -76,6 +73,9 @@
     },
     {
       "id": "omarchy.lock"
+    },
+    {
+      "id": "tetsuya.bitwarden"
     }
   ],
   "disabledPlugins": [

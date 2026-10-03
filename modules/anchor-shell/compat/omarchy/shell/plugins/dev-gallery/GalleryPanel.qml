@@ -1596,7 +1596,7 @@ Item {
                   width: Style.spacing.dropdownWidth
                   label: "Center anchor"
                   fontFamily: root.fontFamily
-                  options: ["omarchy.clock", "omarchy.weather", "omarchy.power"]
+                  options: ["omarchy.clock", "omarchy.power"]
                   value: root.dropdownDemoValue
                   hasCursor: root.focusSection === "dropdown" && root.selectedIndex === 0
                   onHovered: function(h) {
@@ -1659,7 +1659,6 @@ Item {
                   onHasCursorChanged: if (hasCursor) root.ensureCursorVisible(this)
                   options: [
                     { value: "Clock", label: "Clock", description: "Time + date display" },
-                    { value: "Weather", label: "Weather", description: "Local conditions and forecast" },
                     { value: "omarchy.power", label: "Power", description: "Charge level + power profile" },
                     { value: "audio", label: "Audio", description: "Output sink + volume" },
                     { value: "network", label: "Network", description: "Wi-Fi + ethernet status" },

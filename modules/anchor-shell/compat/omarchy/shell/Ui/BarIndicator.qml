@@ -41,11 +41,16 @@ BarIconButton {
   concealed: !effectiveActive && !inactiveRevealed
   interactive: belongsInBlock && (effectiveActive || indicatorBlock === "inactive" || inactiveRevealed)
   useActiveColor: false
+  // Indicators appear/disappear instantly with the tray group, no fade.
+  animateOpacity: false
   maintainIndicatorReveal: indicatorBlock === "inactive"
   revealHost: indicatorHost
-  fontSize: Style.font.caption
-  horizontalMargin: 5
-  verticalPadding: 5
-  fixedWidth: vertical ? -1 : Style.bar.statusSlot
-  fixedHeight: vertical ? Style.bar.statusSlot : -1
+  fontSize: Style.bar.iconFont
+  slotSize: Style.bar.iconSlot
+  opticalSize: Style.bar.iconCanvas
+  fixedWidth: vertical ? -1 : slotSize
+  fixedHeight: vertical ? slotSize : -1
+  width: implicitWidth
+  height: implicitHeight
 }
+

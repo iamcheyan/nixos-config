@@ -20,7 +20,7 @@ in {
     XDG_DATA_DIRS = [ "${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}" ];
   };
   environment.systemPackages = [ desktopPackage ] ++ (with pkgs; [
-    bash coreutils util-linux fontconfig findutils gnused gnugrep gawk jq gum curl socat systemd glib xdg-utils libnotify
+    bash coreutils util-linux fontconfig findutils gnused gnugrep gawk jq gum curl socat systemd glib libsecret xdg-utils libnotify
     hyprpicker hyprsunset hyprlock quickshell wl-clipboard wtype grim slurp
     imagemagick ffmpeg gpu-screen-recorder mpv yt-dlp tesseract zbar qrencode pciutils brightnessctl ddcutil
     pulseaudio wireplumber playerctl bluez networkmanager fastfetch nh btop ripgrep fd dua bat fzf tmux inotify-tools python3

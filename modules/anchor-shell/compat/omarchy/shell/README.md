@@ -32,7 +32,6 @@ shell/
       monitor/
       network/
       power/
-      weather/
     agents/
     services/
       battery/
@@ -98,10 +97,10 @@ clones it straight into `~/.config/omarchy/plugins/<id>/` (named by the
 manifest id); updating is a fast-forward pull of that checkout.
 
 ```bash
-omarchy plugin add https://github.com/acme/omarchy-weather.git
-omarchy plugin update acme.weather       # fetches, shows a diff, fast-forwards
+omarchy plugin add https://github.com/acme/omarchy-focus-mode.git
+omarchy plugin update acme.focus-mode   # fetches, shows a diff, fast-forwards
 omarchy plugin update                    # updates every git-managed plugin
-omarchy plugin remove acme.weather
+omarchy plugin remove acme.focus-mode
 ```
 
 > ⚠️ **Plugins run as unsandboxed code inside `omarchy-shell`.** Adding warns
@@ -115,7 +114,7 @@ arguments. Pass `--yes` to skip every prompt — this is the path for scripts an
 AI agents:
 
 ```bash
-omarchy plugin add https://github.com/acme/omarchy-weather.git --enable --yes
+omarchy plugin add https://github.com/acme/omarchy-focus-mode.git --enable --yes
 omarchy plugin update --yes
 ```
 

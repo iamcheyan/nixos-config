@@ -22,6 +22,7 @@ Item {
   property bool interactive: true
   property bool pressable: true
   property bool useActiveColor: true
+  property bool animateOpacity: true
   property bool maintainIndicatorReveal: false
   property bool labelVisible: true
   property bool hasVisualContent: text !== ""
@@ -69,6 +70,7 @@ Item {
   implicitHeight: fixedHeight > 0 ? fixedHeight : (vertical ? Math.max(12, label.implicitHeight + scaledVerticalPadding * 2) : barSize)
 
   Behavior on opacity {
+    enabled: root.animateOpacity
     NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
   }
 

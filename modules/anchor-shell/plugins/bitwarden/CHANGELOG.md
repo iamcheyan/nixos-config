@@ -1,0 +1,600 @@
+# Changelog
+
+## [1.11.2] - 2026-09-29
+
+### Security
+
+Fixes for [GHSA-wrwr-vr5r-56hv](https://github.com/Elevate08/qs-bitwarden-cli/security/advisories/GHSA-wrwr-vr5r-56hv),
+reported by Nicolas Falesy (@nicolasfalesy), with fixes he contributed.
+
+- **A shell crash no longer writes your open vault to disk.** The session key
+  and every item's secrets are now held by a new helper,
+  `qs-bitwarden-vault`, which turns its own core dumps off and cannot be
+  attached to; the shell holds names, usernames and websites, and only the
+  item you open. Copies go from the helper to the clipboard, and TOTP codes
+  and search are answered there. The shell's own crash dumps are unchanged.
+  If the helper is unavailable the panel works as before and says crash
+  protection is off. See [docs/vault-helper.md](docs/vault-helper.md).
+- **The SSH agent treats a refused session bind as forwarded.** A server
+  could make its bind unreadable and have its relayed requests treated as
+  local, so a live grant answered them without asking. Any refused bind now
+  marks the connection as forwarded: it always asks, and can neither open
+  nor use a grant.
+- **SSH approval and unlock cards ignore keys for their first 800 ms.** A card
+  that appeared while you were typing could be approved by Tab and Enter.
+- **PIN guessing is described honestly, and new PINs need six digits.** A
+  program running as you can unseal the stored item and try PINs offline on
+  every core; the five-try limit only applies to the panel's own screen. The
+  README and settings now give measured offline times, new PIN wraps cannot
+  use a cheaper Argon2 cost, and a PIN set earlier still works.
+- **Bitwarden's master password re-prompt is honoured** for logins, cards and
+  identities, before a secret is shown, copied or edited.
+- **Turning a quick-unlock method off removes it from every account**, and one
+  turned off in `shell.json` while the shell was stopped is removed at the next
+  start.
+- **The clipboard clear survives a shell restart, and a lock clears only a
+  copy the panel made**, not something you copied since.
+- **The password generator's `bw serve` listens on a private socket** instead
+  of a loopback port other users on the machine could reach.
+- **Suspend waits for `bw lock` to finish**, and a failed lock or keyring clear
+  is retried and reported.
+- **Turning "remember session" off removes the stored session at once.**
+- **A lock also forgets the old master password held for a re-seal, and a
+  refused save's form**, which could be reopened into another account.
+- **Masked values no longer show their length.**
+- **Learned suggestions learn a window title's words only from "Suggest
+  here"**, so a look-alike title cannot borrow a real site's login, and they
+  keep saving past 128 KiB.
+- **The SSH agent recovers from a key load that arrived after its reader
+  had gone**, which had left signing dead until the helper restarted.
+
+### Fixed
+
+- **Saving an item changes only what you edited.** An unchanged save or a
+  rename used to trim a password's edge spaces, keep only the first website
+  and reset its match rule.
+- **The search box clears when the panel closes**, and after Escape or the
+  clear button a later clear (closing the panel, a lock) empties it too.
+
+### Changed
+
+- **The vault opens faster.** `bw` prints its answer and then idles about two
+  seconds before it exits, and the panel waited on every one of those exits.
+  A small preload (`bw-fast-exit.js`, given to `bw` alone through
+  `NODE_OPTIONS`, after any options of your own) lets it exit once it has
+  answered, so each vault read, copy and sync is 1.4-2 s sooner, with the same
+  output. On top of that, the first reads no longer wait on each other: with a
+  session remembered in the keyring, the item list loads alongside the status
+  check, and folders and organizations load with the list rather than after
+  it. Nothing shows, and the SSH agent gets no keys, until the status has
+  confirmed the vault is unlocked. On the machine it was measured on, the list
+  was ready about 4 s after a shell restart instead of about 7.5 s, and about
+  3 s after a fingerprint unlock.
+- **TOTP codes appear instantly.** They are computed from the item's key (by
+  the vault helper, or the panel if the helper is unavailable), the same way
+  the Bitwarden SDK does, instead of starting `bw get totp` (about 3 s) for
+  each one. A key the panel does not
+  read exactly like the SDK (SHA-512, 0 or 10 digits, an unusual `otpauth://`
+  link) is still read by `bw`.
+- **Opening the panel no longer starts `bw -v`.** The setup check ran it on
+  every open, costing about a second of Node start-up before the status check
+  on the first open, and competing with the unlock prewarm on a locked one.
+  The version is now read once, alongside the status check, and again only
+  when the `bw` binary changes, as after an upgrade.
+- **CI builds every helper twice instead of four times.** One pass
+  (`scripts/build-agent.sh --ci`) builds twice from different paths, compares
+  the first build with the committed binaries, and writes it as the candidate;
+  the lint and test gates share one build directory across the three helpers.
+
+## [1.11.1] - 2026-09-25
+
+### Fixed
+
+- **The sealed quick-unlock secret is stored on one line.** `systemd-creds`
+  wraps what it seals at 79 columns, and Omarchy's passwordless default
+  keyring is a text file that gnome-keyring writes a secret into verbatim.
+  The line breaks made gnome-keyring refuse the whole default collection
+  after the next login ("keyring was in an invalid or unrecognized format"),
+  so every app's saved secrets vanished and apps asked for a new keyring. The
+  envelope is now written without them, and the first start after updating
+  repairs what an earlier build stored. An envelope the keyring still serves
+  is stored again on one line, before the next login can trip on it. A
+  default keyring file gnome-keyring has already refused has the envelope
+  joined back onto one line in place, with the original kept beside it, and a
+  notification asks for a restart to get the collection back. Quick
+  unlock carries on with nothing to set up again. `scripts/repair-keyring.sh`
+  does the file repair by hand, and `--check` reports without changing
+  anything.
+
+## [1.11.0] - 2026-09-24
+
+### Added
+
+- **Several accounts at once.** The panel holds up to ten Bitwarden accounts
+  side by side. **Add Account** signs another one in without signing the
+  first out, and **Switch Account** (on the locked screen, and the account
+  button in the header) moves between them. Each account keeps its own
+  sign-in and its own PIN, fingerprint and FIDO2 unlock, so switching never
+  means a master password, a two-step code or setting quick unlock up again.
+  The same finger or key unlocks every account; nothing is re-enrolled.
+  Only one account is unlocked at a time: switching locks the one being left,
+  drops its items from memory and tells the SSH agent the account changed.
+
+  `bw` keeps one account per data directory, so each account added beside the
+  first gets a private one under `~/.local/share/qs-bitwarden-cli/accounts/`,
+  given to `bw` in `BITWARDENCLI_APPDATA_DIR`, and its keyring entries are
+  named with its slot (`unlock_envelope@<slot>`). The first account stays in
+  `bw`'s own directory under the names it always had, so upgrading changes
+  nothing for it and a terminal `bw` still sees it. The IPC target gains
+  `accounts` and `switchAccount <email>`.
+
+### Fixed
+
+- **Approving for a program also answers the requests already queued from
+  it.** Three `ssh -T git@github.com` at once queued three prompts, and
+  approving the first "for this program" left the other two waiting to be
+  approved one by one: the helper only consulted a grant for requests that
+  arrived after it. It now also settles the queued ones the new grant covers
+  -- same program, key, kind of signature and server, the same rule a new
+  request meets -- and anything else stays queued.
+
+- **A logout right after a sign-in no longer hangs on "Finishing logout".**
+  The keyring sweep waits for any write still running, and the write's own
+  exit asked for the sweep while it still read as running, so the sweep was
+  deferred with nothing left to ask again. It is now retried until it runs.
+
+- **Keyring work still running when you switch accounts finishes for the
+  account it started for.** Switching the moment an account unlocked could
+  leave its remembered session in the keyring (its cleanup ran against the
+  account switched to), drop a pending learned-suggestions write into the
+  other account's file, or, on an upgrade from 1.10 or earlier, report the
+  first account's old PIN or fingerprint entry as the new one's. After a
+  switch from an unlocked account, the new account's learned suggestions now
+  load too. Work that found its process busy is asked again by a timer rather
+  than from the process's own exit, where it could still read as running.
+
+### Changed
+
+- **Log Out signs out of the account on screen only.** It used to clear every
+  keyring entry the plugin had written; it now clears that account's entries,
+  learned suggestions and data directory, and moves to the next account. The
+  locked screen's **Switch / Log Out** is now two buttons, **Switch Account**
+  (or **Add Account** with one account) and **Log Out**.
+
+- **Every unlock method is one click away.** The locked screen (and the SSH
+  unlock popup) used to show one method at a time, with a "Use ... instead"
+  button to step through the others. Every method that is turned on and
+  usable now sits in one row, a column each -- FIDO2 key, fingerprint, PIN,
+  master password -- with the current one highlighted. A method turned off
+  in settings is not shown, and with only the master password there is no
+  row at all. The title follows the method picked ("Enter PIN" for the PIN).
+
+- **The SSH approval prompt's decisions sit in one row.** Deny, Deny all,
+  Approve once and the time-boxed approval (now labelled "Approve 2m", with
+  the full wording in its tooltip) are tiles in a single row, like the
+  unlock methods, instead of wrapping onto a second line. Deny is still
+  first and still takes the keyboard focus. Deny, and Not now on the SSH
+  unlock prompt, show a plain X, with the Esc hint moved to their tooltip.
+
+- **Fingerprint and FIDO2 unlock are forgotten only from settings.** The
+  locked screen's **Forget Fingerprint** and **Forget FIDO2 Key** buttons, and
+  their copies on the settings screen, are gone: turning **Unlock with
+  fingerprint** or **Unlock with FIDO2 key** off is the one way to remove it,
+  as it already was for the PIN.
+
+- **Learned suggestions are kept per account**, in
+  `associations@<slot>.json` for an account added beside the first.
+
+- **Remove Plugin Data also removes the accounts added in the panel**, whose
+  sign-ins live in the plugin's data directory. `bw`'s own sign-in is left
+  alone, as before.
+
+## [1.10.1] - 2026-09-23
+
+### Security
+
+- **A login grant covers one server.** A grant for SSH logins as `git`
+  covered `git` on every server for its window, and the prompt never said
+  which server a login was for. The helper now reads the server host key from
+  OpenSSH's `session-bind@openssh.com` (and from host-bound logins, which must
+  agree with it), shows its `SHA256:` fingerprint in the prompt and under
+  **ACTIVE APPROVALS**, and scopes the grant to it. A client that reports no
+  server gets a prompt saying so. The fingerprint is what the SSH client
+  reported; the helper does not verify the server's signature on the bind.
+
+- **Suggestions say they come from the window title.** A page writes its own
+  title, so a phishing page titled `github.com` was offered your GitHub login
+  under a "Suggested for github.com" banner that read like a verified
+  address. The banner now reads "Matches window title", and the README says
+  suggestions are no defence against a look-alike site.
+
+- **The public-key export refuses a symlinked parent.** Only the final `ssh`
+  directory was checked, so a symlinked `~/.local/share/qs-bitwarden-cli`
+  made export and clear write and delete `*.pub` files elsewhere. Both
+  directories the plugin owns are now refused if they are symlinks.
+
+- **No private key is committed.** The screenshot fixture carried a throwaway
+  Ed25519 private key. `demo/capture.sh` now generates one per run and
+  deletes it afterwards; the old key remains in history and was never used
+  for anything but screenshots.
+
+- **CI's helper-commit gate comes from the base branch.** The eligibility
+  script ran from the pull request's own checkout, so a pull request could
+  change the rule that decides whether CI commits its binaries. Both
+  workflows now run the base branch's copy, and anything that stops it
+  running counts as "not eligible".
+
+- **A signing grant covers one kind of signature.** Approving a program for a
+  window used to cover any signature that program asked for with that key, so
+  approving `ssh-keygen` for Git's commit signatures also let anything the
+  helper attributed to `ssh-keygen` log in to a server as you. The helper now
+  reads what it is asked to sign and scopes the grant to it: SSHSIG signatures
+  in one namespace (`git` for commits and tags), or SSH logins as one user.
+  Anything else is approved once and never for a window. The prompt and
+  **ACTIVE APPROVALS** say which kind a request or grant is.
+
+- **Forwarded requests are recognised, and never granted.** The helper refused
+  OpenSSH's `session-bind@openssh.com`, so it could not tell a remote host's
+  forwarded request from your own `ssh` -- and a grant for `/usr/bin/ssh`
+  answered both, letting the far end of an `ssh -A` session sign without a
+  prompt for as long as the grant ran. Binds are now read, a forwarded request
+  is labelled in the prompt, and it can neither open a grant nor use one. The
+  documentation said forwarded requests were already labelled; they were not.
+
+- **Quick unlock keeps your master password once, encrypted.** Fingerprint and
+  FIDO2 unlock each kept a plaintext copy of the master password in the login
+  keyring, readable by any program running as you, and PIN unlock kept a third
+  copy under AES-CBC with a PBKDF2-derived key and no MAC -- a 6-digit PIN
+  space fell to one GPU in about a minute, and about 1 in 256 wrong PINs
+  "decrypted". Now there is one keyring item: the password encrypted with
+  XChaCha20-Poly1305 under a random key, sealed to this machine and user with
+  `systemd-creds --user`, and bound to your Bitwarden account. It is written
+  the first time `bw` accepts a password you typed. Each method adds its own
+  way to the key, and none stores the password:
+  - **PIN**: Argon2id (256 MiB, 4 passes) from the OS `argon2` tool -- about
+    0.75 s of one CPU core per guess, on this machine only. A wrong PIN
+    always fails. PIN rules are unchanged; the weak-PIN warning now gives
+    real numbers.
+  - **FIDO2**: the key's `hmac-secret` for the credential Omarchy already
+    registered through pam-u2f, so nobody re-enrolls. The key refuses to
+    produce it without a touch, so unlocking now needs the key itself. The
+    plugin's PAM stack is gone.
+  - **Fingerprint**: a finger releases no secret, so its way in is protected
+    by the machine seal alone -- still better than plaintext, and the settings
+    screen says plainly that with it on the stored password is only as safe
+    as fingerprint unlock.
+
+  Turning a method on asks for your master password as a check against the
+  stored one; a wrong one is refused and nothing typed there is stored. A
+  master password changed elsewhere re-seals the stored copy at the next
+  unlock with the new one, keeping every method. Upgrading needs nothing: the
+  old entries move in as each method is next used and are deleted once the
+  new copy opens. The encryption runs in a new helper,
+  `qs-bitwarden-unlock-key`, built, checked, attested and shipped like the
+  SSH helper; without it quick unlock is unavailable and the master password
+  still works.
+
+### Fixed
+
+- **No unlock before the vault status is known.** For a few seconds after the
+  shell starts the lock screen is still checking the vault, and a master
+  password submitted then failed with "Could not deliver the password", while a
+  PIN was silently discarded. The Unlock button now says it is checking and
+  waits; what you type is kept.
+- **Removing the plugin with the SSH agent on leaves no runtime files.** The
+  helper is killed rather than shut down in that case, so its socket, FIFO and
+  lock stayed in `$XDG_RUNTIME_DIR` until logout. The panel now removes them
+  once the helper's lock is free.
+- **Quick-unlock descriptions match the envelope.** The FIDO2 setup screen,
+  the settings rows and the Forget buttons still described the master password
+  as kept as-is in the login keyring; they now describe the encrypted copy.
+
+### Dependencies
+
+- **`rustix` 1.1.4 -> 1.1.5** in both helpers (`agent/`, `unlock-key/`), the
+  crate behind their core-dump and no-debugger hardening and runtime-file
+  handling. Reviewed against upstream's release commit: timeout rounding,
+  `Debug` output and test-macro changes, and an unstable module renamed
+  behind a feature neither helper enables. Both helpers are rebuilt with it.
+
+## [1.10.0] - 2026-09-17
+
+### Added
+
+- **The fingerprint option steps aside when the laptop lid is closed.** The
+  reader sits on the laptop body, so with the lid shut -- clamshell mode, or a
+  lid simply closed on a docked machine -- the locked screen hides **Unlock with
+  Fingerprint**, the SSH prompt hides it too, and the reader is not armed on
+  open. Nothing is forgotten: the stored password and the settings toggle are
+  untouched, and the option is back when the lid opens. Omarchy's own detector
+  (`omarchy-hw-laptop-closed`) decides, so a machine with no lid never reports
+  one; a FIDO2 key on a cable is unaffected.
+
+- **Unlock with a FIDO2 key** (opt-in, `fidoUnlock`). A YubiKey or any other
+  FIDO2 authenticator can now unlock the vault, beside the fingerprint reader
+  and the PIN. It reuses the registration `omarchy setup security fido2` writes
+  to `/etc/fido2/fido2` -- the same one the system's own authentication prompts
+  already use --
+  and verifies the key through a PAM stack shipped inside the plugin and loaded
+  from the plugin's own directory (Quickshell's `configDirectory`), so enabling
+  it needs no privileged change to `/etc/pam.d`. Like fingerprint unlock, the
+  master password is kept in the OS login keyring behind the verified touch,
+  under its own `account=fido_password` entry; the trade-off is the same and is
+  documented alongside the fingerprint's. When both are set up, the key is armed
+  on lock if one is plugged in and the reader otherwise.
+
+  The lock screen offers the key first when one is plugged in, and arms it
+  wherever it is offered -- including a lock taken with the panel already open,
+  which used to arm the reader instead and send the touch to the focused
+  password field. Readiness is probed on startup rather than only when the
+  setting changes, so a key present at login is offered without a visit to
+  settings. Exactly one gate is ever armed, and a method that stops being
+  offered -- a key unplugged, a lid shut -- takes its device with it.
+
+  A key holds an abandoned request until its own presence timeout, and nothing
+  on the host can cancel it, so closing the panel no longer abandons one: the
+  conversation is kept, a touch with no panel up is discarded rather than
+  opening the vault, and reopening adopts the request instead of asking a busy
+  authenticator for a second one.
+
+### Fixed
+
+- **The SSH agent no longer dies after loading 17 or more keys.** Public-key
+  announcements filled a 16-slot control channel on a runtime that could not
+  drain it mid-loop, so a successful load of a larger vault took the helper
+  down and dropped `SSH_AUTH_SOCK`. The channel is now sized for the largest
+  burst one load can produce: a full 128-key vault plus every held sign
+  request released at once.
+- **A bad key-load payload no longer kills the helper.** A timeout, truncated
+  JSON, or nonce mismatch now locks and keeps serving instead of leaving
+  clients with a dead socket, and the panel retries the load once.
+- **Secret fields stay attached to the vault after a sync.** Syncing a field
+  wrote a plain value into its `text`, which detached it from the property
+  behind it for good, so a later clear that skipped a sync could leave stale
+  text on screen. Syncs now re-point each field at the vault instead of
+  copying a value. The unlock, PIN, item-form, and Send fields get the same
+  sync as the login form.
+- **The panel lock screen's password eye resets when the screen hides**, so
+  relocking no longer shows a revealed master password field. The SSH unlock
+  popup already did this.
+- **An SSH identity listing no longer leaves its prompt on screen** after the
+  unlock that answered it. The panel keeps a released prompt open because a
+  released signing request comes straight back as an approval; a listing is
+  simply answered, and its prompt now closes with the keys it returned.
+- **A failed save's Reopen action no longer treats the item name as HTML**, and
+  the notice no longer overflows when that button is shown.
+- **The SSH unlock popup now shows why a stored PIN was rejected**, matching
+  the panel lock screen. Those two UIs share one form so they cannot drift
+  again.
+- **A generic login error from `bw` is sanitized** before it is drawn, the
+  same way device-verification errors already were.
+- **An SSH identity listing waiting on unlock-on-demand is withdrawn** when
+  every waiting client disconnects, instead of leaving the prompt up for the
+  full deadline.
+
+### Changed
+
+- **The lock screen offers one unlock method at a time.** Fingerprint leads
+  when it is enrolled, then a configured PIN, then the master password, and a
+  button moves to the next one that is set up. PIN and password share a single
+  **Unlock Vault** button; fingerprint asks for a finger and nothing else. Too
+  many PIN attempts clears the PIN, so that screen hands over on its own, and a
+  rejected PIN or an unreadable finger keeps its reason on the screen that
+  follows. The panel and the SSH popup share the form, so both behave alike.
+- **The fingerprint prompt says what is happening.** The button reads
+  "Waiting for fingerprint...", then "Unlocking..." once the finger is read
+  rather than inviting another touch, and the glyph and message hold the accent
+  colour for the whole attempt. The touch prompt no longer follows you to the
+  PIN or password screen.
+- **The SSH unlock popup is shorter**: one line naming the key and the process
+  asking, without restating that the vault is locked or that signing is
+  approved separately.
+- The SSH helper's protocol unit tests no longer expose a signing path on the
+  production library surface.
+## [1.9.0] - 2026-09-14
+
+### Added
+
+- **Custom fields are shown and can be edited.** An item's custom fields were
+  parsed but never drawn, so they could only be seen with `bw get item`. They
+  now appear on the detail screen -- hidden fields masked and revealed one at a
+  time, linked fields showing the value they point at -- and the item form can
+  add, rename, edit and delete text, hidden, boolean and linked fields. Types,
+  link targets, order and boolean values are written back the way Bitwarden's
+  own clients write them, so an item edited here still autofills in the browser
+  extension. A linked field whose target is empty is not shown on the detail
+  screen. (#34, closes #31)
+
+### Fixed
+
+- **The first unlock after a reboot no longer fails with "Could not deliver the
+  password".** The password writer gave up at once if the plugin's runtime
+  directory did not exist yet, and after a reboot it usually started before the
+  reader had created it. It now waits for the directory and the FIFO together,
+  within the same two-second window. Setups where the SSH agent had already
+  created the directory never saw this. (#35)
+- **Opening a locked vault focuses the PIN field when PIN unlock is set up**,
+  rather than the master password field. (#33, closes #32)
+- **Reloading the plugin no longer leaves suspend monitors behind.** Each reload
+  orphaned the previous monitor's `systemd-inhibit`, `gdbus` and `sed`, and they
+  accumulated for the life of the session. The monitor now runs in its own
+  process group and is torn down with it. Needs `setsid` (util-linux). Monitors
+  already orphaned by an earlier version are cleared by a reboot, and the fix
+  takes effect after a full shell restart rather than a plugin reload. (#29)
+- **Several monitors now share one vault.** Omarchy draws its bar once per
+  monitor, and every copy of the widget used to run a vault of its own: its own
+  session, lock timers, IPC handler and SSH agent supervisor. Unlocking on one
+  monitor left the others locked, and the copies raced for the SSH agent's
+  socket -- the loser reported that the helper "keeps failing to start" while
+  the winner served it fine. The vault now lives in a service the shell loads
+  once, and each monitor's widget is a view of it: unlock and lock apply
+  everywhere, there is one agent and one sleep inhibitor, the panel moves to the
+  monitor whose icon is clicked, and signing prompts appear where you are. A
+  single monitor behaves as before. (#30)
+- **Another process serving the SSH agent is no longer reported as a crash.**
+  When something else already holds the agent's socket -- a second shell, say --
+  settings now say so and retry every 30 seconds instead of counting it toward
+  the crash-loop limit.
+- An item with no password no longer logs "Unable to assign [undefined] to
+  bool" when its detail view opens.
+
+## [1.8.1] - 2026-09-05
+
+### Added
+
+- **Colorized menu-bar icon.** The primary Bitwarden shield can follow the
+  active Omarchy theme accent, while locked, setup and urgent indicators keep
+  their status colors.
+
+### Fixed
+
+- **The panel-open underline stays centered under the shield.** The custom
+  glyph now preserves fractional positioning at non-integer display scales,
+  while the indicator keeps Omarchy's standard width.
+- **The shield no longer renders with coloured edges.** The glyph was drawn
+  through a different text renderer than the rest of the bar, which left
+  saturated blue and gold along its edges -- visible against every theme, and
+  on no other icon. It now uses the renderer Omarchy uses everywhere else. The
+  centering above is unaffected: both renderers place the painted center on the
+  same pixel at fractional scales.
+
+## [1.7.1] - 2026-09-04
+
+### Fixed
+
+- **A button could be laid out past the edge of the panel and vanish.** Opening an item while the panel recognised the active window added a fourth button -- **Suggested here** -- to the detail header, and that header was a `Row`: a positioner that can neither shrink a control nor start a second line, so the fourth pushed **Delete** off the panel entirely. It went only once the suggestion was pinned, because "Suggested here" is one character wider than "Suggest here", and that character was the one that overflowed. The header wraps now rather than overflowing, and **Back to list (Esc)** is **Back (Esc)** -- what the Sends screen already called it, and enough on its own to keep all four on one line.
+- **The folder, organization and type filters had the same fault and worse odds.** Their labels carry vault names of no fixed length, and the row is centred, so a long folder or organization name spilled off both edges at once -- and it did not take an unusual name: *Unfiled / Personal / Favorites* was already over. The row wraps too, and stays centred while the three fit a line. A name past twenty characters is clipped, with the whole of it still in the tooltip: a wrapping row can move a button to the next line but can never make one narrower than the panel, so the clip is the only thing that bounds a single button.
+- The SSH agent's client-routing buttons in Settings could overflow the same way, if the four that share that row were ever shown together.
+- **Seven spacers meant to push a control to the right-hand edge were doing nothing at all.** `Item { Layout.fillWidth: true }` is a QtQuick.Layouts instruction, and these sat inside plain `Row`s, which ignore it -- so each laid out at zero width and the control after it stopped short. The countdown beside **VERIFICATION CODE (TOTP)** sat against the heading instead of at the margin, and so did the controls beside **ATTACHMENTS**, **NOTES** and **PASSWORD**. Those rows are `RowLayout`s now, which is what the spacers were written for.
+
+## [1.7.0] - 2026-09-03
+
+### Added
+
+- **Centered SSH approval popup** (`sshAgentApprovalPopup`, on by default). Shows SSH unlock and signing requests in a transient card centered on the active screen instead of opening the full Bitwarden panel. Users who prefer prompts in the anchored panel can disable the popup in Settings or config. If the vault is locked, the card presents configured unlock options (PIN, fingerprint, or master password) before transitioning to the signing approval once unlocked. Escape or clicking outside the card denies the request, and initial focus defaults to Deny.
+- **Concurrent SSH request queueing**. Multiple simultaneous SSH requests are sequentially queued in order (up to 4 deep, matching helper capacity) instead of dropping or overwriting in-flight prompts. The approval screen surfaces a `1 of N` queue counter, advances to the next request upon approval or denial, offers a `Deny all (N)` action (`Shift+Escape` in the popup), and automatically purges requests when clients cancel or time out.
+- **Card and identity items are fully supported.** Both were already listed and filterable, but opening one showed its name and nothing else -- the fields were parsed and then discarded. A card now shows its cardholder, brand, number, expiry and security code, with the number and code masked until revealed, each independently of the other; an identity shows its name, username, company, email, phone, its SSN, passport and licence numbers, and its address as one copyable block. Empty fields are not drawn, so a sparsely filled identity stays short. Both types can now be created and edited as well as read.
+- Cards and identities are searchable by whatever the list shows them as: a card by brand, cardholder or last four digits, an identity by name, email, username or company. Deliberately not by the middle of a card number.
+- Detail shortcuts cover the new types. `y` copies what an item is for -- the password on a login, the number on a card -- while `n` and `k` reach a card's number and security code directly, and `u` and `c` split into username and email on an identity.
+
+### Changed
+
+- **The settings screen is organised into sections.** It had grown into one undifferentiated scroll of fourteen settings, the SSH agent status block and a row of action buttons. The settings are now grouped under **General**, **Security** and **SSH Agent** headings, with Behavior and Suggestions -- one and two rows each -- merged into General, and the SSH agent's status and client-routing block moved inside the section it describes rather than trailing every group.
+- **The section you are reading is named above the scroll area, and stays there as you scroll.** Its own heading in the list yields to it, so nothing is drawn twice, and it clears once you scroll past the last section into the maintenance rows. **Back (Esc)** is pinned alongside it on the right, instead of scrolling out of reach with everything else.
+- Scrollbars have a lane of their own throughout the panel rather than floating over the right edge of the content. They were overlays drawn on top of whatever was under them -- toggles and number fields on the settings screen, copy buttons on an item, the ends of elided names in the vault list. Every scrolling view now reserves the same width, so nothing is covered and the right-hand edges line up from screen to screen.
+- **Destructive actions have their own section.** **Remove Plugin Data** sat in a row visually identical to **Dependencies**, so the button that clears your keyring entries looked exactly as safe to press as the one that opens a checklist. The action buttons are now split under **MAINTENANCE** and a separated **DANGER ZONE**.
+
+### Fixed
+
+- **Deleting an item no longer holds the panel either.** It cost the same second or two of `bw`, spent on a frozen detail screen, and then re-read the whole vault to learn about the one row that had gone. The row goes immediately and the panel comes back; if the vault refuses, the row returns with the reason.
+- **Enter saves the item form**, from any field, so a long item does not have to be scrolled to the bottom to be committed. Not while a folder, organization or collection picker is open, where Enter belongs to the list being picked from.
+- **The panel scrolls at its own rate.** Qt moves a view by the platform's wheel-scroll-lines, which suits a full-screen document and crawls in a panel a few hundred pixels tall. Every scrolling view in the panel now moves about twice as far per notch, and all of them at the same rate.
+- **Saving no longer holds the panel.** A save costs whatever `bw` costs -- a second or two of CLI startup, vault decryption and a round trip, none of which this plugin can shorten -- and it used to spend all of it on a frozen form. The form now closes as soon as the command is launched and the list shows the item as it will be, its icon replaced by a spinner until the vault answers, at which point the authoritative version takes its place. An item still being saved cannot be edited or deleted, and a second save waits for the first. If the vault refuses one, the list goes straight back to what the vault actually holds and the message offers to reopen what you typed rather than costing you the edit.
+- **Saving an item no longer re-reads the whole vault.** A save was followed by re-listing and re-decrypting every item in order to learn about the one just written. `bw create item` and `bw edit item` both print the item the vault now holds, so the list is brought up to date from that instead. The saved response is a complete decrypted cipher, so it passes through the same strict-JSON and allowlisting stages the item list does before anything reaches the panel; if either stage fails, or the envelope is not one the filter produced, the panel falls back to the full reload rather than showing a list that disagrees with the vault. A save that succeeded is never reported as a failure because a later stage did.
+- **Saving an item is about 2.7 seconds faster.** Every save, folder creation and Send piped its payload through `bw encode`, which base64-encodes stdin and does nothing else -- no vault, no session, no network -- for the price of a full Bitwarden CLI startup. `base64` from coreutils produces byte-identical output in about two milliseconds. The payload still travels in the environment and is still piped rather than interpolated, so nothing about where a password lives has changed.
+- Enter on a list row now opens items that have nothing to copy. It still copies the password on a login, and still arms the TOTP follow-up; but on a card, an identity, a note, an SSH key, or a login saved without a password it opens the item instead of doing nothing at all. Enter on the detail screen copies the primary secret -- the password on a login, the number on a card -- which the "Copy password (y / Enter)" tooltip had been promising all along without anything implementing it.
+- Transient status and error messages now float at the bottom of the panel instead of changing its measured height, so updates such as a successful unlock no longer shift the active screen down and back up. Errors use the same compact notice surface and can be dismissed in place.
+
+## [1.6.0] - 2026-08-31
+
+### Added
+
+- **Server region** on the login screen: **US** (the default), **EU**, or **Custom**. EU points the CLI at `https://vault.bitwarden.eu`; Custom reveals the server URL field for self-hosted Bitwarden and Vaultwarden. The choice applies to email/password, API key and the interactive terminal login alike, so an EU account no longer has to be told its own server's address. Refs #6.
+
+### Changed
+
+- Dependabot proposes lockfile-only cargo updates, so a bump moves `agent/Cargo.lock` within the bounds `agent/Cargo.toml` already allows and never raises a floor on its own. The crypto crates are coupled -- `ssh-key`, `rsa` and the traits they re-export have to move together or cargo resolves two generations side by side and nothing compiles -- and README's **Dependencies** section records why that upgrade is a manual, all-at-once edit, along with the binary rebuild every accepted bump needs.
+
+## [1.5.0] - 2026-08-31
+
+Opt-in SSH agent. Implements #1.
+
+### Added
+
+- **SSH agent** (`sshAgentEnabled`, off by default). Serves the SSH keys in your vault to `ssh`, Git and `ssh-keygen -Y sign` while the vault is unlocked. Ed25519 and RSA SHA-2, over a socket in `$XDG_RUNTIME_DIR` that only your own UID may use. Private keys live in a separate helper process, never on disk and never in QML, and are dropped on lock, logout and exit.
+- **Every signature is approved in the panel**, which names the key, its fingerprint and the program asking. One approval can cover further signatures from the same program and key for `sshAgentApprovalWindowSec` seconds (default 120), so a twenty-commit rebase is one prompt. Live approvals are listed with the time they have left and can be revoked.
+- **A cooldown after two unanswered prompts**, five minutes, during which signing is refused without reopening the panel. A banner says so and counts down; **Resume Signing Now** ends it early.
+- **Public keys are projected** to `~/.local/share/qs-bitwarden-cli/ssh/*.pub`, public material only, so Git SSH signing has the file paths it requires.
+- **Client routing** through one plugin-owned UWSM fragment, written when the agent is enabled and removed when it is disabled, taking effect at the next login. An agent that already owns `SSH_AUTH_SOCK` is named and confirmed before it is replaced; a file this plugin did not write is reported and left alone.
+- **`sshAgentUnlockOnDemand`** (off by default) lets an identity listing raise the unlock prompt when the vault is locked with no keys loaded. Signing a key the helper already holds always prompts, with or without it.
+- **Remove Plugin Data** on the settings screen clears the keyring entries, learned suggestions and exported public keys in one confirmed action. Your vault is untouched.
+- **`sshAgentStatus` diagnostics**: which helper is running, whether its checksum matched, and what the panel believes about client routing.
+- The helper ships as a **reproducibly built, checksum-validated binary**, with releases carrying a GitHub build-provenance attestation, an SBOM and a dependency report. Any validation failure disables SSH support alone and leaves the rest of the plugin working; a locally built helper is used as a fallback and says so on a banner.
+
+### Security
+
+- The vault read is split before it reaches the panel: SSH private material goes to the helper over a private FIFO carrying a per-load nonce, and QML receives a sanitized list with it removed.
+- A signature is refused unless the vault is unlocked at the epoch its key was loaded under, so a lock racing a load, an approval or a signature cannot leave a key usable.
+- Agent forwarding is not supported in this release; a forwarded request is labelled as such in the prompt, because the process it names is not the one that would use the signature.
+- `ecdsa` keys are not supported.
+
+## [1.4.1] - 2026-08-31
+
+### Fixed
+
+- The password generator, both Copy password buttons, the generator's Password type and the field-level **Generate...** shortcut wear a key icon again. 1.4.0 replaced all five with the refresh icon: a bulk glyph edit meant to correct one new button rewrote every other use of the same codepoint. Cosmetic only -- no button changed what it does -- and now pinned per button by test rather than by count, since a count moves with exactly this kind of mistake.
+
+## [1.4.0] - 2026-08-30
+
+### Added
+
+- **Two-step method selection.** An account is asked which two-step method it uses before any code is collected, because a code sent without its method is a code the server will reject. The choice goes to Bitwarden on its own first, so a method the account does not have costs a round trip rather than a typed code -- and choosing **Email** is what makes Bitwarden send the email, since `bw` posts it only for a request carrying no token yet. It is asked once per account, not once per login.
+- The method that worked is remembered per login address in `twoFactorMethods`, so the question is asked once per account rather than once per login, and two vaults on one machine each keep their own answer. **Change method** on the code screen asks again. A remembered method the account rejects is dropped for that account alone and retried without one.
+
+### Fixed
+
+- Fixes #4: a login on a machine Bitwarden has not seen before now completes in the panel. It used to ask for the emailed code over and over, because `bw login` has no flag for it -- `--code` carries the two-step token, which the device-verification step never reads. The challenge is told apart from a rejected two-step code by the attempt it answers: both say `Code is required.`, but only device verification says it again to a login that already sent a code. The panel then answers bw's prompt directly, on stdin, and a terminal is offered only if that login meets something it cannot answer.
+- Two-step login now asks which method an account uses before collecting any code, and never sends a code without it. `bw` only puts the token on the wire when a provider came with it, so `--code` alone makes the request a bare password grant -- and an email provider answers that by issuing a *fresh* code, invalidating the one being submitted. Measured against `bw` 2026.2.0: the same login succeeds with `--method` and returns `Two-step token is invalid.` without it. Authenticator codes survived the omission because the server does not issue them; emailed ones never could.
+- An account with more than one two-step method can log in again. The panel never sent `--method`, which `bw` needs as soon as an account has a choice to make; without it the login failed with `Login failed. No provider selected.` and no way forward.
+- A login waiting on an emailed code survives the panel closing. It could not before: closing dropped the master password and the login stage, so going to read the code meant coming back to a blank form. That made both email two-step and new-device verification impossible to complete in the panel -- neither code can be read without leaving it. The login is now held for five minutes, on the wall clock so a suspend counts against it, and reopening lands on the field that was waiting.
+- A `bw status` check no longer cancels the login it lands in the middle of. That check takes seconds and answers about the world as it was when it started -- a world where the login had not happened yet -- so it reported `unauthenticated` and the panel acted on it, sending SIGTERM to the login the user had just submitted and clearing the progress indicator on the way past. The button dropped out of "Verifying..." and nothing was shown, which is why a second press was needed. A submitted login is now the newer news, and a status result that raced it is discarded.
+- A verification code typed into the panel is no longer discarded on the way out. Typing into a field assigns to its own `text`, which breaks the binding back to the state behind it -- so clearing that state left the field showing the code while the login read an empty value, sent no `--code` at all, and reported back that the code had been rejected. Retyping it repaired the state, which is why a second attempt worked and why the first code had expired by then. Fields and the state behind them are now cleared together, everywhere.
+- A login no longer has to be submitted twice. Pressing the submit button while the panel was scrubbing the login process's output buffer queued the login against that scrub's exit, and the exit handler returned early for a scrub -- so the queued login was dropped and the click did nothing at all. The next click worked because by then nothing held the process. Both ways the process can end now dispatch whatever was queued, and a scrub is no longer started over a submit that is already waiting.
+- A login no longer has to be submitted twice when handing the password to `bw` misses its window. The writer polls for `bw`'s FIFO and gives up if `bw` has not opened it in time, which a cold start after the panel has been closed can outrun; unlock has always re-armed itself there, while login left the button for you to press again. It now retries once on its own, and still reports if the second attempt fails too.
+- A vault that has never synced is no longer shown as an empty vault. `bw login` calls its full sync without `allowThrowOnError`, so a sync that fails is swallowed: login still exits 0 and prints a working session, onto a local vault holding no ciphers. The panel now notices `lastSync` is unset on an unlocked vault and syncs once to repair it, which also covers the terminal handoff and a session restored from the keyring.
+- An account whose only two-step methods are ones the CLI cannot perform -- a passkey, or Duo -- now says so and points at API key login, instead of reporting a bare `No providers available for this client.`
+
+### Changed
+
+- Every login result is logged with the branch it took, the exit code, and how many bytes came back -- lengths and flags only, never a session, never a code, and stderr through the same sanitiser the panel shows. Read it with `quickshell log -f | grep qs-bitwarden`. A failed login happens on someone else's machine against someone else's account, and this is the difference between a bug report and a guess.
+- Email login is three stages where it was two: credentials, the two-step method, then the code. The method is asked once per account and remembered, so only a first login on an account sees the middle stage.
+
+### Security
+
+- A closed panel now holds one thing it did not before: a login stopped on a second factor keeps the master password and its stage for five minutes. That is a deliberate exception to the panel dropping everything on close, and it is what makes an emailed code answerable at all. It is bounded on the wall clock rather than a monotonic timer, so a machine suspended mid-login wakes past it rather than into it; it expires while the panel is closed rather than at the next open; and locking, logging out, and a successful login all end it early.
+- The one login that runs with bw's prompts enabled -- new-device verification, the only challenge bw accepts from no flag -- keeps the guarantee `BW_NOINTERACTION` was there for, by answering on a pipe rather than a pty. A pipe ends: measured against the inquirer 8.2.6 bw bundles, a prompt with nothing left to read exits rather than blocking, so an unexpected prompt still ends the login instead of hanging it with the master password loaded. `timeout` covers a bw that never prompts at all. The code is read from the environment by the command's own `printf`, so unlike `--code` it reaches no argv, and bw's prompt echo is stripped of escape sequences and redacted of the code before any of it is shown.
+- Logging out no longer takes the cursor out of the master password field a few seconds later. A logout sets the status itself and then confirms it with `bw status`; that confirmation re-focused the login screen mid-typing, so the rest of the master password was typed into the unmasked email field, which the next submit would have sent as an email address. Focus now moves only onto a screen that does not already hold it. The same fix covers the API key form's client secret and master password.
+
+## [1.3.1] - 2026-08-26
+
+### Fixed
+
+- Fixes #2: ask for a verification code only after Bitwarden requires one, including Bitwarden CLI 2026.2.0's standalone `Code is required.` challenge.
+
+## [1.3.0] - 2026-08-24
+
+### Added
+
+- Authentication prewarming for substantially quicker locked-vault unlocks and logged-out sign-ins.
+- Deterministic vault fixture tiers and performance regression coverage from 100 to 5,000 items.
+- Visible, compact sync progress while fresh vault data is loading.
+
+### Changed
+
+- Render vault items before deferred folder, organization, and status metadata work.
+- Coalesce generator, TOTP, and learned-association work to keep rapid interaction responsive and correct.
+- Refresh the fixture screenshots and marketplace preview under the title “Bitwarden Vault Plugin.”
+
+### Security
+
+- Keep authentication secrets out of command arguments and deliver passwords through private runtime FIFOs.
+- Scrub process collectors and transient plaintext after use, lock, logout, or cancellation.
+- Cancel attachment and generator subprocess groups safely when their owning vault or screen closes.
+- Serialize logout with credential writers and verify that session, PIN, and fingerprint credentials are absent from the OS keyring before allowing another login.
+- Harden custom-server validation, session handoff, bounded subprocess output, and attachment destination handling.
+
+### Fixed
+
+- Prevent stale asynchronous results from crossing vault generations or mutating a newer session.
+- Preserve folder and organization filtering during the faster initial-load sequence.
+- Keep generator and TOTP requests correct across rapid option changes, cancellation, scrubbing, and reopen cycles.

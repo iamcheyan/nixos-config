@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
 import Quickshell.Services.SystemTray
+import Quickshell.Widgets
 import qs.Commons
 import qs.Ui
 import "TrayModel.js" as TrayModel
@@ -12,6 +13,8 @@ BarWidget {
   moduleName: "omarchy.tray"
 
   property bool expanded: false
+  property bool groupHovered: false
+  property bool hoverExitPending: false
   property bool managePopupOpen: false
   property bool trayMenuOpen: false
   property var activeTrayItem: null
@@ -24,14 +27,43 @@ BarWidget {
   readonly property var drawerItems: bucket("drawer")
   readonly property var allItems: bucket("all")
   readonly property int drawerCount: drawerItems.length
+  onAllItemsChanged: console.log("[TRAYDBG] all:", allItems.length, "pinned:", pinnedItems.length, "drawer:", drawerItems.length, "raw:", SystemTray.items.values.length, JSON.stringify(SystemTray.items.values.map(function(i){return i.id + "/" + i.status})))
+  // Tray and indicator icons share the same standard bar slot size.
   readonly property int trayItemExtent: Style.bar.iconSlot
   readonly property int trayItemGap: 0
   readonly property int trayJoinGap: 0
   readonly property int drawerExtent: drawerCount > 0 ? drawerCount * trayItemExtent + (drawerCount - 1) * trayItemGap : 0
-  // Match Waybar's group/tray-expander drawer transition-duration.
-  readonly property int animationDuration: 600
-  property real revealProgress: expanded ? 1 : 0
+  // Inactive indicators and the tray drawer open and close together, at once:
+  // no animation and no staggering between the two groups.
+  readonly property bool indicatorsRevealed: expanded
+  readonly property real revealProgress: expanded ? 1 : 0
   readonly property real revealExtent: drawerExtent * revealProgress
+
+  // Short grace period so moving the pointer across the gap between two icons
+  // does not collapse the group; the collapse itself is instant.
+  Timer {
+    id: hoverDebounceTimer
+    interval: 150
+    onTriggered: {
+      if (root.hoverExitPending && !root.managePopupOpen && !root.trayMenuOpen) {
+        root.groupHovered = false
+        root.hoverExitPending = false
+        root.expanded = false
+      }
+    }
+  }
+
+  function updateHoveredState(hovered) {
+    if (hovered) {
+      root.groupHovered = true
+      root.hoverExitPending = false
+      hoverDebounceTimer.stop()
+      root.expanded = true
+    } else {
+      root.hoverExitPending = true
+      hoverDebounceTimer.restart()
+    }
+  }
 
   // Submenu drill-down state. QsMenuEntry.display() renders a *platform* menu,
   // which Quickshell refuses unless the shell root sets `//@ pragma
@@ -137,7 +169,12 @@ BarWidget {
     // tray icon outside a standard theme (e.g. Steam's flat public/ dir). Hand
     // it straight to IconImage; guessing a theme sub-directory here only broke
     // apps whose layout didn't match the guess.
-    return String(icon || "")
+    var source = String(icon || "")
+    // Telegram switches to a tiny attention badge when it has notifications;
+    // use the installed app icon so the tray keeps a recognizable Telegram mark.
+    if (source === "image://icon/org.telegram.desktop-attention-symbolic")
+      return "image://icon/org.telegram.desktop"
+    return source
   }
 
   // Symbolic icons ship a fixed fill (often near-white) that the host is meant
@@ -150,6 +187,36 @@ BarWidget {
 
   function trayTooltip(item) {
     return item.tooltipTitle || item.title || item.id || ""
+  }
+
+  // Detect input method items (such as Fcitx / IBus / Rime)
+  function isInputMethodItem(item) {
+    if (!item) return false
+    var id = String(item.id || "").toLowerCase()
+    var icon = String(item.icon || "").toLowerCase()
+    return id === "fcitx" || id.indexOf("fcitx") !== -1 || icon.indexOf("fcitx") !== -1 || icon.indexOf("input-keyboard") !== -1
+  }
+
+  // Detect whether the input method is currently in Chinese or English mode
+  function inputMethodStatus(item) {
+    if (!item) return "zh"
+    var icon = String(item.icon || "").toLowerCase()
+    var title = String(item.title || item.tooltipTitle || "").toLowerCase()
+    if (icon.indexOf("image://icon/") === 0) icon = icon.substring(13)
+    if (icon.indexOf("keyboard") !== -1 || icon.indexOf("latin") !== -1) {
+      return "en"
+    }
+    if (icon.indexOf("rime") !== -1 || icon.indexOf("pinyin") !== -1 || icon.indexOf("chinese") !== -1 || icon.indexOf("wubi") !== -1 || icon.indexOf("_im") !== -1 || title.indexOf("rime") !== -1) {
+      return "zh"
+    }
+    return "zh"
+  }
+
+  function needsTrayFallback(item) {
+    if (!item) return false
+    if (isInputMethodItem(item)) return true
+    var icon = String(item && item.icon || "").toLowerCase()
+    return icon === "image://icon/input-keyboard-symbolic"
   }
 
   function classifyItem(item) {
@@ -210,14 +277,12 @@ BarWidget {
     persistTrayState(p, h)
   }
 
-  visible: pinnedItems.length > 0 || drawerCount > 0
+  // Active indicators are hosted inside this widget, so keep it loaded even
+  // when no application currently contributes a tray item.
+  visible: true
   clip: false
   implicitWidth: root.vertical ? root.barSize : trayContent.implicitWidth
   implicitHeight: root.vertical ? trayContent.implicitHeight : root.barSize
-
-  Behavior on revealProgress {
-    NumberAnimation { duration: root.animationDuration; easing.type: Easing.OutCubic }
-  }
 
   Loader {
     id: trayContent
@@ -231,64 +296,46 @@ BarWidget {
     Item {
       id: horizontalTrayRoot
 
+      readonly property var indicatorsModule: indicatorStrip.item
+      readonly property int indicatorWidth: indicatorStrip.item ? indicatorStrip.item.implicitWidth : 0
       readonly property int pinnedWidth: pinnedRow.implicitWidth
-      readonly property int drawerBlockWidth: root.allItems.length > 0 ? expandIcon.implicitWidth + root.drawerExtent : 0
+      readonly property int drawerRevealedWidth: Math.round(root.revealExtent)
 
-      implicitWidth: pinnedWidth + drawerBlockWidth
+      implicitWidth: indicatorWidth + drawerRevealedWidth + pinnedWidth
       implicitHeight: root.barSize
 
-      // Mask out the empty area the collapsed drawer reserves for its slide-in,
-      // so hovering it doesn't trigger expand and clicks pass through.
-      containmentMask: QtObject {
-        function contains(point: point): bool {
-          if (point.y < 0 || point.y > horizontalTrayRoot.height) return false
-          // Drawer reveals leftward; chevron sits at the right end when collapsed
-          // and slides left as it opens. The visible region starts at the chevron.
-          var chevronX = root.drawerExtent - root.revealExtent
-          if (point.x >= chevronX && point.x <= horizontalTrayRoot.drawerBlockWidth) return true
-          // Pinned items, placed to the right of the drawer block.
-          var pinnedStart = horizontalTrayRoot.drawerBlockWidth
-          return point.x >= pinnedStart && point.x <= horizontalTrayRoot.implicitWidth
-        }
+      HoverHandler {
+        id: combinedHoverHandler
+        onHoveredChanged: root.updateHoveredState(hovered || (indicatorStrip.item && indicatorStrip.item.isHovered))
       }
 
-      Item {
-        id: drawerArea
-        x: 0
-        width: horizontalTrayRoot.drawerBlockWidth
-        height: root.barSize
-        visible: root.allItems.length > 0
+      TapHandler {
+        acceptedButtons: Qt.RightButton
+        onTapped: root.managePopupOpen = !root.managePopupOpen
+      }
 
-        HoverHandler {
-          onHoveredChanged: root.expanded = hovered
-        }
+      Row {
+        id: mainRow
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 0
 
-        BarIconButton {
-          id: expandIcon
-          bar: root.bar
-          width: implicitWidth
-          height: implicitHeight
-          x: root.drawerExtent - root.revealExtent
-          text: "\uf053"
-          onPressed: function(button) {
-            if (button === Qt.RightButton) root.managePopupOpen = !root.managePopupOpen
-          }
-        }
-
+        // The bar's right section is right-anchored, so anything that grows
+        // pushes everything on its left outward. Keep the tray drawer on the
+        // outermost side: [drawer][inactive indicators][active indicators][pinned].
+        // Revealing either group then never moves the indicators already shown.
         Item {
           id: trayClip
-          x: expandIcon.width
           anchors.verticalCenter: parent.verticalCenter
-          width: root.drawerExtent
+          width: horizontalTrayRoot.drawerRevealedWidth
           height: root.barSize
+          visible: horizontalTrayRoot.drawerRevealedWidth > 0
           clip: true
 
           Row {
             id: trayIcons
-            x: root.drawerExtent - root.revealExtent
+            anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: root.trayItemGap
-            layer.enabled: true
 
             Repeater {
               model: root.drawerItems
@@ -296,17 +343,34 @@ BarWidget {
             }
           }
         }
-      }
 
-      Row {
-        id: pinnedRow
-        x: drawerArea.x + horizontalTrayRoot.drawerBlockWidth
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: root.trayItemGap
-        leftPadding: root.pinnedItems.length > 0 && root.allItems.length > 0 ? root.trayJoinGap : 0
-        Repeater {
-          model: root.pinnedItems
-          TrayItem {}
+        Loader {
+          id: indicatorStrip
+          anchors.verticalCenter: parent.verticalCenter
+          source: Qt.resolvedUrl("Indicators.qml")
+          onLoaded: {
+            if ("bar" in item) item.bar = Qt.binding(function() { return root.bar })
+            if ("settings" in item) item.settings = ({})
+            if ("externalReveal" in item) item.externalReveal = Qt.binding(function() { return root.indicatorsRevealed })
+          }
+          Connections {
+            target: indicatorStrip.item
+            ignoreUnknownSignals: true
+            function onIsHoveredChanged() {
+              root.updateHoveredState(combinedHoverHandler.hovered || indicatorStrip.item.isHovered)
+            }
+          }
+        }
+
+        Row {
+          id: pinnedRow
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: root.trayItemGap
+          leftPadding: root.pinnedItems.length > 0 && horizontalTrayRoot.drawerRevealedWidth > 0 ? root.trayJoinGap : 0
+          Repeater {
+            model: root.pinnedItems
+            TrayItem {}
+          }
         }
       }
     }
@@ -318,60 +382,42 @@ BarWidget {
     Item {
       id: verticalTrayRoot
 
+      readonly property var indicatorsModule: indicatorStrip.item
+      readonly property int indicatorHeight: indicatorStrip.item ? indicatorStrip.item.implicitHeight : 0
       readonly property int pinnedHeight: pinnedCol.implicitHeight
-      readonly property int drawerBlockHeight: root.allItems.length > 0 ? expandIcon.implicitHeight + root.drawerExtent : 0
+      readonly property int drawerRevealedHeight: Math.round(root.revealExtent)
 
       implicitWidth: root.barSize
-      implicitHeight: pinnedHeight + drawerBlockHeight
+      implicitHeight: indicatorHeight + drawerRevealedHeight + pinnedHeight
 
-      containmentMask: QtObject {
-        function contains(point: point): bool {
-          if (point.x < 0 || point.x > verticalTrayRoot.width) return false
-          var chevronY = root.drawerExtent - root.revealExtent
-          if (point.y >= chevronY && point.y <= verticalTrayRoot.drawerBlockHeight) return true
-          var pinnedStart = verticalTrayRoot.drawerBlockHeight
-          return point.y >= pinnedStart && point.y <= verticalTrayRoot.implicitHeight
-        }
+      HoverHandler {
+        id: combinedHoverHandler
+        onHoveredChanged: root.updateHoveredState(hovered || (indicatorStrip.item && indicatorStrip.item.isHovered))
       }
 
-      Item {
-        id: drawerArea
-        y: 0
-        width: root.barSize
-        height: verticalTrayRoot.drawerBlockHeight
-        visible: root.allItems.length > 0
+      TapHandler {
+        acceptedButtons: Qt.RightButton
+        onTapped: root.managePopupOpen = !root.managePopupOpen
+      }
 
-        HoverHandler {
-          onHoveredChanged: root.expanded = hovered
-        }
-
-        BarIconButton {
-          id: expandIcon
-          bar: root.bar
-          width: implicitWidth
-          height: implicitHeight
-          y: root.drawerExtent - root.revealExtent
-          text: "\uf053"
-          textRotation: 90
-          onPressed: function(button) {
-            if (button === Qt.RightButton) root.managePopupOpen = !root.managePopupOpen
-          }
-        }
+      Column {
+        id: mainCol
+        anchors.horizontalCenter: parent.horizontalCenter
+        spacing: 0
 
         Item {
           id: trayClip
-          y: expandIcon.height
           anchors.horizontalCenter: parent.horizontalCenter
           width: root.barSize
-          height: root.drawerExtent
+          height: verticalTrayRoot.drawerRevealedHeight
+          visible: verticalTrayRoot.drawerRevealedHeight > 0
           clip: true
 
           Column {
             id: trayIcons
-            y: root.drawerExtent - root.revealExtent
+            anchors.bottom: parent.bottom
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: root.trayItemGap
-            layer.enabled: true
 
             Repeater {
               model: root.drawerItems
@@ -379,17 +425,34 @@ BarWidget {
             }
           }
         }
-      }
 
-      Column {
-        id: pinnedCol
-        y: drawerArea.y + verticalTrayRoot.drawerBlockHeight
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: root.trayItemGap
-        topPadding: root.pinnedItems.length > 0 && root.allItems.length > 0 ? root.trayJoinGap : 0
-        Repeater {
-          model: root.pinnedItems
-          TrayItem {}
+        Loader {
+          id: indicatorStrip
+          anchors.horizontalCenter: parent.horizontalCenter
+          source: Qt.resolvedUrl("Indicators.qml")
+          onLoaded: {
+            if ("bar" in item) item.bar = Qt.binding(function() { return root.bar })
+            if ("settings" in item) item.settings = ({})
+            if ("externalReveal" in item) item.externalReveal = Qt.binding(function() { return root.indicatorsRevealed })
+          }
+          Connections {
+            target: indicatorStrip.item
+            ignoreUnknownSignals: true
+            function onIsHoveredChanged() {
+              root.updateHoveredState(combinedHoverHandler.hovered || indicatorStrip.item.isHovered)
+            }
+          }
+        }
+
+        Column {
+          id: pinnedCol
+          anchors.horizontalCenter: parent.horizontalCenter
+          spacing: root.trayItemGap
+          topPadding: root.pinnedItems.length > 0 && verticalTrayRoot.drawerRevealedHeight > 0 ? root.trayJoinGap : 0
+          Repeater {
+            model: root.pinnedItems
+            TrayItem {}
+          }
         }
       }
     }
@@ -463,7 +526,10 @@ BarWidget {
             anchors.left: parent.left
             width: 16
             height: 16
+            item: rowRoot.modelData
             icon: rowRoot.modelData.icon
+            fallbackText: rowRoot.displayName
+            forceFallback: root.needsTrayFallback(rowRoot.modelData)
           }
 
           Text {
@@ -770,26 +836,63 @@ BarWidget {
   component TrayIcon: Item {
     id: trayIconRoot
     required property var icon
+    property var item: null
+    property string fallbackText: ""
+    property bool forceFallback: false
+    readonly property bool isInputMethod: root.isInputMethodItem(item)
+    readonly property string imStatus: isInputMethod ? root.inputMethodStatus(item) : ""
     readonly property bool symbolic: root.iconIsSymbolic(icon)
+    readonly property bool imageReady: trayIconImage.status === Image.Ready
+    readonly property bool imageLoadFailed: trayIconImage.status === Image.Error || !hasIconSource
+    readonly property bool hasIconSource: String(icon || "").trim() !== ""
+    readonly property bool showFallback: forceFallback || imageLoadFailed || !hasIconSource || isInputMethod
+    readonly property string fallbackGlyph: {
+      if (isInputMethod) {
+        return imStatus === "zh" ? "中" : "英"
+      }
+      var source = String(icon || "").toLowerCase()
+      if (source.indexOf("input-keyboard") !== -1) return "英"
+      var value = String(fallbackText || "").trim()
+      return value ? value.charAt(0).toLocaleUpperCase() : "?"
+    }
 
-    Image {
+    Rectangle {
+      anchors.fill: parent
+      visible: trayIconRoot.showFallback && !trayIconRoot.isInputMethod
+      radius: Style.space(3)
+      color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.14)
+      border.width: Style.space(1)
+      border.color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.8)
+    }
+
+    Text {
+      anchors.centerIn: parent
+      visible: trayIconRoot.showFallback
+      text: trayIconRoot.fallbackGlyph
+      color: root.foreground
+      font.family: root.fontFamily
+      font.pixelSize: trayIconRoot.isInputMethod
+        ? Math.round(parent.height * 0.72)
+        : Math.max(9, Math.round(parent.height * 0.68))
+      font.bold: true
+      font.weight: Font.DemiBold
+      elide: Text.ElideRight
+    }
+
+    IconImage {
       id: trayIconImage
       anchors.fill: parent
-      fillMode: Image.PreserveAspectFit
-      // Decode at physical pixels: IconImage uses the logical size,
-      // which leaves PNG icons upscaled and blurry on HiDPI displays.
-      sourceSize.width: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
-      sourceSize.height: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
+      anchors.margins: Style.space(1)
+      implicitSize: Style.bar.iconCanvas
       source: root.trayIconSource(trayIconRoot.icon)
-      // Kept as a hidden layer so the effect can sample it as a texture.
-      visible: !trayIconRoot.symbolic
+      visible: !trayIconRoot.showFallback && trayIconRoot.hasIconSource && trayIconRoot.imageReady
       layer.enabled: trayIconRoot.symbolic
     }
 
     MultiEffect {
       anchors.fill: trayIconImage
       source: trayIconImage
-      visible: trayIconRoot.symbolic
+      visible: !trayIconRoot.showFallback && trayIconRoot.hasIconSource && trayIconRoot.symbolic && trayIconRoot.imageReady
       colorization: 1.0
       colorizationColor: root.foreground
     }
@@ -799,20 +902,42 @@ BarWidget {
     id: trayItemRoot
 
     required property var modelData
+    readonly property bool interactive: true
+    readonly property bool pressable: true
 
     visible: modelData.status !== Status.Passive
     implicitWidth: visible ? root.trayItemExtent : 0
     implicitHeight: visible ? root.trayItemExtent : 0
+    width: implicitWidth
+    height: implicitHeight
 
     function displayMenu(mouse) {
       root.openTrayMenu(trayItemRoot.modelData, trayItemRoot, mouse)
     }
 
+    function triggerPress(button) {
+      if (button === Qt.RightButton) {
+        trayItemRoot.displayMenu({ x: width / 2, y: height / 2 })
+      } else if (button === Qt.MiddleButton) {
+        trayItemRoot.modelData.secondaryActivate()
+      } else if (trayItemRoot.modelData.onlyMenu) {
+        trayItemRoot.displayMenu({ x: width / 2, y: height / 2 })
+      } else {
+        trayItemRoot.modelData.activate()
+      }
+    }
+
+    Component.onCompleted: if (root.bar && root.bar.registerClickTarget) root.bar.registerClickTarget(trayItemRoot)
+    Component.onDestruction: if (root.bar && root.bar.unregisterClickTarget) root.bar.unregisterClickTarget(trayItemRoot)
+
     TrayIcon {
       anchors.centerIn: parent
-      width: Style.space(12)
-      height: Style.space(12)
+      width: Style.bar.iconCanvas
+      height: Style.bar.iconCanvas
+      item: trayItemRoot.modelData
       icon: trayItemRoot.modelData.icon
+      fallbackText: trayItemRoot.modelData.title || trayItemRoot.modelData.tooltipTitle || trayItemRoot.modelData.id || "?"
+      forceFallback: root.needsTrayFallback(trayItemRoot.modelData)
     }
 
     MouseArea {

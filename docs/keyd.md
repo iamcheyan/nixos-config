@@ -116,7 +116,7 @@ o.bind(
 )
 ```
 
-`nixarchy-screenshot-active-monitor` 会读取 Hyprland 当前活动工作区所属显示器，只截取该显示器，并保存到图片目录、复制到剪贴板和发送通知。普通 `Shift + Print` 仍保留原来的延迟截图功能。
+`Fn + Shift + S` 在 Labwc 下优先截取当前窗口所在的显示器；显示桌面、没有窗口焦点时则按鼠标所在显示器截图。截图会保存到图片目录、复制到剪贴板并发送通知。普通 `Shift + Print` 仍保留原来的延迟截图功能。
 
 `Muhenkan + 3` 输出 `Ctrl + Shift + F3`，在 chezmoi 中调用
 `omarchy-delayed-screenshot 3 fullscreen`。脚本等待 3 秒后再调用

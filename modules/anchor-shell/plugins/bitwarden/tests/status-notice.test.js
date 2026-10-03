@@ -1,0 +1,69 @@
+#!/usr/bin/env node
+// Status and error messages float over the panel, so they never change
+// KeyboardPanel's height (which made screens jump).
+//
+//   node tests/status-notice.test.js
+
+const { createSuite, read, readPluginSource } = require("./harness")
+
+const panelSrc = readPluginSource("Panel.qml")
+const noticeSrc = read("StatusNotice.qml")
+const { check, done } = createSuite("status-notice")
+
+const noticeAt = panelSrc.indexOf("id: statusNotice")
+const noticeUse = noticeAt === -1 ? "" : panelSrc.slice(noticeAt, noticeAt + 2000)
+
+check("the status notice is a sibling overlay rather than a mainColumn child",
+  /^      StatusNotice \{\n        id: statusNotice/m.test(panelSrc),
+  "expected statusNotice at PanelKeyCatcher child indentation")
+check("the overlay is pinned inside the bottom of the panel",
+  /anchors\.bottom:\s*parent\.bottom/.test(noticeSrc)
+    && /anchors\.horizontalCenter:\s*parent\.horizontalCenter/.test(noticeSrc)
+    && /z:\s*[1-9][0-9]*/.test(noticeSrc),
+  noticeSrc)
+check("the overlay never participates in panel height measurement",
+  /contentHeight:\s*panel\.fittedContentHeight\(mainColumn\.implicitHeight/.test(panelSrc)
+    && !/implicitHeight:\s*statusNotice/.test(panelSrc),
+  "KeyboardPanel must continue to measure only mainColumn")
+
+check("errors take priority over transient status text",
+  /showsError:\s*root\.errorMessage\s*!==\s*""/.test(noticeSrc)
+    && /text:\s*root\.showsError\s*\?\s*root\.errorMessage\s*:\s*root\.statusMessage/.test(noticeSrc),
+  noticeSrc)
+check("status text still yields to the sequential TOTP action",
+  /showsStatus:[^\n]*root\.statusMessage\s*!==\s*""[^\n]*!root\.statusSuppressed/.test(noticeSrc)
+    && /statusSuppressed:\s*root\.totpFollowupActive/.test(noticeUse),
+  noticeSrc + "\n" + noticeUse)
+check("long messages wrap within the panel",
+  /wrapMode:\s*Text\.Wrap/.test(noticeSrc), noticeSrc)
+check("errors can be dismissed without hiding ordinary status updates",
+  /visible:\s*root\.showsError/.test(noticeSrc)
+    && /onClicked:\s*root\.errorDismissed\(\)/.test(noticeSrc)
+    && /onErrorDismissed:[\s\S]{0,400}root\.errorMessage = ""/.test(noticeUse),
+  noticeSrc + "\n" + noticeUse)
+
+// An error the user can act on carries the action. A refused save is the case:
+// the list is already back to what the vault holds, so the button is the way
+// back to what was typed.
+check("an error can offer a recovery alongside the dismiss",
+  /property string actionLabel: ""/.test(noticeSrc)
+    && /signal actionRequested\(\)/.test(noticeSrc)
+    && /visible: root\.showsError && root\.actionLabel !== ""/.test(noticeSrc),
+  noticeSrc)
+check("the recovery is offered only when there is one, and only while unlocked",
+  /actionLabel: root\.status === "unlocked" && root\.failedSave/.test(noticeUse)
+    && /Model\.plainLabel\("Reopen " \+ Model\.clipLabel\(root\.failedSave\.name, 24\)\)/.test(noticeUse),
+  noticeUse)
+check("the message column subtracts both trailing buttons",
+  /width: parent\.width - noticeIcon[\s\S]{0,500}noticeActionButton\.visible[\s\S]{0,300}dismissNoticeButton\.visible/.test(noticeSrc),
+  noticeSrc)
+check("dismissing the message discards the recovery with it",
+  /root\.failedSave = null\s*\n\s*root\.errorMessage = ""/.test(noticeUse),
+  "a Reopen button behind an invisible message is a button for nothing")
+check("dynamic notices expose alert semantics to assistive technology",
+  /Accessible\.role:\s*Accessible\.AlertMessage/.test(noticeSrc)
+    && /Accessible\.ignored:\s*!root\.shown/.test(noticeSrc)
+    && /Accessible\.name:/.test(noticeSrc),
+  noticeSrc)
+
+done()
