@@ -1,0 +1,1048 @@
+//! Wire types for `GET https://chatgpt.com/backend-api/wham/usage`.
+//!
+//! Reverse-engineered from `~/Projects/codexbar/codexbar` and the official
+//! `openai/codex` Rust client. Real captured shape (2026-05-23):
+//!
+//! ```json
+//! {
+//!   "user_id": "...", "account_id": "...", "email": "...",
+//!   "plan_type": "plus",
+//!   "rate_limit": {
+//!     "allowed": true, "limit_reached": false,
+//!     "primary_window":   {"used_percent": 1, "limit_window_seconds": 18000, "reset_at": 1779597324},
+//!     "secondary_window": {"used_percent": 0, "limit_window_seconds": 604800, "reset_at": 1780184124}
+//!   },
+//!   "code_review_rate_limit": {...optional...},
+//!   "credits": {...optional...},
+//!   "rate_limit_reset_credits": {"available_count": 2}
+//! }
+//! ```
+
+use std::collections::BTreeMap;
+
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+
+use crate::error::{AppError, Result as AppResult};
+use crate::usage::{
+    OpenAiCredits, OpenAiNamedLimit, OpenAiSnapshot, OpenAiSource, OpenAiUnavailableModel,
+    ResetCredit as BankedReset, ResetCredits, UsageWindow, checked_reset_title,
+};
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[serde(default)]
+pub struct UsageResponse {
+    pub plan_type: Option<String>,
+    pub rate_limit: Option<RateLimit>,
+    pub code_review_rate_limit: Option<RateLimit>,
+    pub credits: Option<CreditsBlock>,
+    pub rate_limit_reset_credits: Option<ResetCreditsBlock>,
+    /// Named limits alongside the main one — a reserved pool, a
+    /// model-specific allowance. Each carries its own windows and can be the
+    /// binding constraint while `rate_limit` still reads low, which is
+    /// precisely when a user needs to see it.
+    /// Null from the API means "none" (observed 2026-09-05: OpenAI returns
+    /// `"additional_rate_limits": null` for accounts with no extra limits).
+    #[serde(default, deserialize_with = "de_null_as_default")]
+    pub additional_rate_limits: Vec<AdditionalRateLimit>,
+    /// Per-model availability. `available: false` is what "Selected model is
+    /// at capacity" looks like in the data — a dispatch-time refusal, not a
+    /// quota, so no percentage anywhere else reflects it.
+    #[serde(default, deserialize_with = "de_null_as_default")]
+    pub model_usage: BTreeMap<String, ModelUsage>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[serde(default)]
+pub struct AdditionalRateLimit {
+    pub limit_name: Option<String>,
+    pub metered_feature: Option<String>,
+    pub rate_limit: Option<RateLimit>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[serde(default)]
+pub struct ModelUsage {
+    /// Absent means "not stated", which is not the same as unavailable.
+    pub available: Option<bool>,
+    pub available_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[serde(default)]
+pub struct RateLimit {
+    pub primary_window: Option<Window>,
+    pub secondary_window: Option<Window>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Window {
+    #[serde(deserialize_with = "de_percent_number_or_string")]
+    pub used_percent: f64,
+    #[serde(deserialize_with = "de_i64_number_or_string")]
+    pub limit_window_seconds: i64,
+    /// Unix seconds. May be absent on older Codex CLIs.
+    #[serde(default, deserialize_with = "de_opt_int_or_float")]
+    pub reset_at: Option<i64>,
+    /// Fallback when `reset_at` is absent. Unix seconds offset from "now".
+    #[serde(default, deserialize_with = "de_opt_int_or_float")]
+    pub reset_after_seconds: Option<i64>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CreditsBlock {
+    #[serde(default, deserialize_with = "de_opt_money_string")]
+    pub balance: Option<String>,
+    pub has_credits: bool,
+    pub unlimited: bool,
+    #[serde(default)]
+    pub approx_local_messages: Option<Vec<i64>>,
+    #[serde(default)]
+    pub approx_cloud_messages: Option<Vec<i64>>,
+}
+
+/// Banked rate-limit reset credits. `available_count` rides along with the
+/// usage response; `credits` only ever arrives from the separate
+/// `/rate-limit-reset-credits` call, so it is routinely empty while the count
+/// is not. The redemption `id` each entry carries is deliberately not
+/// deserialized.
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[serde(default)]
+pub struct ResetCreditsBlock {
+    pub available_count: u32,
+    #[serde(default, deserialize_with = "de_null_as_default")]
+    pub credits: Vec<ResetCredit>,
+}
+
+/// Cached beside the usage payload. Status, title, and expiry are written
+/// back — the wire's redemption `id` is never deserialized.
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+#[serde(default)]
+pub struct ResetCredit {
+    /// "available", "redeemed", … — only an available credit is one you still
+    /// have, so a redeemed entry's expiry must not become a deadline on screen.
+    pub status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    pub expires_at: Option<DateTime<Utc>>,
+}
+
+/// Accept a JSON number or numeric string without turning malformed, non-finite
+/// or out-of-range values into plausible counters. `fetch_usage` validates
+/// before writing the cache, so a fabricated value here would be persisted and
+/// rendered as genuine usage.
+fn numeric_value<E: serde::de::Error>(v: serde_json::Value) -> Result<f64, E> {
+    let value = match v {
+        serde_json::Value::Number(n) => n
+            .as_f64()
+            .ok_or_else(|| E::custom("number is not representable as f64"))?,
+        serde_json::Value::String(s) => s
+            .parse::<f64>()
+            .map_err(|_| E::custom(format!("expected numeric string, got {s:?}")))?,
+        other => {
+            return Err(E::custom(format!(
+                "expected number or numeric string, got {other:?}"
+            )));
+        }
+    };
+    if value.is_finite() {
+        Ok(value)
+    } else {
+        Err(E::custom("number is not finite"))
+    }
+}
+
+fn de_percent_number_or_string<'de, D>(d: D) -> Result<f64, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let v = serde_json::Value::deserialize(d)?;
+    let value = numeric_value::<D::Error>(v)?;
+    if (0.0..=101.0).contains(&value) {
+        Ok(value)
+    } else {
+        Err(serde::de::Error::custom(format!(
+            "percentage {value} outside 0..=100"
+        )))
+    }
+}
+
+fn de_i64_number_or_string<'de, D>(d: D) -> Result<i64, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    i64_value(serde_json::Value::deserialize(d)?)
+}
+
+fn i64_value<E: serde::de::Error>(v: serde_json::Value) -> Result<i64, E> {
+    match &v {
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                return Ok(i);
+            }
+        }
+        serde_json::Value::String(s) => {
+            if let Ok(i) = s.parse::<i64>() {
+                return Ok(i);
+            }
+        }
+        _ => {}
+    }
+    exact_i64(numeric_value::<E>(v)?).ok_or_else(|| E::custom("expected an integer in i64 range"))
+}
+
+/// `f as i64` saturates instead of failing, so `NaN` would coin a `0` and
+/// `1e300` an `i64::MAX` — both indistinguishable from a counter the API
+/// really sent. Only an integral magnitude that an `f64` represents exactly
+/// survives; timestamps and window lengths cannot silently lose a fraction or
+/// low bit. Plain JSON/string integers take the exact `i64` path above.
+fn exact_i64(f: f64) -> Option<i64> {
+    const MAX_EXACT_F64_INT: f64 = (1_u64 << 53) as f64;
+    if f.is_finite() && f.trunc() == f && f.abs() <= MAX_EXACT_F64_INT {
+        Some(f as i64)
+    } else {
+        None
+    }
+}
+
+fn de_opt_int_or_float<'de, D>(d: D) -> Result<Option<i64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let v = serde_json::Value::deserialize(d)?;
+    if v.is_null() {
+        Ok(None)
+    } else {
+        i64_value::<D::Error>(v).map(Some)
+    }
+}
+
+/// Accept either a string ("$0.00") or a finite number (0.0) — codexbar
+/// treats both. A string that is only a number ("0", observed 2026-09-09 on a
+/// Pro account with no extra-usage credits) is formatted like the number, so
+/// a balance always reads as dollars. Null and an omitted field mean that no
+/// balance was supplied.
+fn de_opt_money_string<'de, D>(d: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let v = serde_json::Value::deserialize(d)?;
+    match v {
+        serde_json::Value::Null => Ok(None),
+        serde_json::Value::String(s) => Ok(Some(match s.trim().parse::<f64>() {
+            Ok(value) if value.is_finite() => crate::format::usd(value),
+            _ => s,
+        })),
+        serde_json::Value::Number(n) => match n.as_f64() {
+            Some(value) if value.is_finite() => Ok(Some(crate::format::usd(value))),
+            _ => Err(serde::de::Error::custom(
+                "credit balance is not a finite number",
+            )),
+        },
+        other => Err(serde::de::Error::custom(format!(
+            "expected credit balance string, number, or null; got {other:?}"
+        ))),
+    }
+}
+
+/// OpenAI sends `null` for an empty collection rather than `[]`/`{}` (observed
+/// 2026-09-05 for `additional_rate_limits`). `#[serde(default)]` alone covers a
+/// *missing* field but not a present-but-null one, which fails with "invalid
+/// type: null, expected a sequence" and takes the whole response with it.
+///
+/// This is deliberately not applied to every collection in the codebase. It is
+/// right here because an absent named limit genuinely means "none" and renders
+/// nothing. For a balance or usage array — DeepSeek's `balance_infos`, the
+/// Anthropic API's `data` — an empty list is not the same as a null one, and
+/// silently reading it as empty would render a confident zero for a figure we
+/// never received.
+fn de_null_as_default<'de, D, T>(d: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Default + Deserialize<'de>,
+{
+    Ok(Option::<T>::deserialize(d)?.unwrap_or_default())
+}
+
+impl UsageResponse {
+    pub fn into_snapshot(self, plan_hint: Option<&str>) -> AppResult<OpenAiSnapshot> {
+        let plan_type = self.plan_type.as_deref().or(plan_hint).unwrap_or("Unknown");
+        let plan = format!("ChatGPT {}", crate::format::capitalize(plan_type));
+
+        let (session, weekly) = classify_rate_limit(self.rate_limit.unwrap_or_default())?;
+        let code_review = self
+            .code_review_rate_limit
+            .and_then(|c| c.primary_window)
+            .map(|w| to_window(&w, chrono::Duration::days(7)));
+
+        let credits = self.credits.map(|c| OpenAiCredits {
+            balance: c.balance.unwrap_or_default(),
+            has_credits: c.has_credits,
+            unlimited: c.unlimited,
+            approx_local_messages: range_from_vec(c.approx_local_messages),
+            approx_cloud_messages: range_from_vec(c.approx_cloud_messages),
+        });
+        let reset_credits = self
+            .rate_limit_reset_credits
+            .map(|credits| ResetCredits {
+                available: credits.available_count,
+                credits: credits
+                    .credits
+                    .into_iter()
+                    .filter(|credit| credit.status == "available")
+                    .map(|credit| BankedReset {
+                        title: checked_reset_title(credit.title),
+                        expires_at: credit.expires_at,
+                    })
+                    .collect(),
+            })
+            .unwrap_or_default();
+
+        let additional_limits = self
+            .additional_rate_limits
+            .into_iter()
+            .filter_map(named_limit)
+            .collect();
+        // Only the unavailable ones: a roster of working models is noise, and
+        // this list exists to name a refusal nothing else accounts for.
+        let unavailable_models = self
+            .model_usage
+            .into_iter()
+            .filter(|(_, usage)| usage.available == Some(false))
+            .map(|(model, usage)| OpenAiUnavailableModel {
+                model,
+                available_at: usage.available_at,
+            })
+            .collect();
+
+        Ok(OpenAiSnapshot {
+            plan,
+            session,
+            weekly,
+            code_review,
+            additional_limits,
+            unavailable_models,
+            credits,
+            reset_credits,
+            source: OpenAiSource::CodexOauth,
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum WindowKind {
+    Session,
+    Weekly,
+}
+
+/// `limit_window_seconds` value the Codex API reports for the 5-hour window.
+pub(crate) const SESSION_WINDOW_SECS: u64 = 18_000;
+/// `limit_window_seconds` value the Codex API reports for the 7-day window.
+pub(crate) const WEEKLY_WINDOW_SECS: u64 = 604_800;
+
+/// One named limit, or `None` when it carries no window we can show. Windows
+/// go through the same classifier as the main limit — identified by duration,
+/// not wire position — so a named 5h reads as a 5h everywhere.
+fn named_limit(entry: AdditionalRateLimit) -> Option<OpenAiNamedLimit> {
+    let name = entry
+        .limit_name
+        .or(entry.metered_feature)
+        .filter(|name| !name.trim().is_empty())?;
+    let (session, weekly) = classify_rate_limit(entry.rate_limit?).ok()?;
+    if session.is_none() && weekly.is_none() {
+        return None;
+    }
+    Some(OpenAiNamedLimit {
+        name: crate::display::sanitize_untrusted_field(&name),
+        session,
+        weekly,
+    })
+}
+
+fn classify_rate_limit(
+    rate_limit: RateLimit,
+) -> AppResult<(Option<UsageWindow>, Option<UsageWindow>)> {
+    let mut session = None;
+    let mut weekly = None;
+    insert_window(
+        rate_limit.primary_window,
+        WindowKind::Session,
+        &mut session,
+        &mut weekly,
+    )?;
+    insert_window(
+        rate_limit.secondary_window,
+        WindowKind::Weekly,
+        &mut session,
+        &mut weekly,
+    )?;
+    Ok((session, weekly))
+}
+
+fn insert_window(
+    wire_window: Option<Window>,
+    fallback_kind: WindowKind,
+    session: &mut Option<UsageWindow>,
+    weekly: &mut Option<UsageWindow>,
+) -> AppResult<()> {
+    let Some(wire_window) = wire_window else {
+        return Ok(());
+    };
+    let kind = window_kind(&wire_window).unwrap_or(fallback_kind);
+    let default_duration = kind.default_duration();
+    let target = semantic_window_target(kind, session, weekly);
+    if target.is_some() {
+        return Err(duplicate_window_error(
+            kind,
+            wire_window.limit_window_seconds,
+        ));
+    }
+    *target = Some(to_window(&wire_window, default_duration));
+    Ok(())
+}
+
+fn semantic_window_target<'a>(
+    kind: WindowKind,
+    session: &'a mut Option<UsageWindow>,
+    weekly: &'a mut Option<UsageWindow>,
+) -> &'a mut Option<UsageWindow> {
+    match kind {
+        WindowKind::Session => session,
+        WindowKind::Weekly => weekly,
+    }
+}
+
+fn window_kind(window: &Window) -> Option<WindowKind> {
+    // OpenAI temporarily moved the 7d window into `primary_window` and omitted
+    // `secondary_window`; wire position is not semantic (openai/codex#32707).
+    match window.limit_window_seconds {
+        s if s == SESSION_WINDOW_SECS as i64 => Some(WindowKind::Session),
+        s if s == WEEKLY_WINDOW_SECS as i64 => Some(WindowKind::Weekly),
+        _ => None,
+    }
+}
+
+fn duplicate_window_error(kind: WindowKind, seconds: i64) -> AppError {
+    let label = match kind {
+        WindowKind::Session => "5h",
+        WindowKind::Weekly => "7d",
+    };
+    AppError::Schema(format!(
+        "duplicate OpenAI {label} window with limit_window_seconds={seconds}; expected at most one 5h and one 7d window"
+    ))
+}
+
+impl WindowKind {
+    fn default_duration(self) -> chrono::Duration {
+        match self {
+            Self::Session => chrono::Duration::seconds(SESSION_WINDOW_SECS as i64),
+            Self::Weekly => chrono::Duration::seconds(WEEKLY_WINDOW_SECS as i64),
+        }
+    }
+}
+
+fn to_window(w: &Window, default_dur: chrono::Duration) -> UsageWindow {
+    // `Duration::seconds` panics past ~1e16, and the widget must always exit 0
+    // — so an absurd counter degrades to the caller's default, never a crash.
+    let dur = match chrono::Duration::try_seconds(w.limit_window_seconds) {
+        Some(d) if w.limit_window_seconds > 0 => d,
+        _ => default_dur,
+    };
+    let resets_at = match w.reset_at {
+        Some(secs) => chrono::DateTime::<chrono::Utc>::from_timestamp(secs, 0),
+        None => w
+            .reset_after_seconds
+            .and_then(chrono::Duration::try_seconds)
+            .and_then(|d| chrono::Utc::now().checked_add_signed(d)),
+    };
+    UsageWindow {
+        utilization_pct: i32::from(crate::format::clamp_pct(w.used_percent)),
+        resets_at,
+        window_duration: dur,
+    }
+}
+
+fn range_from_vec(v: Option<Vec<i64>>) -> Option<(i64, i64)> {
+    let v = v?;
+    if v.len() >= 2 {
+        Some((v[0], v[1]))
+    } else if v.len() == 1 {
+        Some((v[0], v[0]))
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const REAL: &str = r#"{
+        "user_id":"u","account_id":"a","email":"e",
+        "plan_type":"plus",
+        "rate_limit":{"allowed":true,"limit_reached":false,
+            "primary_window":{"used_percent":1,"limit_window_seconds":18000,"reset_after_seconds":18000,"reset_at":1779597324},
+            "secondary_window":{"used_percent":0,"limit_window_seconds":604800,"reset_after_seconds":604800,"reset_at":1780184124}
+        }
+    }"#;
+
+    #[test]
+    fn parses_real_shape() {
+        let r: UsageResponse = serde_json::from_str(REAL).unwrap();
+        let s = r.into_snapshot(None).unwrap();
+        assert_eq!(s.plan, "ChatGPT Plus");
+        assert_eq!(s.session.as_ref().unwrap().utilization_pct, 1);
+        assert_eq!(s.weekly.as_ref().unwrap().utilization_pct, 0);
+        assert_eq!(
+            s.session.as_ref().unwrap().window_duration,
+            chrono::Duration::hours(5)
+        );
+        assert_eq!(
+            s.weekly.as_ref().unwrap().window_duration,
+            chrono::Duration::days(7)
+        );
+        assert!(s.session.as_ref().unwrap().resets_at.is_some());
+        assert!(s.code_review.is_none());
+        assert!(s.credits.is_none());
+        assert!(matches!(s.source, OpenAiSource::CodexOauth));
+    }
+
+    #[test]
+    fn missing_rate_limit_reports_no_windows() {
+        let r: UsageResponse = serde_json::from_str(r#"{"plan_type":"pro"}"#).unwrap();
+        let s = r.into_snapshot(None).unwrap();
+        assert_eq!(s.plan, "ChatGPT Pro");
+        assert!(s.session.is_none());
+        assert!(s.weekly.is_none());
+    }
+
+    #[test]
+    fn weekly_only_primary_window_is_not_mislabeled_as_session() {
+        // Sanitized live response captured 2026-07-23 during OpenAI's
+        // temporary weekly-only rollout (openai/codex#32707).
+        let body = r#"{
+            "plan_type":"prolite",
+            "rate_limit":{
+                "primary_window":{
+                    "used_percent":66,
+                    "limit_window_seconds":604800,
+                    "reset_at":1785261834
+                },
+                "secondary_window":null
+            }
+        }"#;
+        let response: UsageResponse = serde_json::from_str(body).unwrap();
+        let snapshot = response.into_snapshot(None).unwrap();
+        assert!(snapshot.session.is_none());
+        assert_eq!(snapshot.weekly.unwrap().utilization_pct, 66);
+    }
+
+    #[test]
+    fn duration_classification_survives_reordered_wire_windows() {
+        let body = r#"{"rate_limit":{
+            "primary_window":{"used_percent":41,"limit_window_seconds":604800},
+            "secondary_window":{"used_percent":7,"limit_window_seconds":18000}
+        }}"#;
+        let response: UsageResponse = serde_json::from_str(body).unwrap();
+        let snapshot = response.into_snapshot(None).unwrap();
+        assert_eq!(snapshot.session.unwrap().utilization_pct, 7);
+        assert_eq!(snapshot.weekly.unwrap().utilization_pct, 41);
+    }
+
+    #[test]
+    fn duplicate_semantic_windows_are_schema_drift() {
+        let body = r#"{"rate_limit":{
+            "primary_window":{"used_percent":41,"limit_window_seconds":604800},
+            "secondary_window":{"used_percent":7,"limit_window_seconds":604800}
+        }}"#;
+        let response: UsageResponse = serde_json::from_str(body).unwrap();
+        let error = response.into_snapshot(None).unwrap_err().to_string();
+        assert!(error.contains("duplicate OpenAI 7d window"));
+        assert!(error.contains("limit_window_seconds=604800"));
+    }
+
+    #[test]
+    fn unknown_duration_falls_back_to_wire_position() {
+        // A `limit_window_seconds` value we do not recognize (e.g. 3600) is
+        // classified by wire position: `primary_window` → session,
+        // `secondary_window` → weekly.
+        let body = r#"{"rate_limit":{
+            "primary_window":{"used_percent":10,"limit_window_seconds":3600},
+            "secondary_window":{"used_percent":20,"limit_window_seconds":3600}
+        }}"#;
+        let response: UsageResponse = serde_json::from_str(body).unwrap();
+        let snapshot = response.into_snapshot(None).unwrap();
+        assert_eq!(snapshot.session.unwrap().utilization_pct, 10);
+        assert_eq!(snapshot.weekly.unwrap().utilization_pct, 20);
+    }
+
+    #[test]
+    fn credits_block_parses_with_message_ranges() {
+        let body = r#"{
+            "plan_type":"plus",
+            "credits":{"balance":"$2.50","has_credits":true,"unlimited":false,
+                "approx_local_messages":[100,200],"approx_cloud_messages":[40,60]}
+        }"#;
+        let r: UsageResponse = serde_json::from_str(body).unwrap();
+        let s = r.into_snapshot(None).unwrap();
+        let c = s.credits.unwrap();
+        assert_eq!(c.balance, "$2.50");
+        assert!(c.has_credits);
+        assert_eq!(c.approx_local_messages, Some((100, 200)));
+        assert_eq!(c.approx_cloud_messages, Some((40, 60)));
+    }
+
+    /// The count travels with the usage response; the per-credit detail only
+    /// arrives from the second endpoint, so a snapshot must be able to report
+    /// "2 available" with no expiry attached to either of them.
+    #[test]
+    fn reset_credit_count_stands_on_its_own_without_the_detail_call() {
+        let body = r#"{"plan_type":"plus","rate_limit_reset_credits":{"available_count":2}}"#;
+        let s: UsageResponse = serde_json::from_str(body).unwrap();
+        let s = s.into_snapshot(None).unwrap();
+        assert_eq!(s.reset_credits.available, 2);
+        assert!(s.reset_credits.credits.is_empty());
+        assert!(!s.reset_credits.is_empty());
+    }
+
+    /// A redeemed credit still appears in the detail list. Its expiry is not a
+    /// deadline the user can act on, so it must not become the next one shown.
+    #[test]
+    fn only_an_available_credit_contributes_an_expiry() {
+        let body = r#"{
+            "rate_limit_reset_credits":{
+                "available_count":1,
+                "credits":[
+                    {"id":"c1","status":"redeemed","title":"Full reset (Weekly + 5 hr)","expires_at":"2026-07-01T00:00:00Z"},
+                    {"id":"c2","status":"available","title":"Full reset (Weekly + 5 hr)","expires_at":"2026-07-17T00:00:00Z"},
+                    {"id":"c3","status":"available","expires_at":null}
+                ]
+            }
+        }"#;
+        let s: UsageResponse = serde_json::from_str(body).unwrap();
+        let s = s.into_snapshot(None).unwrap();
+        assert_eq!(s.reset_credits.available, 1);
+        assert_eq!(s.reset_credits.credits.len(), 2);
+        assert_eq!(
+            s.reset_credits.credits[0].title.as_deref(),
+            Some("Full reset (Weekly + 5 hr)")
+        );
+        assert_eq!(
+            s.reset_credits.next_expiry(),
+            Some("2026-07-17T00:00:00Z".parse::<DateTime<Utc>>().unwrap())
+        );
+    }
+
+    /// Every other vendor's absent block means "none". This one is load-bearing
+    /// in the same way: a response from an account with no banked resets, or
+    /// from a Codex build that predates them, reports none rather than failing.
+    #[test]
+    fn an_absent_reset_block_is_no_credits_rather_than_an_error() {
+        let s: UsageResponse = serde_json::from_str(r#"{"plan_type":"plus"}"#).unwrap();
+        assert!(s.into_snapshot(None).unwrap().reset_credits.is_empty());
+    }
+
+    #[test]
+    fn balance_as_number_formats_to_dollars() {
+        let body = r#"{"credits":{"balance":1.5,"has_credits":true,"unlimited":false}}"#;
+        let r: UsageResponse = serde_json::from_str(body).unwrap();
+        let s = r.into_snapshot(None).unwrap();
+        assert_eq!(s.credits.unwrap().balance, "$1.50");
+    }
+
+    #[test]
+    fn balance_as_numeric_string_formats_to_dollars_too() {
+        let balance = |raw: &str| {
+            let body = format!(
+                r#"{{"credits":{{"balance":"{raw}","has_credits":false,"unlimited":false}}}}"#
+            );
+            let r: UsageResponse = serde_json::from_str(&body).unwrap();
+            r.into_snapshot(None).unwrap().credits.unwrap().balance
+        };
+        for (raw, want) in [("0", "$0.00"), (" 2.5 ", "$2.50"), ("-1", "-$1.00")] {
+            assert_eq!(balance(raw), want, "balance {raw:?}");
+        }
+        // Anything the vendor already formatted, or that is not a finite number, passes through
+        // untouched, so a cached "$2.50" reads back the same.
+        for raw in ["$2.50", "NaN", "inf", "1,000.50", "n/a"] {
+            assert_eq!(balance(raw), raw, "balance {raw:?}");
+        }
+    }
+
+    #[test]
+    fn benign_percent_overshoot_clamps_to_hundred() {
+        let body =
+            r#"{"rate_limit":{"primary_window":{"used_percent":100.6,"limit_window_seconds":1}}}"#;
+        let r: UsageResponse = serde_json::from_str(body).unwrap();
+        let s = r.into_snapshot(None).unwrap();
+        assert_eq!(s.session.unwrap().utilization_pct, 100);
+    }
+
+    #[test]
+    fn out_of_range_percent_is_schema_drift() {
+        for used_percent in ["-1", "101.5", "250"] {
+            let body = format!(
+                r#"{{"rate_limit":{{"primary_window":{{"used_percent":{used_percent},"limit_window_seconds":1}}}}}}"#
+            );
+            assert!(
+                serde_json::from_str::<UsageResponse>(&body).is_err(),
+                "{used_percent} must not become a clamped usage value"
+            );
+        }
+    }
+
+    #[test]
+    fn plan_hint_used_when_response_omits_plan_type() {
+        let r: UsageResponse = serde_json::from_str("{}").unwrap();
+        let s = r.into_snapshot(Some("team")).unwrap();
+        assert_eq!(s.plan, "ChatGPT Team");
+    }
+
+    #[test]
+    fn window_counters_accept_fractional_percent_and_integral_number_forms() {
+        let w: Window =
+            serde_json::from_str(r#"{"used_percent":7.4,"limit_window_seconds":18000.0}"#).unwrap();
+        assert_eq!(w.used_percent, 7.4);
+        assert_eq!(w.limit_window_seconds, 18000);
+
+        let w: Window =
+            serde_json::from_str(r#"{"used_percent":"42.7","limit_window_seconds":"604800.0"}"#)
+                .unwrap();
+        assert_eq!(w.used_percent, 42.7);
+        assert_eq!(w.limit_window_seconds, 604800);
+
+        let r: UsageResponse = serde_json::from_str(
+            r#"{"rate_limit":{"primary_window":{"used_percent":42.7,"limit_window_seconds":18000}}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            r.into_snapshot(None)
+                .unwrap()
+                .session
+                .unwrap()
+                .utilization_pct,
+            43
+        );
+    }
+
+    #[test]
+    fn fractional_integer_counters_are_schema_drift() {
+        for value in ["18000.9", r#""604800.5""#] {
+            let body = format!(r#"{{"used_percent":7,"limit_window_seconds":{value}}}"#);
+            assert!(serde_json::from_str::<Window>(&body).is_err(), "{value}");
+        }
+    }
+
+    #[test]
+    fn null_counter_is_schema_drift() {
+        // `reset_at` is the only field the API is documented to omit, and it
+        // carries its own Option deserializer. A null counter is drift.
+        let body = r#"{"used_percent":null,"limit_window_seconds":1}"#;
+        assert!(serde_json::from_str::<Window>(body).is_err());
+        let body = r#"{"used_percent":1,"limit_window_seconds":null}"#;
+        assert!(serde_json::from_str::<Window>(body).is_err());
+    }
+
+    #[test]
+    fn non_numeric_counter_shapes_are_schema_drift() {
+        for bad in [
+            r#""many""#,
+            r#"{"value":1}"#,
+            "[1]",
+            "true",
+            // Each parses as an f64, but `as i64` saturates rather than
+            // failing, so it would coin a 0 / i64::MAX that reads as real.
+            r#""NaN""#,
+            r#""inf""#,
+            "1e300",
+            "-1e300",
+            r#""1e300""#,
+        ] {
+            let body = format!(r#"{{"used_percent":{bad},"limit_window_seconds":1}}"#);
+            assert!(
+                serde_json::from_str::<Window>(&body).is_err(),
+                "used_percent {bad} must not deserialize"
+            );
+        }
+    }
+
+    #[test]
+    fn drifted_counter_fails_whole_usage_response() {
+        // The error has to reach `parse_payload` so the widget shows `⚠`
+        // rather than caching and rendering a 0% bar.
+        let body = r#"{"plan_type":"plus","rate_limit":{
+            "primary_window":{"used_percent":"n/a","limit_window_seconds":18000}
+        }}"#;
+        assert!(serde_json::from_str::<UsageResponse>(body).is_err());
+    }
+
+    #[test]
+    fn a_present_window_requires_both_counters() {
+        for body in [
+            r#"{"used_percent":1}"#,
+            r#"{"limit_window_seconds":18000}"#,
+            "{}",
+        ] {
+            assert!(serde_json::from_str::<Window>(body).is_err(), "{body}");
+        }
+    }
+
+    #[test]
+    fn malformed_optional_counters_are_not_treated_as_absent() {
+        for field in ["reset_at", "reset_after_seconds"] {
+            for bad in ["true", r#""tomorrow""#, "1.5", "{}"] {
+                let body =
+                    format!(r#"{{"used_percent":1,"limit_window_seconds":18000,"{field}":{bad}}}"#);
+                assert!(serde_json::from_str::<Window>(&body).is_err(), "{body}");
+            }
+        }
+    }
+
+    #[test]
+    fn credits_reject_invalid_present_values_without_inventing_zero() {
+        for balance in ["true", "{}", "[]"] {
+            let body = format!(
+                r#"{{"credits":{{"balance":{balance},"has_credits":true,"unlimited":false}}}}"#
+            );
+            assert!(serde_json::from_str::<UsageResponse>(&body).is_err());
+        }
+        assert!(
+            serde_json::from_str::<UsageResponse>(r#"{"credits":{"balance":"$1.00"}}"#).is_err(),
+            "a present credits block must not default its status flags"
+        );
+
+        let response: UsageResponse = serde_json::from_str(
+            r#"{"credits":{"balance":null,"has_credits":false,"unlimited":true}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            response
+                .into_snapshot(None)
+                .unwrap()
+                .credits
+                .unwrap()
+                .balance,
+            ""
+        );
+    }
+
+    #[test]
+    fn oversized_window_seconds_degrades_instead_of_panicking() {
+        // i64::MAX is a faithful integer, so it clears the deserializer — but
+        // `chrono::Duration::seconds` panics on it, and a panicking widget
+        // exits non-zero and gets hidden by Waybar.
+        let body = r#"{"rate_limit":{"primary_window":{
+            "used_percent":1,"limit_window_seconds":9223372036854775807,
+            "reset_after_seconds":9223372036854775807
+        }}}"#;
+        let r: UsageResponse = serde_json::from_str(body).unwrap();
+        let s = r.into_snapshot(None).unwrap();
+        let session = s.session.unwrap();
+        assert_eq!(session.window_duration, chrono::Duration::hours(5));
+        assert!(session.resets_at.is_none());
+    }
+
+    #[test]
+    fn missing_reset_at_falls_back_to_after_seconds() {
+        let body = r#"{"rate_limit":{"primary_window":{
+            "used_percent":50,"limit_window_seconds":1000,"reset_after_seconds":500
+        }}}"#;
+        let r: UsageResponse = serde_json::from_str(body).unwrap();
+        let s = r.into_snapshot(None).unwrap();
+        // The reset should be ~500s from now (within tolerance).
+        let now = chrono::Utc::now();
+        let reset = s.session.unwrap().resets_at.unwrap();
+        let delta = reset.signed_duration_since(now).num_seconds();
+        assert!((400..=600).contains(&delta), "got delta={delta}");
+    }
+    /// The shape that prompted this: a real account whose headline window read
+    /// 5% while two named limits and a per-model availability flag went
+    /// unparsed entirely. Field names and nesting are from a live
+    /// `wham/usage` response; the numbers are made up.
+    #[test]
+    fn named_limits_and_unavailable_models_are_read_from_the_live_shape() {
+        let response: UsageResponse = serde_json::from_str(
+            r#"{
+              "plan_type": "pro",
+              "rate_limit": {
+                "allowed": true, "limit_reached": false,
+                "primary_window": {"used_percent": 5, "limit_window_seconds": 604800,
+                                   "reset_after_seconds": 400000, "reset_at": 1789000000},
+                "secondary_window": null
+              },
+              "code_review_rate_limit": null,
+              "additional_rate_limits": [
+                {"limit_name": "GPT-5.3-Codex-Spark", "metered_feature": "codex_bengalfox",
+                 "rate_limit": {
+                   "primary_window": {"used_percent": 12, "limit_window_seconds": 18000,
+                                      "reset_at": 1788000000},
+                   "secondary_window": {"used_percent": 34, "limit_window_seconds": 604800,
+                                        "reset_at": 1789500000}},
+                 "normal_model_slug": null},
+                {"limit_name": "gpt-reserve", "metered_feature": "base_model_inference",
+                 "rate_limit": {
+                   "primary_window": {"used_percent": 71, "limit_window_seconds": 604800,
+                                      "reset_at": 1789500000},
+                   "secondary_window": null}}
+              ],
+              "model_usage": {
+                "gpt-6-astra": {"available": false, "available_at": "2026-09-05T22:00:00Z",
+                                "credits_would_enable": false},
+                "gpt-5.3-codex": {"available": true, "available_at": null}
+              }
+            }"#,
+        )
+        .expect("the live response shape parses");
+
+        let snap = response.into_snapshot(None).unwrap();
+
+        // The headline window is unchanged and still low — which is the point:
+        // it is not what stopped the request.
+        assert_eq!(snap.weekly.as_ref().unwrap().utilization_pct, 5);
+
+        assert_eq!(snap.additional_limits.len(), 2);
+        let spark = &snap.additional_limits[0];
+        assert_eq!(spark.name, "GPT-5.3-Codex-Spark");
+        assert_eq!(spark.session.as_ref().unwrap().utilization_pct, 12);
+        assert_eq!(spark.weekly.as_ref().unwrap().utilization_pct, 34);
+        // Classified by duration, not wire position: a 7d in the primary slot
+        // is still the weekly one.
+        let reserve = &snap.additional_limits[1];
+        assert_eq!(reserve.name, "gpt-reserve");
+        assert!(reserve.session.is_none());
+        assert_eq!(reserve.weekly.as_ref().unwrap().utilization_pct, 71);
+
+        // Only the unavailable model is kept.
+        assert_eq!(snap.unavailable_models.len(), 1);
+        assert_eq!(snap.unavailable_models[0].model, "gpt-6-astra");
+        assert!(snap.unavailable_models[0].available_at.is_some());
+    }
+
+    /// An account with none of this — which is most of them — must look
+    /// exactly as it did before, not gain empty rows.
+    #[test]
+    fn an_account_without_extra_limits_reports_none_rather_than_empty_rows() {
+        let response: UsageResponse = serde_json::from_str(
+            r#"{"plan_type": "plus",
+                "rate_limit": {"primary_window": {"used_percent": 3,
+                               "limit_window_seconds": 604800}}}"#,
+        )
+        .unwrap();
+        let snap = response.into_snapshot(None).unwrap();
+
+        assert!(snap.additional_limits.is_empty());
+        assert!(snap.unavailable_models.is_empty());
+    }
+
+    /// A named limit with no usable window is dropped rather than drawn as a
+    /// nameless empty row, and one with no name at all falls back to the
+    /// metered feature before being dropped.
+    #[test]
+    fn nameless_or_windowless_limits_are_dropped() {
+        let response: UsageResponse = serde_json::from_str(
+            r#"{"additional_rate_limits": [
+                 {"limit_name": null, "metered_feature": "base_model_inference",
+                  "rate_limit": {"primary_window": {"used_percent": 9,
+                                 "limit_window_seconds": 604800}}},
+                 {"limit_name": "no windows", "rate_limit": {"primary_window": null,
+                                                             "secondary_window": null}},
+                 {"limit_name": "  ", "rate_limit": {"primary_window":
+                   {"used_percent": 1, "limit_window_seconds": 18000}}}
+               ]}"#,
+        )
+        .unwrap();
+        let snap = response.into_snapshot(None).unwrap();
+
+        assert_eq!(snap.additional_limits.len(), 1);
+        assert_eq!(snap.additional_limits[0].name, "base_model_inference");
+    }
+
+    /// `available` absent is "not stated", which is not the same as
+    /// unavailable — inventing a capacity warning is worse than staying quiet.
+    #[test]
+    fn a_model_without_an_availability_flag_is_not_reported_as_down() {
+        let response: UsageResponse =
+            serde_json::from_str(r#"{"model_usage": {"gpt-6-astra": {"available_at": null}}}"#)
+                .unwrap();
+        assert!(
+            response
+                .into_snapshot(None)
+                .unwrap()
+                .unavailable_models
+                .is_empty()
+        );
+    }
+
+    /// Live shape observed 2026-09-05: OpenAI returns explicit `null` for
+    /// empty collections instead of omitting them. `#[serde(default)]` alone
+    /// covers a missing field but still rejects `null` with "invalid type:
+    /// null, expected a sequence" — which surfaced as `⚠ API schema drift`
+    /// in Waybar. Null must mean "none", not drift.
+    /// The exact payload from the reports: every optional collection null at
+    /// once, including the nested `rate_limit_reset_credits.credits`. Three
+    /// people hit this within a day of 1.11.0, so the shape earns a test of
+    /// its own rather than only the per-field one below.
+    #[test]
+    fn the_reported_all_null_payload_parses() {
+        let response: UsageResponse = serde_json::from_str(
+            r#"{"plan_type":"plus",
+                "rate_limit":{"primary_window":{"used_percent":5,
+                              "limit_window_seconds":604800}},
+                "code_review_rate_limit":null,
+                "additional_rate_limits":null,
+                "model_usage":null,
+                "rate_limit_reset_credits":{"available_count":0,"credits":null}}"#,
+        )
+        .expect("the reported shape must parse");
+
+        let snap = response.into_snapshot(None).unwrap();
+        assert_eq!(snap.weekly.as_ref().unwrap().utilization_pct, 5);
+        assert!(snap.additional_limits.is_empty());
+        assert!(snap.unavailable_models.is_empty());
+    }
+
+    /// Null means "none", but a wrong *type* is still drift. Reading a string
+    /// or a number as an empty collection would hide a real schema change
+    /// behind a plausible-looking empty panel.
+    #[test]
+    fn a_mistyped_collection_is_still_schema_drift() {
+        for bad in [
+            r#"{"additional_rate_limits": "none"}"#,
+            r#"{"additional_rate_limits": 0}"#,
+            r#"{"model_usage": []}"#,
+            r#"{"model_usage": "none"}"#,
+        ] {
+            assert!(
+                serde_json::from_str::<UsageResponse>(bad).is_err(),
+                "{bad} should not be read as empty"
+            );
+        }
+    }
+
+    #[test]
+    fn null_collections_parse_as_empty_rather_than_schema_drift() {
+        let response: UsageResponse = serde_json::from_str(
+            r#"{
+                "plan_type": "plus",
+                "rate_limit": {
+                    "primary_window": {"used_percent": 0, "limit_window_seconds": 18000,
+                                       "reset_after_seconds": 18000, "reset_at": 1788646037},
+                    "secondary_window": {"used_percent": 64, "limit_window_seconds": 604800,
+                                         "reset_after_seconds": 152957, "reset_at": 1788780993}
+                },
+                "code_review_rate_limit": null,
+                "additional_rate_limits": null,
+                "model_usage": null,
+                "rate_limit_reset_credits": {"available_count": 3, "credits": null}
+            }"#,
+        )
+        .expect("null collections must parse");
+        let snap = response.into_snapshot(None).unwrap();
+        assert_eq!(snap.session.as_ref().unwrap().utilization_pct, 0);
+        assert_eq!(snap.weekly.as_ref().unwrap().utilization_pct, 64);
+        assert!(snap.additional_limits.is_empty());
+        assert!(snap.unavailable_models.is_empty());
+        assert_eq!(snap.reset_credits.available, 3);
+        assert!(snap.reset_credits.credits.is_empty());
+    }
+}

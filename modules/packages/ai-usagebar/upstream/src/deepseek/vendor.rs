@@ -1,0 +1,313 @@
+//! DeepSeek renderer — bar text + bordered Pango tooltip.
+
+use std::collections::HashMap;
+
+use chrono::{DateTime, Utc};
+
+use crate::format::{money, placeholders, substitute, updated_at_hm};
+use crate::pacing::PaceSeverity;
+use crate::pango::{color_span, escape, severity_color};
+use crate::theme::Theme;
+use crate::tooltip::{Line as TooltipLine, render_bordered};
+use crate::usage::DeepseekSnapshot;
+use crate::vendor::{RenderOpts, VendorId, VendorOutcome};
+use crate::waybar::{Class, WaybarOutput};
+
+use super::fetch::FetchOutcome;
+
+pub const DEFAULT_FORMAT: &str = "{ds_balance}";
+
+pub fn build_placeholders(snap: &DeepseekSnapshot) -> HashMap<&'static str, String> {
+    let avail = if snap.is_available { "up" } else { "down" };
+    let balance = money(snap.balance, &snap.currency);
+    placeholders(vec![
+        ("icon", "󰧑".to_string()),
+        ("vendor_short", VendorId::Deepseek.short_name().to_string()),
+        // Cross-vendor aliases — DeepSeek has neither rate-limit windows nor a
+        // spend denominator (`/user/balance` reports only money *remaining*),
+        // so these percentages are structurally meaningless for this vendor.
+        //
+        // These remain numeric for compatibility with generic third-party
+        // formats. The bundled native surfaces key off `vendor_short` and hide
+        // both quota rows for DeepSeek, so the aliases never become fake 0%
+        // bars there.
+        ("session_pct", "0".to_string()),
+        ("session_reset", "—".to_string()),
+        ("weekly_pct", "0".to_string()),
+        ("weekly_reset", "—".to_string()),
+        // `plan` is the only generic alias the native surfaces render as free
+        // text (GNOME dropdown title, macOS menu header), so it carries the
+        // headline number a balance vendor actually has. Mirrors OpenRouter's
+        // "OpenRouter — {label}".
+        ("plan", format!("DeepSeek — {balance}")),
+        ("ds_balance", balance),
+        ("ds_granted", money(snap.granted, &snap.currency)),
+        ("ds_topped_up", money(snap.topped_up, &snap.currency)),
+        ("ds_available", avail.to_string()),
+        ("currency", snap.currency.clone()),
+    ])
+}
+
+pub fn severity(snap: &DeepseekSnapshot) -> PaceSeverity {
+    if !snap.is_available {
+        return PaceSeverity::Critical;
+    }
+    crate::pango::balance_severity(snap.balance, &snap.currency)
+}
+
+pub fn render(
+    outcome: &VendorOutcome,
+    snap: &DeepseekSnapshot,
+    theme: &Theme,
+    opts: &RenderOpts,
+    now: DateTime<Utc>,
+) -> WaybarOutput {
+    let class = Class::from(severity(snap));
+    let format = opts
+        .format
+        .clone()
+        .unwrap_or_else(|| DEFAULT_FORMAT.to_string());
+    let values = build_placeholders(snap);
+
+    let mut text = substitute(&format, &values);
+    if outcome.stale {
+        text.push_str(" ⏸");
+    }
+
+    let wrapper_color = severity_color(severity(snap), theme).to_string();
+    let icon_prefix = match opts.icon.as_deref() {
+        Some(ic) if !ic.is_empty() => format!("{ic} "),
+        _ => String::new(),
+    };
+    let bar_text = color_span(&wrapper_color, &format!("{icon_prefix}{text}"));
+
+    let tooltip = if let Some(fmt) = opts.tooltip_format.as_deref() {
+        substitute(fmt, &values)
+    } else {
+        render_tooltip(outcome, snap, theme, now)
+    };
+
+    WaybarOutput {
+        text: bar_text,
+        tooltip,
+        class,
+    }
+}
+
+fn render_tooltip(
+    outcome: &VendorOutcome,
+    snap: &DeepseekSnapshot,
+    theme: &Theme,
+    now: DateTime<Utc>,
+) -> String {
+    let blue = &theme.blue;
+    let dim = &theme.dim;
+    let fg = &theme.fg;
+    let color = severity_color(severity(snap), theme);
+
+    let avail_label = if snap.is_available {
+        "API available"
+    } else {
+        "API unavailable"
+    };
+
+    let mut lines: Vec<TooltipLine> = Vec::new();
+    lines.push(TooltipLine::Center(format!(
+        "<span font_weight='bold' foreground='{blue}'>DeepSeek</span>"
+    )));
+    lines.push(TooltipLine::Sep);
+    lines.push(TooltipLine::Body("".into()));
+
+    lines.push(TooltipLine::Body(format!(
+        " <span foreground='{fg}'>  󰢗  Balance</span>"
+    )));
+    lines.push(TooltipLine::Body(format!(
+        "   <span font_weight='bold' foreground='{color}'>{bal}</span>",
+        bal = escape(&money(snap.balance, &snap.currency))
+    )));
+    lines.push(TooltipLine::Body(format!(
+        " <span foreground='{dim}'>     granted {granted} · topped-up {topped}</span>",
+        granted = escape(&money(snap.granted, &snap.currency)),
+        topped = escape(&money(snap.topped_up, &snap.currency))
+    )));
+
+    lines.push(TooltipLine::Body("".into()));
+    lines.push(TooltipLine::Body(format!(
+        " <span foreground='{dim}'>  󰛴  {avail_label}</span>"
+    )));
+
+    if let Some((code, msg)) = outcome.last_error.as_ref()
+        && *code != 0
+    {
+        let (icon, ecolor) = if *code >= 500 {
+            ("󰅚", theme.red.as_str())
+        } else {
+            ("󰀪", theme.orange.as_str())
+        };
+        lines.push(TooltipLine::Body("".into()));
+        lines.push(TooltipLine::Sep);
+        lines.push(TooltipLine::Body(format!(
+            " <span foreground='{ecolor}'>  {icon}  HTTP {code}</span>"
+        )));
+        lines.push(TooltipLine::Body(format!(
+            "     <span foreground='{dim}'>{}</span>",
+            escape(msg)
+        )));
+    }
+
+    let updated = updated_at_hm(now, outcome.cache_age);
+    lines.push(TooltipLine::Body("".into()));
+    lines.push(TooltipLine::Sep);
+    lines.push(TooltipLine::Body(format!(
+        " <span foreground='{dim}'>  󰅐  Updated {updated}</span>"
+    )));
+
+    render_bordered(&lines, theme)
+}
+
+impl From<FetchOutcome> for VendorOutcome {
+    fn from(o: FetchOutcome) -> Self {
+        o.map(crate::usage::VendorSnapshot::Deepseek)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::usage::DeepseekSnapshot;
+
+    fn sample_snap() -> DeepseekSnapshot {
+        DeepseekSnapshot {
+            is_available: true,
+            balance: 5.50,
+            granted: 5.00,
+            topped_up: 0.50,
+            currency: "USD".into(),
+        }
+    }
+
+    fn sample_outcome(snap: DeepseekSnapshot) -> VendorOutcome {
+        VendorOutcome {
+            snapshot: crate::usage::VendorSnapshot::Deepseek(snap),
+            stale: false,
+            last_error: None,
+            cache_age: Some(std::time::Duration::from_secs(10)),
+        }
+    }
+
+    fn opts() -> RenderOpts {
+        RenderOpts {
+            format: None,
+            tooltip_format: None,
+            icon: None,
+            pace_tolerance: 5,
+            format_pace_color: false,
+            tooltip_pace_pts: false,
+        }
+    }
+
+    #[test]
+    fn default_render_shows_balance() {
+        let snap = sample_snap();
+        let outcome = sample_outcome(snap.clone());
+        let theme = Theme::default();
+        let out = render(&outcome, &snap, &theme, &opts(), Utc::now());
+        assert!(out.text.contains("$5.50"));
+    }
+
+    /// A DeepSeek balance can go under, and used to print "$-5.71" here while
+    /// OpenRouter printed "-$5.71" for the same thing. One formatter now.
+    #[test]
+    fn a_negative_balance_carries_its_sign_ahead_of_the_symbol() {
+        let mut snap = sample_snap();
+        snap.balance = -5.71;
+        let out = render(
+            &sample_outcome(snap.clone()),
+            &snap,
+            &Theme::default(),
+            &opts(),
+            Utc::now(),
+        );
+        assert!(out.text.contains("-$5.71"), "{}", out.text);
+        assert!(!out.text.contains("$-5.71"), "{}", out.text);
+
+        snap.currency = "CNY".into();
+        let out = render(
+            &sample_outcome(snap.clone()),
+            &snap,
+            &Theme::default(),
+            &opts(),
+            Utc::now(),
+        );
+        assert!(out.text.contains("-¥5.71"), "{}", out.text);
+    }
+
+    #[test]
+    fn tooltip_includes_balance_and_availability() {
+        let snap = sample_snap();
+        let outcome = sample_outcome(snap.clone());
+        let theme = Theme::default();
+        let out = render(&outcome, &snap, &theme, &opts(), Utc::now());
+        assert!(out.tooltip.contains("Balance"));
+        assert!(out.tooltip.contains("$5.50"));
+        assert!(out.tooltip.contains("API available"));
+    }
+
+    #[test]
+    fn unavailable_api_shows_critical_severity() {
+        let mut snap = sample_snap();
+        snap.is_available = false;
+        assert_eq!(severity(&snap), PaceSeverity::Critical);
+    }
+
+    #[test]
+    fn stale_appends_pause() {
+        let snap = sample_snap();
+        let mut outcome = sample_outcome(snap.clone());
+        outcome.stale = true;
+        let theme = Theme::default();
+        let out = render(&outcome, &snap, &theme, &opts(), Utc::now());
+        assert!(out.text.contains("⏸"));
+    }
+
+    #[test]
+    fn plan_alias_carries_balance_in_snapshot_currency() {
+        assert_eq!(
+            build_placeholders(&sample_snap())["plan"],
+            "DeepSeek — $5.50"
+        );
+
+        let mut snap = sample_snap();
+        snap.balance = 20.0;
+        snap.currency = "CNY".into();
+        assert_eq!(build_placeholders(&snap)["plan"], "DeepSeek — ¥20.00");
+    }
+
+    // The prefix both native surfaces request verbatim — see the `FORMAT`
+    // constants in gnome-extension/marker-logic.js and macos/ai-usagebar-menubar.swift.
+    // `plan` is the one generic field they render as free text, so it is the
+    // only place a balance vendor can get its headline number onto the panel
+    // without a change on the surface side.
+    #[test]
+    fn desktop_format_header_shows_balance() {
+        let values = build_placeholders(&sample_snap());
+        let out = substitute(
+            "{plan};;{session_pct};;{session_reset};;{weekly_pct};;{weekly_reset}",
+            &values,
+        );
+        let fields: Vec<&str> = out.split(";;").collect();
+        assert_eq!(fields[0], "DeepSeek — $5.50");
+    }
+
+    #[test]
+    fn cny_format() {
+        let snap = DeepseekSnapshot {
+            is_available: true,
+            balance: 20.0,
+            granted: 20.0,
+            topped_up: 0.0,
+            currency: "CNY".into(),
+        };
+        assert_eq!(money(snap.balance, &snap.currency), "¥20.00");
+    }
+}

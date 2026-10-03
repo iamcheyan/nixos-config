@@ -1,0 +1,920 @@
+//! Shared vendor IDs and renderer/fetcher structs used by the widget and TUI.
+//!
+//! Snapshots remain a discriminated `VendorSnapshot` enum because the vendors
+//! have genuinely different shapes — see `usage.rs`.
+
+use std::collections::BTreeSet;
+use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
+
+use clap::ValueEnum;
+
+use crate::usage::VendorSnapshot;
+use crate::widget::cli::Cli;
+
+/// Outer reqwest client timeout shared by widget and TUI entry points.
+/// Vendor fetchers still apply their own tighter per-request timeouts.
+pub const HTTP_CLIENT_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Upper bound on a vendor response body. Every one of these endpoints returns
+/// a small JSON document — the largest observed is a few kilobytes — so this is
+/// generous by three orders of magnitude while still bounding the damage from a
+/// misbehaving proxy or a hijacked endpoint.
+pub const MAX_BODY_BYTES: usize = 2 * 1024 * 1024;
+
+/// Credential-bearing environment variables owned by ai-usagebar vendors.
+/// Subprocesses receive only the entries that belong to their own provider.
+pub(crate) const VENDOR_SECRET_ENV_VARS: &[&str] = &[
+    "ZAI_API_KEY",
+    "OPENROUTER_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "DEEPINFRA_API_KEY",
+    "KIMI_API_KEY",
+    "KILO_API_KEY",
+    "NOVITA_API_KEY",
+    "MINIMAX_API_KEY",
+    "MOONSHOT_API_KEY",
+    "XAI_MANAGEMENT_KEY",
+    "ANTHROPIC_ADMIN_KEY",
+    "XAI_API_KEY",
+    "GROK_API_KEY",
+    "OPENCODE_GO_API_KEY",
+    "COMMANDCODE_API_KEY",
+    "ORCAROUTER_API_KEY",
+    "GITHUB_COPILOT_TOKEN",
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "OLLAMA_API_KEY",
+];
+
+/// Env var names a `[[custom]]` provider reads its token from. They are not
+/// known until the config is parsed, so they cannot sit in the static list
+/// above, but they are exactly as secret as `DEEPSEEK_API_KEY` and must be
+/// scrubbed from every subprocess the same way.
+fn registered_secret_env_vars() -> &'static Mutex<BTreeSet<&'static str>> {
+    static REGISTERED: OnceLock<Mutex<BTreeSet<&'static str>>> = OnceLock::new();
+    REGISTERED.get_or_init(|| Mutex::new(BTreeSet::new()))
+}
+
+/// Extra env var names (custom providers' `api_key_env`) that must be
+/// scrubbed from every child process. Additive and idempotent; names that are
+/// not valid env var names, or already in [`VENDOR_SECRET_ENV_VARS`], are
+/// ignored.
+///
+/// A name is interned once, on first registration, so the removal list keeps
+/// its `&'static str` element type and the three call sites and their tests
+/// stay untouched. The set is bounded by the user's config, and re-loading
+/// the same config registers nothing new, so the leak is a handful of short
+/// strings for the life of the process.
+pub fn register_secret_env_vars(names: &[String]) {
+    let mut registered = registered_secret_env_vars()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    for name in names {
+        if !crate::config::is_valid_env_var_name(name)
+            || VENDOR_SECRET_ENV_VARS.contains(&name.as_str())
+            || registered.contains(name.as_str())
+        {
+            continue;
+        }
+        registered.insert(Box::leak(name.clone().into_boxed_str()));
+    }
+}
+
+pub(crate) fn vendor_secret_env_vars_to_remove(keep: &[&str]) -> Vec<&'static str> {
+    let registered = registered_secret_env_vars()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    VENDOR_SECRET_ENV_VARS
+        .iter()
+        .copied()
+        .chain(registered.iter().copied())
+        .filter(|var| !keep.contains(var))
+        .collect()
+}
+
+/// Follow ordinary vendor redirects without forwarding non-standard API-key
+/// headers to a different origin. Reqwest strips `Authorization` on sensitive
+/// redirects, but vendors also use headers such as `x-api-key`, which are not
+/// covered by that built-in list.
+pub fn same_origin_redirect_policy() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= 10 {
+            return attempt.error("too many redirects");
+        }
+        let Some(origin) = attempt.previous().first() else {
+            return attempt.stop();
+        };
+        let target = attempt.url();
+        if target.scheme() == origin.scheme()
+            && target.host_str() == origin.host_str()
+            && target.port_or_known_default() == origin.port_or_known_default()
+        {
+            attempt.follow()
+        } else {
+            attempt.stop()
+        }
+    })
+}
+
+/// Read a response body with an upper bound.
+///
+/// Every vendor buffered the whole body with `resp.bytes()` *before* anything
+/// validated it. The widget is re-executed by Waybar every 60s, so an endpoint
+/// answering with an unbounded stream had a free hand at the machine's memory.
+/// `Content-Length` is checked first when present, then the body is read in
+/// chunks so a lying or absent length cannot get past the cap either.
+pub async fn read_body_capped(
+    mut resp: reqwest::Response,
+    max: usize,
+) -> crate::error::Result<Vec<u8>> {
+    let too_big = |n: u64| {
+        crate::error::AppError::Schema(format!(
+            "response body exceeds the {max}-byte limit ({n} bytes); refusing to buffer it"
+        ))
+    };
+    if let Some(len) = resp.content_length()
+        && len > max as u64
+    {
+        return Err(too_big(len));
+    }
+    let mut buf: Vec<u8> = Vec::new();
+    while let Some(chunk) = resp.chunk().await? {
+        if chunk.len() > max.saturating_sub(buf.len()) {
+            return Err(too_big(buf.len().saturating_add(chunk.len()) as u64));
+        }
+        buf.extend_from_slice(&chunk);
+    }
+    Ok(buf)
+}
+
+/// Stable enum used by `--vendor` and in config files.
+#[derive(
+    Debug, Clone, Copy, ValueEnum, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum VendorId {
+    Anthropic,
+    #[serde(rename = "anthropic_api")]
+    AnthropicApi,
+    Openai,
+    Copilot,
+    Zai,
+    Openrouter,
+    Deepseek,
+    Deepinfra,
+    Kimi,
+    Kilo,
+    Novita,
+    Moonshot,
+    Grok,
+    Supergrok,
+    Grokbot,
+    Antigravity,
+    Cursor,
+    Minimax,
+    Kiro,
+    #[serde(rename = "nous")]
+    NousResearch,
+    #[serde(rename = "opencode-go")]
+    OpenCodeGo,
+    #[serde(rename = "commandcode")]
+    CommandCode,
+    Ollama,
+    OrcaRouter,
+    ModelStudio,
+}
+
+/// How a provider authenticates. Drives what a frontend offers a provider that
+/// is not usable yet: a command to run, a variable to set, or an app to sign
+/// in to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AuthKind {
+    /// An interactive login writes a credential file. `login_command` runs it.
+    Oauth,
+    /// An API key, from the environment or an inline `api_key` in config.
+    ApiKey,
+    /// No credential of its own — a local product's session or state file is
+    /// the login, and there is nothing for the user to paste.
+    Local,
+}
+
+impl AuthKind {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            AuthKind::Oauth => "oauth",
+            AuthKind::ApiKey => "apikey",
+            AuthKind::Local => "local",
+        }
+    }
+}
+
+impl VendorId {
+    pub fn slug(self) -> &'static str {
+        match self {
+            VendorId::Anthropic => "anthropic",
+            VendorId::AnthropicApi => "anthropic_api",
+            VendorId::Openai => "openai",
+            VendorId::Copilot => "copilot",
+            VendorId::Zai => "zai",
+            VendorId::Openrouter => "openrouter",
+            VendorId::Deepseek => "deepseek",
+            VendorId::Deepinfra => "deepinfra",
+            VendorId::Kimi => "kimi",
+            VendorId::Kilo => "kilo",
+            VendorId::Novita => "novita",
+            VendorId::Moonshot => "moonshot",
+            VendorId::Grok => "grok",
+            VendorId::Supergrok => "supergrok",
+            VendorId::Grokbot => "grokbot",
+            VendorId::Antigravity => "antigravity",
+            VendorId::Cursor => "cursor",
+            VendorId::Minimax => "minimax",
+            VendorId::Kiro => "kiro",
+            VendorId::NousResearch => "nous",
+            VendorId::OpenCodeGo => "opencode-go",
+            VendorId::CommandCode => "commandcode",
+            VendorId::Ollama => "ollama",
+            VendorId::OrcaRouter => "orcarouter",
+            VendorId::ModelStudio => "modelstudio",
+        }
+    }
+
+    /// Canonical human-readable name for shared reports and compact UI labels.
+    /// Platform frontends may add context (for example, "GLM (Z.AI)" in a
+    /// wide TUI tab), but should not carry their own full vendor-name table.
+    pub fn display_name(self) -> &'static str {
+        match self {
+            VendorId::Anthropic => "Claude",
+            VendorId::AnthropicApi => "Anthropic API",
+            VendorId::Openai => "Codex",
+            VendorId::Copilot => "GitHub Copilot",
+            VendorId::Zai => "Z.AI",
+            VendorId::Openrouter => "OpenRouter",
+            VendorId::Deepseek => "DeepSeek",
+            VendorId::Deepinfra => "DeepInfra",
+            VendorId::Kimi => "Kimi",
+            VendorId::Kilo => "Kilo",
+            VendorId::Novita => "Novita",
+            VendorId::Moonshot => "Moonshot",
+            VendorId::Grok => "Grok",
+            VendorId::Supergrok => "SuperGrok",
+            VendorId::Grokbot => "Grok Bot",
+            VendorId::Antigravity => "Antigravity",
+            VendorId::Cursor => "Cursor",
+            VendorId::Minimax => "MiniMax",
+            VendorId::Kiro => "Kiro",
+            VendorId::NousResearch => "Nous Research",
+            VendorId::OpenCodeGo => "OpenCode Go",
+            VendorId::CommandCode => "Command Code",
+            VendorId::Ollama => "Ollama Cloud",
+            VendorId::OrcaRouter => "OrcaRouter",
+            VendorId::ModelStudio => "Model Studio",
+        }
+    }
+
+    /// Glyph for a compact bar chip. Same role as [`Self::short_name`]: the
+    /// Omarchy top bar (and any other frontend) takes it from `usage --json`
+    /// rather than keeping its own provider-icon table.
+    pub const fn bar_icon(self) -> &'static str {
+        match self {
+            VendorId::Anthropic => "󰚩",
+            VendorId::AnthropicApi => "󰢗",
+            VendorId::Openai => "󱢆",
+            VendorId::Copilot => "󰊤",
+            VendorId::Zai => VendorId::Zai.short_name(),
+            VendorId::Openrouter => "󱙺",
+            VendorId::Deepseek => "󰧑",
+            VendorId::Deepinfra => VendorId::Deepinfra.short_name(),
+            VendorId::Kimi => VendorId::Kimi.short_name(),
+            VendorId::Kilo => "󰭟",
+            VendorId::Novita => "󰄔",
+            VendorId::Moonshot => VendorId::Moonshot.short_name(),
+            VendorId::Grok | VendorId::Supergrok => "󰇷",
+            VendorId::Grokbot => VendorId::Grokbot.short_name(),
+            VendorId::Antigravity => VendorId::Antigravity.short_name(),
+            VendorId::Cursor => "❯",
+            VendorId::Minimax => VendorId::Minimax.short_name(),
+            VendorId::Kiro => "◆",
+            VendorId::NousResearch => VendorId::NousResearch.short_name(),
+            VendorId::OpenCodeGo => VendorId::OpenCodeGo.short_name(),
+            VendorId::CommandCode => VendorId::CommandCode.short_name(),
+            // No distinct Nerd Font mark for Ollama Cloud; the `oll` short
+            // name is unique by construction and cannot render as tofu.
+            VendorId::Ollama => VendorId::Ollama.short_name(),
+            // Same story for OrcaRouter: the `orc` short name is unique.
+            VendorId::OrcaRouter => VendorId::OrcaRouter.short_name(),
+            // Same story for Model Studio: the `mst` short name is unique.
+            VendorId::ModelStudio => VendorId::ModelStudio.short_name(),
+        }
+    }
+
+    /// Compact three-letter code for the bar. This is the single source for
+    /// `{vendor_short}` in every renderer, the `usage --json` `short_name`
+    /// field, and any frontend that wants a Waybar-style provider tag; a
+    /// second copy in a placeholder map or a QML file is how the table forks.
+    pub const fn short_name(self) -> &'static str {
+        match self {
+            VendorId::Anthropic => "cld",
+            VendorId::AnthropicApi => "aac",
+            VendorId::Openai => "gpt",
+            VendorId::Copilot => "ghc",
+            VendorId::Zai => "zai",
+            VendorId::Openrouter => "opr",
+            VendorId::Deepseek => "dsk",
+            VendorId::Deepinfra => "dif",
+            VendorId::Kimi => "kmi",
+            VendorId::Kilo => "klo",
+            VendorId::Novita => "nvt",
+            VendorId::Moonshot => "msh",
+            VendorId::Grok => "grk",
+            VendorId::Supergrok => "sgk",
+            VendorId::Grokbot => "gbt",
+            VendorId::Antigravity => "agy",
+            VendorId::Cursor => "cur",
+            VendorId::Minimax => "mmx",
+            VendorId::Kiro => "kir",
+            VendorId::NousResearch => "nrs",
+            VendorId::OpenCodeGo => "ocg",
+            VendorId::CommandCode => "cmc",
+            VendorId::Ollama => "oll",
+            VendorId::OrcaRouter => "orc",
+            VendorId::ModelStudio => "mst",
+        }
+    }
+
+    /// The `config.toml` table this vendor's settings live in — the `Config`
+    /// field name, or its `#[serde(rename)]` where one applies. This is the
+    /// single source for every writer that edits a vendor section by name
+    /// (the Settings overlay's `KEY_VENDORS`, `config::enable_vendors_in`), so
+    /// a section can't be spelled one way by the parser and another by a
+    /// writer. A guard test in `config` parses `[<section>] enabled = true` for
+    /// every vendor and checks `is_enabled`.
+    pub const fn config_section(self) -> &'static str {
+        match self {
+            VendorId::Anthropic => "anthropic",
+            VendorId::AnthropicApi => "anthropic_api",
+            VendorId::Openai => "openai",
+            VendorId::Copilot => "copilot",
+            VendorId::Zai => "zai",
+            VendorId::Openrouter => "openrouter",
+            VendorId::Deepseek => "deepseek",
+            VendorId::Deepinfra => "deepinfra",
+            VendorId::Kimi => "kimi",
+            VendorId::Kilo => "kilo",
+            VendorId::Novita => "novita",
+            VendorId::Moonshot => "moonshot",
+            VendorId::Grok => "grok",
+            VendorId::Supergrok => "supergrok",
+            VendorId::Grokbot => "grokbot",
+            VendorId::Antigravity => "antigravity",
+            VendorId::Cursor => "cursor",
+            VendorId::Minimax => "minimax",
+            VendorId::Kiro => "kiro",
+            VendorId::NousResearch => "nous",
+            VendorId::OpenCodeGo => "opencode-go",
+            VendorId::CommandCode => "commandcode",
+            VendorId::Ollama => "ollama",
+            VendorId::OrcaRouter => "orcarouter",
+            VendorId::ModelStudio => "modelstudio",
+        }
+    }
+
+    /// How a provider proves who you are. This is the fact a frontend needs to
+    /// say what an unconfigured provider is still missing, and it is the one
+    /// thing neither `usage --json` nor the config file carries: the report
+    /// lists only *enabled* providers, so the switched-off and the
+    /// never-credentialed are exactly the rows it cannot describe.
+    pub const fn auth_kind(self) -> AuthKind {
+        match self {
+            VendorId::Anthropic
+            | VendorId::Openai
+            | VendorId::Copilot
+            | VendorId::NousResearch
+            | VendorId::CommandCode => AuthKind::Oauth,
+            VendorId::AnthropicApi
+            | VendorId::Zai
+            | VendorId::Openrouter
+            | VendorId::Deepseek
+            | VendorId::Deepinfra
+            | VendorId::Kimi
+            | VendorId::Kilo
+            | VendorId::Novita
+            | VendorId::Moonshot
+            | VendorId::Grok
+            | VendorId::Minimax
+            | VendorId::OpenCodeGo
+            | VendorId::Ollama
+            | VendorId::OrcaRouter => AuthKind::ApiKey,
+            // No credential of their own: another local product's session is
+            // the login. Antigravity has no credential file at all (the binary
+            // probes whichever local server answers), Cursor and Kiro read the
+            // IDE's and kiro-cli's own state, SuperGrok uses the Grok Build
+            // CLI's login, Grok Bot reads the desktop app's own
+            // OSCrypt-protected session file, and Model Studio reads the `bl`
+            // CLI's own console-login file.
+            VendorId::Supergrok
+            | VendorId::Antigravity
+            | VendorId::Cursor
+            | VendorId::Kiro
+            | VendorId::Grokbot
+            | VendorId::ModelStudio => AuthKind::Local,
+        }
+    }
+
+    /// Default environment variable holding this provider's key, or `""` for a
+    /// provider that has none. This is only the *default*: most key vendors
+    /// accept an `api_key_env` override in config, so a frontend showing the
+    /// variable a user must set wants [`Config::api_key_env_for`], not this.
+    pub const fn api_key_env(self) -> &'static str {
+        match self {
+            VendorId::AnthropicApi => "ANTHROPIC_ADMIN_KEY",
+            VendorId::Zai => "ZAI_API_KEY",
+            VendorId::Openrouter => "OPENROUTER_API_KEY",
+            VendorId::Deepseek => "DEEPSEEK_API_KEY",
+            VendorId::Deepinfra => "DEEPINFRA_API_KEY",
+            VendorId::Kimi => "KIMI_API_KEY",
+            VendorId::Kilo => "KILO_API_KEY",
+            VendorId::Novita => "NOVITA_API_KEY",
+            VendorId::Moonshot => "MOONSHOT_API_KEY",
+            VendorId::Grok => "XAI_MANAGEMENT_KEY",
+            VendorId::Minimax => "MINIMAX_API_KEY",
+            VendorId::OpenCodeGo => "OPENCODE_GO_API_KEY",
+            VendorId::Ollama => "OLLAMA_API_KEY",
+            VendorId::OrcaRouter => "ORCAROUTER_API_KEY",
+            // OAuth-first, with an environment override for CI and headless
+            // use. Neither name is configurable, so neither has an
+            // `api_key_env` field in its config section.
+            VendorId::Copilot => "GITHUB_COPILOT_TOKEN",
+            VendorId::CommandCode => "COMMANDCODE_API_KEY",
+            VendorId::Anthropic
+            | VendorId::Openai
+            | VendorId::Supergrok
+            | VendorId::Grokbot
+            | VendorId::Antigravity
+            | VendorId::Cursor
+            | VendorId::Kiro
+            | VendorId::NousResearch
+            | VendorId::ModelStudio => "",
+        }
+    }
+
+    /// Command that signs this provider in, or `""` when signing in happens
+    /// somewhere this cannot name — a desktop app's own window. The strings
+    /// are the ones the vendor modules' own credential errors already print,
+    /// so a status row and a failed fetch tell the user to run the same thing.
+    /// One sentence telling the user how to sign this provider in, for a UI
+    /// that has an error card and no room for a manual.
+    ///
+    /// This is product knowledge, so it lives beside [`Self::login_command`]
+    /// rather than in a frontend table. The Windows popover grew its own copy
+    /// first and it disagreed with this one for five of eight providers before
+    /// it had shipped — the match here is exhaustive, so a new provider cannot
+    /// be added without saying how a person signs into it.
+    pub const fn sign_in_hint(self) -> &'static str {
+        match self {
+            VendorId::Anthropic => "Run `claude` in a terminal, then Refresh.",
+            VendorId::Openai => "Run `codex login` in a terminal, then Refresh.",
+            VendorId::Copilot => "Run `gh auth login` in a terminal, then Refresh.",
+            VendorId::Kiro => "Run `kiro-cli login` in a terminal, then Refresh.",
+            VendorId::Kimi => "Run `kimi` in a terminal, or set an API key.",
+            VendorId::CommandCode => "Run `commandcode` in a terminal, then Refresh.",
+            VendorId::NousResearch => {
+                "Run `ai-usagebar auth nous login` in a terminal, then Refresh."
+            }
+            VendorId::Cursor => "Sign in to the Cursor app, then Refresh.",
+            VendorId::Antigravity => "Open Antigravity or run `agy`, then Refresh.",
+            VendorId::Grok | VendorId::Supergrok => "Sign in with `grok`, then Refresh.",
+            VendorId::Grokbot => "Install and sign in to the Grok Bot desktop app, then Refresh.",
+            // Local login through the official CLI's own console session.
+            VendorId::ModelStudio => {
+                "Install the official `bl` CLI and run `bl auth login --console`, then Refresh."
+            }
+            // Key-only providers: there is nothing to log into, only a key to
+            // put in the config. Ollama Cloud's key is minted at
+            // ollama.com/settings/keys; the local `ollama` CLI's Ed25519 key
+            // is a registry credential, not a quota one, and is never read.
+            VendorId::AnthropicApi
+            | VendorId::Zai
+            | VendorId::Openrouter
+            | VendorId::Deepseek
+            | VendorId::Deepinfra
+            | VendorId::Kilo
+            | VendorId::Novita
+            | VendorId::Moonshot
+            | VendorId::Minimax
+            | VendorId::OpenCodeGo
+            | VendorId::Ollama
+            | VendorId::OrcaRouter => "Add an API key in Settings, then Refresh.",
+        }
+    }
+
+    pub const fn login_command(self) -> &'static str {
+        match self {
+            VendorId::Anthropic => "claude",
+            VendorId::Openai => "codex login",
+            VendorId::Copilot => "gh auth login",
+            VendorId::CommandCode => "commandcode",
+            VendorId::NousResearch => "ai-usagebar auth nous login",
+            VendorId::Kiro => "kiro-cli login",
+            // The `bl` CLI's console login is the whole credential.
+            VendorId::ModelStudio => "bl auth login --console",
+            // Kimi takes a key *or* the Kimi Code CLI's own OAuth login, which
+            // is what a subscriber already has locally.
+            VendorId::Kimi => "kimi",
+            VendorId::AnthropicApi
+            | VendorId::Zai
+            | VendorId::Openrouter
+            | VendorId::Deepseek
+            | VendorId::Deepinfra
+            | VendorId::Kilo
+            | VendorId::Novita
+            | VendorId::Moonshot
+            | VendorId::Grok
+            | VendorId::Supergrok
+            | VendorId::Grokbot
+            | VendorId::Antigravity
+            | VendorId::Cursor
+            | VendorId::Minimax
+            | VendorId::OpenCodeGo
+            | VendorId::Ollama
+            | VendorId::OrcaRouter => "",
+        }
+    }
+
+    pub const fn all() -> &'static [VendorId] {
+        &[
+            VendorId::Anthropic,
+            VendorId::AnthropicApi,
+            VendorId::Openai,
+            VendorId::Copilot,
+            VendorId::Zai,
+            VendorId::Openrouter,
+            VendorId::Deepseek,
+            VendorId::Deepinfra,
+            VendorId::Kimi,
+            VendorId::Kilo,
+            VendorId::Novita,
+            VendorId::Moonshot,
+            VendorId::Grok,
+            VendorId::Supergrok,
+            VendorId::Grokbot,
+            VendorId::Antigravity,
+            VendorId::Cursor,
+            VendorId::Minimax,
+            VendorId::Kiro,
+            VendorId::NousResearch,
+            VendorId::OpenCodeGo,
+            VendorId::CommandCode,
+            VendorId::Ollama,
+            VendorId::OrcaRouter,
+            VendorId::ModelStudio,
+        ]
+    }
+
+    /// Look a vendor up by its config/report slug — the validation every
+    /// by-name writer (the settings surfaces' provider on/off toggles, #244)
+    /// goes through before touching a config section, so a slug that names
+    /// no built-in vendor can never become a `[section]`.
+    pub fn from_slug(slug: &str) -> Option<Self> {
+        Self::all().iter().copied().find(|id| id.slug() == slug)
+    }
+}
+
+/// What a vendor returns from a successful fetch — the same
+/// [`Outcome`](crate::outcome::Outcome) every vendor produces, once its own
+/// snapshot type has been widened to [`VendorSnapshot`]. Each vendor gets
+/// there with a single `outcome.map(VendorSnapshot::Whichever)`.
+pub type VendorOutcome = crate::outcome::Outcome<VendorSnapshot>;
+
+/// Options forwarded to renderers from the CLI.
+#[derive(Debug, Clone)]
+pub struct RenderOpts {
+    pub format: Option<String>,
+    pub tooltip_format: Option<String>,
+    pub icon: Option<String>,
+    pub pace_tolerance: u32,
+    pub format_pace_color: bool,
+    pub tooltip_pace_pts: bool,
+}
+
+impl RenderOpts {
+    pub fn from_cli(cli: &Cli) -> Self {
+        Self {
+            format: cli.format.clone(),
+            tooltip_format: cli.tooltip_format.clone(),
+            icon: cli.icon.clone(),
+            pace_tolerance: cli.pace_tolerance,
+            format_pace_color: cli.format_pace_color,
+            tooltip_pace_pts: cli.tooltip_pace_pts,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_vendor_has_stable_machine_and_display_names() {
+        for vendor in VendorId::all() {
+            assert!(!vendor.slug().is_empty());
+            assert!(!vendor.display_name().is_empty());
+        }
+        assert_eq!(VendorId::Anthropic.slug(), "anthropic");
+        assert_eq!(VendorId::Anthropic.display_name(), "Claude");
+        assert_eq!(VendorId::Openai.display_name(), "Codex");
+        assert_eq!(VendorId::Zai.display_name(), "Z.AI");
+    }
+
+    /// `{vendor_short}` is a documented format placeholder and now also rides
+    /// the `usage --json` report, so a duplicate or a re-typed code would make
+    /// two providers indistinguishable in a bar that shows nothing else.
+    #[test]
+    fn every_vendor_short_name_is_a_unique_three_letter_code() {
+        let mut seen = std::collections::BTreeSet::new();
+        for vendor in VendorId::all() {
+            let short = vendor.short_name();
+            assert_eq!(short.len(), 3, "{} is not three letters", vendor.slug());
+            assert!(
+                short.chars().all(|c| c.is_ascii_lowercase()),
+                "{} is not lowercase ascii",
+                vendor.slug()
+            );
+            assert!(seen.insert(short), "{short} is used by two vendors");
+        }
+        assert_eq!(VendorId::Anthropic.short_name(), "cld");
+        assert_eq!(VendorId::Openai.short_name(), "gpt");
+        assert_eq!(VendorId::Zai.short_name(), "zai");
+        assert_eq!(VendorId::Antigravity.short_name(), "agy");
+    }
+
+    /// The bar can show every provider at once, so a glyph two providers share
+    /// tells the user nothing about which row is which. Grok and SuperGrok are
+    /// the one sanctioned pair — same brand, two products. Providers without a
+    /// distinct Nerd Font mark use their `short_name`, which is unique by
+    /// construction and cannot render as tofu.
+    #[test]
+    fn every_vendor_has_a_bar_icon_and_no_two_share_one() {
+        use std::collections::BTreeMap;
+
+        let mut by_icon: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+        for vendor in VendorId::all() {
+            assert!(!vendor.bar_icon().is_empty(), "{}", vendor.slug());
+            by_icon
+                .entry(vendor.bar_icon())
+                .or_default()
+                .push(vendor.slug());
+        }
+
+        let shared: Vec<_> = by_icon
+            .iter()
+            .filter(|(_, vendors)| vendors.len() > 1)
+            .filter(|(_, vendors)| vendors.as_slice() != ["grok", "supergrok"])
+            .collect();
+        assert!(
+            shared.is_empty(),
+            "these providers are indistinguishable in a bar that shows them \
+             side by side: {shared:#?}"
+        );
+        assert_eq!(VendorId::Anthropic.bar_icon(), "󰚩");
+        assert_eq!(VendorId::Openai.bar_icon(), "󱢆");
+        assert_eq!(VendorId::Supergrok.bar_icon(), VendorId::Grok.bar_icon());
+        assert_eq!(VendorId::CommandCode.bar_icon(), "cmc");
+    }
+
+    #[test]
+    fn new_vendor_contracts_keep_public_names_and_slugs() {
+        assert_eq!(VendorId::NousResearch.slug(), "nous");
+        assert_eq!(VendorId::NousResearch.display_name(), "Nous Research");
+        assert_eq!(VendorId::OpenCodeGo.slug(), "opencode-go");
+        assert_eq!(VendorId::OpenCodeGo.display_name(), "OpenCode Go");
+        assert_eq!(
+            serde_json::to_value(VendorId::OpenCodeGo).unwrap(),
+            serde_json::json!("opencode-go")
+        );
+    }
+
+    #[test]
+    fn vendor_secret_env_vars_cover_config_defaults() {
+        let configured_defaults = [
+            "ZAI_API_KEY",
+            "OPENROUTER_API_KEY",
+            "DEEPSEEK_API_KEY",
+            "DEEPINFRA_API_KEY",
+            "KIMI_API_KEY",
+            "KILO_API_KEY",
+            "NOVITA_API_KEY",
+            "MINIMAX_API_KEY",
+            "MOONSHOT_API_KEY",
+            "XAI_MANAGEMENT_KEY",
+            "ANTHROPIC_ADMIN_KEY",
+            "GITHUB_COPILOT_TOKEN",
+            "ORCAROUTER_API_KEY",
+        ];
+        for name in configured_defaults {
+            assert!(VENDOR_SECRET_ENV_VARS.contains(&name), "missing {name}");
+        }
+    }
+
+    #[test]
+    fn vars_to_remove_preserves_only_requested_grok_credentials() {
+        let removed = vendor_secret_env_vars_to_remove(&["XAI_API_KEY", "GROK_API_KEY"]);
+        assert!(!removed.contains(&"XAI_API_KEY"));
+        assert!(!removed.contains(&"GROK_API_KEY"));
+        assert!(removed.contains(&"ANTHROPIC_ADMIN_KEY"));
+        assert!(removed.contains(&"OPENROUTER_API_KEY"));
+        // Counted against the static list: another test in this process may
+        // have registered a custom provider's env var, which belongs here too.
+        let builtins = removed
+            .iter()
+            .filter(|var| VENDOR_SECRET_ENV_VARS.contains(var))
+            .count();
+        assert_eq!(builtins, VENDOR_SECRET_ENV_VARS.len() - 2);
+    }
+
+    #[test]
+    fn a_registered_custom_env_var_is_scrubbed_like_a_builtin_one() {
+        let name = "AI_USAGEBAR_TEST_CUSTOM_TOKEN_7F3A";
+        assert!(!vendor_secret_env_vars_to_remove(&[]).contains(&name));
+
+        register_secret_env_vars(&[name.to_string(), "not a name!".to_string()]);
+        register_secret_env_vars(&[name.to_string()]);
+
+        let removed = vendor_secret_env_vars_to_remove(&[]);
+        assert_eq!(
+            removed.iter().filter(|var| **var == name).count(),
+            1,
+            "registering twice must not list it twice: {removed:?}"
+        );
+        assert!(!removed.contains(&"not a name!"), "{removed:?}");
+        assert!(
+            !vendor_secret_env_vars_to_remove(&[name]).contains(&name),
+            "`keep` applies to registered names too"
+        );
+    }
+
+    #[test]
+    fn copilot_token_is_removed_before_unrelated_subprocesses_launch() {
+        let removed = vendor_secret_env_vars_to_remove(&[]);
+        assert!(removed.contains(&"GITHUB_COPILOT_TOKEN"));
+    }
+
+    #[tokio::test]
+    async fn body_over_the_cap_is_refused_and_under_it_round_trips() {
+        let mut server = mockito::Server::new_async().await;
+        server
+            .mock("GET", "/big")
+            .with_status(200)
+            .with_body("x".repeat(4096))
+            .create_async()
+            .await;
+        server
+            .mock("GET", "/small")
+            .with_status(200)
+            .with_body("hello")
+            .create_async()
+            .await;
+
+        let client = reqwest::Client::new();
+
+        // Over the cap: refused rather than buffered.
+        let resp = client
+            .get(format!("{}/big", server.url()))
+            .send()
+            .await
+            .unwrap();
+        let err = read_body_capped(resp, 1024).await.unwrap_err();
+        assert!(
+            err.to_string().contains("exceeds"),
+            "unexpected error: {err}"
+        );
+
+        // Under the cap: identical to the previous `resp.bytes()` behaviour.
+        let resp = client
+            .get(format!("{}/small", server.url()))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(read_body_capped(resp, 1024).await.unwrap(), b"hello");
+    }
+
+    #[tokio::test]
+    async fn chunked_body_without_content_length_still_hits_the_cap() {
+        let mut server = mockito::Server::new_async().await;
+        server
+            .mock("GET", "/chunked")
+            .with_status(200)
+            .with_chunked_body(|writer| writer.write_all(&[b'x'; 4096]))
+            .create_async()
+            .await;
+
+        let response = reqwest::Client::new()
+            .get(format!("{}/chunked", server.url()))
+            .send()
+            .await
+            .unwrap();
+        assert!(response.content_length().is_none());
+        let error = read_body_capped(response, 1024).await.unwrap_err();
+        assert!(error.to_string().contains("exceeds"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn same_origin_redirects_still_work_with_vendor_headers() {
+        let mut server = mockito::Server::new_async().await;
+        let redirect = server
+            .mock("GET", "/start")
+            .match_header("x-api-key", "secret")
+            .with_status(302)
+            .with_header("location", "/finish")
+            .create_async()
+            .await;
+        let finish = server
+            .mock("GET", "/finish")
+            .match_header("x-api-key", "secret")
+            .with_status(200)
+            .create_async()
+            .await;
+        let client = reqwest::Client::builder()
+            .redirect(same_origin_redirect_policy())
+            .build()
+            .unwrap();
+
+        let response = client
+            .get(format!("{}/start", server.url()))
+            .header("x-api-key", "secret")
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        redirect.assert_async().await;
+        finish.assert_async().await;
+    }
+
+    #[tokio::test]
+    async fn cross_origin_redirects_are_not_followed_with_vendor_headers() {
+        let mut origin = mockito::Server::new_async().await;
+        let mut target = mockito::Server::new_async().await;
+        let target_url = format!("{}/capture", target.url());
+        let redirect = origin
+            .mock("GET", "/start")
+            .match_header("x-api-key", "secret")
+            .with_status(302)
+            .with_header("location", &target_url)
+            .create_async()
+            .await;
+        let capture = target
+            .mock("GET", "/capture")
+            .expect(0)
+            .create_async()
+            .await;
+        let client = reqwest::Client::builder()
+            .redirect(same_origin_redirect_policy())
+            .build()
+            .unwrap();
+
+        let response = client
+            .get(format!("{}/start", origin.url()))
+            .header("x-api-key", "secret")
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), reqwest::StatusCode::FOUND);
+        redirect.assert_async().await;
+        capture.assert_async().await;
+    }
+
+    #[test]
+    fn vendor_id_slug_round_trip() {
+        for id in VendorId::all() {
+            assert_eq!(
+                id.slug(),
+                serde_json::to_value(id).unwrap().as_str().unwrap()
+            );
+        }
+    }
+
+    /// `from_slug` is the whitelist by-name config writers validate through,
+    /// so it must accept every real slug (and its own renames) and nothing
+    /// else — not a section name it doesn't own, not an empty string.
+    #[test]
+    fn from_slug_resolves_every_slug_and_rejects_everything_else() {
+        for id in VendorId::all() {
+            assert_eq!(VendorId::from_slug(id.slug()), Some(*id));
+        }
+        assert_eq!(
+            VendorId::from_slug("anthropic_api"),
+            Some(VendorId::AnthropicApi)
+        );
+        assert_eq!(
+            VendorId::from_slug("opencode-go"),
+            Some(VendorId::OpenCodeGo)
+        );
+        assert_eq!(VendorId::from_slug(""), None);
+        assert_eq!(VendorId::from_slug("custom"), None);
+        assert_eq!(VendorId::from_slug("Anthropic"), None);
+    }
+}

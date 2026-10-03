@@ -1,0 +1,8 @@
+{
+  "device_code": "test-device-code",
+  "user_code": "TEST-USER",
+  "verification_uri": "https://portal.nousresearch.com/device",
+  "verification_uri_complete": "https://portal.nousresearch.com/device?user_code=TEST-USER",
+  "expires_in": 900,
+  "interval": 5
+}

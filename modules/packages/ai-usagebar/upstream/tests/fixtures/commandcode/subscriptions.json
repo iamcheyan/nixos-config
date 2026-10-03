@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "data": {
+    "id": "sub_example",
+    "status": "active",
+    "userId": "user_example",
+    "orgId": null,
+    "createdAt": "2026-08-19T16:39:05.000Z",
+    "priceId": "price_example",
+    "metadata": {
+      "commandCode": "true",
+      "commandCodeUserId": "user_example"
+    },
+    "quantity": 1,
+    "cancelAtPeriodEnd": false,
+    "currentPeriodStart": "2026-08-19T16:39:05.000Z",
+    "currentPeriodEnd": "2026-09-19T16:39:05.000Z",
+    "endedAt": null,
+    "cancelAt": null,
+    "canceledAt": null,
+    "planId": "individual-goat",
+    "pendingPhase": null,
+    "future_field": "ignored-additive-field"
+  }
+}

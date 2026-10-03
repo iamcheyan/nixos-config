@@ -69,6 +69,7 @@ in
     google-chrome
     microsoft-edge
     nodejs_24
+    (pkgs.callPackage ../../modules/packages/ai-usagebar.nix { })
     ripgrep
     xz
   ];

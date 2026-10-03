@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "tetsuya.ai-usagebar",
+  "name": "AI usage",
+  "version": "1.0.0",
+  "author": "Tetsuya",
+  "description": "Show AI provider plan usage in the Anchor Shell bar.",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "BarWidget.qml" },
+  "barWidget": {
+    "displayName": "AI usage",
+    "description": "AI provider plan usage",
+    "category": "System",
+    "allowMultiple": false
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "plan": "Pro",
+  "tier": 2,
+  "monthly_credits": 1000.0,
+  "credits_remaining": 760.0,
+  "rollover_credits": 40.0,
+  "period_end": "2026-09-01T00:00:00Z",
+  "user_id": "internal-user-that-must-not-be-retained",
+  "organization_id": "internal-org-that-must-not-be-retained",
+  "future_field": "ignored-additive-field"
+}
