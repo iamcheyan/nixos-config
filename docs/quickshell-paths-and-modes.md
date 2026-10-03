@@ -20,7 +20,7 @@ NixOS 把本目录复制成不可变 store 路径：
 QUICKSHELL_ROOT=/nix/store/<hash>-anchor-shell
 ```
 
-改源码后要 `nixos-rebuild switch --impure`，再重启 shell。`/nix/store` 不能
+改源码后要 `nixos-rebuild switch`，再重启 shell。`/nix/store` 不能
 当工作副本改。
 
 ### dev

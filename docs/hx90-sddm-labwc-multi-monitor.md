@@ -44,18 +44,27 @@
 
 ## 构建 HX90
 
-Labwc-plus 使用本机开发 checkout，但源码路径不写入 Nix 模块。构建时通过环境变量提供：
+Labwc-plus 是 `flake.nix` 中的锁定源码输入。第一次构建时 Nix 会按
+`flake.lock` 自动下载对应提交并编译，无需单独克隆 labwc-plus：
 
-    export LABWC_PLUS_SOURCE="$HOME/labwc-plus"
-    export NIX_CONFIG_ROOT="$HOME/nixos-config"
+    cd ~/nixos-config
+    nixos-rebuild build --flake .#hx90
 
-    cd "$NIX_CONFIG_ROOT"
-    sudo env LABWC_PLUS_SOURCE="$LABWC_PLUS_SOURCE" \
-      nixos-rebuild switch --impure --flake "$NIX_CONFIG_ROOT#hx90"
+构建成功后应用：
 
-LABWC_PLUS_SOURCE 没有设置时，Nix 会直接报错，不会回退到某个用户的 home 路径。
+    sudo nixos-rebuild switch --flake .#hx90
 
---impure 是必要的，因为 Labwc-plus 源码由环境变量指向 flake 外部的本地 checkout。
+要升级 labwc-plus 源码版本，单独更新这个输入并提交新的锁文件：
+
+    nix flake update labwc-plus
+
+本机开发 labwc-plus 时，可以显式用 checkout 覆盖锁定输入进行构建：
+
+    nixos-rebuild build --flake ~/nixos-config#hx90 \
+      --override-input labwc-plus path:/home/tetsuya/labwc-plus
+
+只有加载 `NIXOS_CONFIG_LOCAL` 指向的忽略文件时才需要 `--impure`；labwc-plus
+的锁定源码本身不再依赖环境变量或本机绝对路径。
 
 验证：
 
@@ -103,22 +112,25 @@ HX90 运行 Sunshine，Mac 端使用 Moonlight。连接地址以当前 DHCP 地�
 
 建议在路由器上为 HX90 的 Wi-Fi MAC 配置 DHCP 固定租约。
 
-## 路径可移植性约定
+## 路径与源码版本约定
 
-配置中不应写入某个用户的绝对 home 路径，例如 /home/tetsuya/... 或 /Users/tetsuya/...。
+配置中不应写入某个用户的绝对 home 路径，例如 `/home/tetsuya/...` 或
+`/Users/tetsuya/...`。Labwc-plus 版本由 flake lock 固定，不依赖开发机路径。
 
-使用以下环境变量：
+可选的环境变量：
 
-- LABWC_PLUS_SOURCE：Labwc-plus 外部源码 checkout；
+- `NIXOS_CONFIG_LOCAL`：加载 Git 忽略的本机模块；
 - NIX_CONFIG_ROOT：Nix 配置 checkout；
 - DARWIN_HOME：nix-darwin 主用户 home 目录。
+
+Labwc-plus 源码版本记录在 `flake.lock`，普通构建无需设置源码路径。
 
 /run/current-system、/etc、/usr/bin 等系统标准路径属于 NixOS、systemd 或 macOS 的运行时约定，不是用户目录绑定路径，可以保留。
 
 ## 相关配置位置
 
 - modules/desktop.nix：SDDM、Wayland greeter 和 Shizuka 主题打包；
-- modules/labwc-plus.nix：Labwc-plus 外部源码环境变量；
+- modules/labwc-plus.nix：Labwc-plus 包装与构建配置；
 - modules/labwc.nix：Labwc 会话和用户配置；
 - modules/desktop-runtime.nix：桌面运行时与兼容工具；
 - hosts/hx90/configuration.nix：HX90 主机设置；

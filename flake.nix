@@ -45,6 +45,13 @@
       url = "git+https://github.com/iamcheyan/shizuka.git?ref=main";
       flake = false;
     };
+
+    # Build the Labwc compositor from the separately maintained downstream
+    # fork. flake.lock pins the exact source revision for every machine.
+    labwc-plus = {
+      url = "github:iamcheyan/labwc-plus";
+      flake = false;
+    };
   };
 
   outputs = { self, nixpkgs, ... }@inputs:

@@ -103,5 +103,5 @@ modules/labwc/
    ```bash
    cd ~/nixos-config
    git add modules/labwc
-   sudo nixos-rebuild switch --impure --flake /home/tetsuya/nixos-config#hx90
+   sudo nixos-rebuild switch --flake /home/tetsuya/nixos-config#hx90
    ```

@@ -27,12 +27,13 @@ quickshell-mode nix
 ```bash
 cd /home/tetsuya/nixos-config
 git add modules/anchor-shell/<changed-file>
-sudo nixos-rebuild switch --impure \
+sudo nixos-rebuild switch \
   --flake /home/tetsuya/nixos-config#hx90
 ```
 
-本机合成器来自 `/home/tetsuya/labwc-plus`，rebuild 需要 `--impure`。flake
-只看见已跟踪或已暂存的文件。
+Labwc-plus 源码由 `flake.lock` 锁定，构建时自动下载。要测试本地
+`~/labwc-plus` checkout，可添加
+`--override-input labwc-plus path:$HOME/labwc-plus`。
 
 用户布局：`~/.config/anchor-shell/shell.json`  
 用户插件：`~/.config/anchor-shell/plugins/`

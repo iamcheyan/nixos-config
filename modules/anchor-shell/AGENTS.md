@@ -11,7 +11,7 @@ and paths are in [ARCHITECTURE.md](ARCHITECTURE.md).
 - User plugins: `/home/tetsuya/.config/anchor-shell/plugins/`
 - Nix store copy: `/nix/store/...-anchor-shell/`
 - Nix wiring: `/home/tetsuya/nixos-config/modules/labwc.nix`
-- Compositor checkout: `/home/tetsuya/labwc-plus/`
+- Compositor source: the revision pinned by `flake.lock`; local development checkout is `/home/tetsuya/labwc-plus/`
 
 Do not edit the `/nix/store` copy. Do not edit `modules/desktop.nix` 的系统接线 or `modules/home-manager/hypr/` for a Labwc shell change. Hyprland
 keeps its own Omarchy tree.
@@ -34,15 +34,17 @@ service so Quickshell loads this checkout. After a QML edit, run the same
 command again. Return to the store copy with `quickshell-mode nix`.
 
 A Nix rebuild is required when changing `labwc.nix`, the launcher, or when
-testing a store build. Stage files first (`git add`) and use `--impure`
-because `labwc-plus` lives outside the flake.
+testing a store build. The normal build uses the labwc-plus revision pinned in
+`flake.lock`. To build the local compositor checkout, override that flake input:
 
 ```bash
 cd /home/tetsuya/nixos-config
-git add modules/anchor-shell/<changed-file>
-sudo nixos-rebuild switch --impure \
-  --flake /home/tetsuya/nixos-config#hx90
+nixos-rebuild build --flake .#hx90 \
+  --override-input labwc-plus path:/home/tetsuya/labwc-plus
 ```
+
+Use `--impure` only when loading ignored machine-local modules with
+`NIXOS_CONFIG_LOCAL`.
 
 Keep one instance:
 

@@ -537,6 +537,22 @@
         "type": "github"
       }
     },
+    "labwc-plus": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791010943,
+        "narHash": "sha256-DyMf7LFHn7Rp5VJKM8Q0o1yliEtkf5fAP4TnNT6ubJU=",
+        "owner": "iamcheyan",
+        "repo": "labwc-plus",
+        "rev": "07c87bf6518df8b1997aa63459267be526b67de2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "iamcheyan",
+        "repo": "labwc-plus",
+        "type": "github"
+      }
+    },
     "nix-darwin": {
       "inputs": {
         "nixpkgs": [
@@ -683,11 +699,12 @@
         "chatgpt-desktop-linux": "chatgpt-desktop-linux",
         "fresh": "fresh",
         "home-manager": "home-manager",
+        "hyprland": "hyprland",
+        "labwc-plus": "labwc-plus",
         "nix-darwin": "nix-darwin",
         "nixos-wsl": "nixos-wsl",
         "nixpkgs": "nixpkgs_4",
-        "shizuka": "shizuka",
-        "hyprland": "hyprland"
+        "shizuka": "shizuka"
       }
     },
     "rust-analyzer-src": {

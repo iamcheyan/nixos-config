@@ -103,11 +103,15 @@ store 构建时，才需要：
 ```sh
 cd /home/tetsuya/nixos-config
 git add modules/anchor-shell/<changed-file>
-sudo nixos-rebuild switch --impure --flake /home/tetsuya/nixos-config#hx90
+sudo nixos-rebuild switch --flake /home/tetsuya/nixos-config#hx90
 ```
 
-本机合成器来自 `/home/tetsuya/labwc-plus`，在 flake 外，所以 rebuild
-需要 `--impure`。
+Nix 构建使用 `flake.lock` 锁定的 labwc-plus 源码。要测试本地
+`/home/tetsuya/labwc-plus` checkout，可在 build 命令上添加：
+
+```sh
+--override-input labwc-plus path:/home/tetsuya/labwc-plus
+```
 
 一次运行里，命令行 `-p` 和 `QUICKSHELL_ROOT` 必须指向同一棵树。用
 `quickshell list --all` 和进程环境确认：

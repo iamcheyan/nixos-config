@@ -205,7 +205,8 @@ journalctl -t nixos-update
 ### 更新 Flake
 
 更新输入、构建与切换使用临时候选目录，不更新 Nixarchy 版本。
-Labwc 合成器来自本机 checkout，因此构建和切换保留 `--impure`。
+Labwc-plus 使用 `flake.lock` 中锁定的源码输入，普通构建不需要本机 checkout。
+只有加载 `NIXOS_CONFIG_LOCAL` 中的忽略配置时才使用 `--impure`。
 构建失败不切换系统，也不自动恢复 Btrfs 快照。
 
 桌面接管清单见 [nixarchy-removal.md](nixarchy-removal.md)。

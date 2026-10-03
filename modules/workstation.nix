@@ -15,6 +15,10 @@
     inputs.home-manager.nixosModules.home-manager
   ];
 
+  # Every host using the graphical workstation profile gets the locally
+  # maintained Labwc compositor package from the locked flake input.
+  programs.labwcPreview.enable = lib.mkDefault true;
+
   home-manager.extraSpecialArgs = {
     inherit inputs;
     hostName = config.networking.hostName;

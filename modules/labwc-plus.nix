@@ -1,14 +1,6 @@
-{ config, lib, pkgs, ... }:
+{ config, inputs, lib, pkgs, ... }:
 
 let
-  # The development checkout is supplied by the caller, never embedded in
-  # the module. This keeps the flake reusable across users and machines.
-  localSource =
-    let source = builtins.getEnv "LABWC_PLUS_SOURCE";
-    in assert lib.assertMsg (source != "")
-      "LABWC_PLUS_SOURCE must point to the Labwc-plus checkout";
-      source;
-
   # XWayland and wlroots need the matching HiDPI patches: XWayland renders X11
   # clients at the declared global scale, and wlroots avoids blurring that
   # buffer on Labwc outputs. Keep this private to Labwc so Hyprland continues
@@ -37,10 +29,7 @@ let
   });
 
   labwcPlusSource = lib.cleanSourceWith {
-    src = builtins.path {
-      path = localSource;
-      name = "labwc-plus-local";
-    };
+    src = inputs.labwc-plus;
     filter = path: _type:
       let
         pathString = toString path;
