@@ -28,8 +28,8 @@
     MIR3_ZIRCON_ROOT = "/home/tetsuya/development/Zircon";
     MIR3_ZIRCON_CLIENT = "/home/tetsuya/development/Zircon/Debug/Client";
     ZIRCON_ROOT = "/home/tetsuya/development/Zircon";
-    MIR3_EI_ROOT = "/home/tetsuya/mir3ei";
-    MIR3EI_ROOT = "/home/tetsuya/mir3ei";
+    MIR3_EI_ROOT = "/home/tetsuya/mir2ei";
+    MIR3EI_ROOT = "/home/tetsuya/mir2ei";
 
     # NAS-backed source data is mounted on demand at this location.
     MIR3_NAS_TMP = "/home/tetsuya/NAS/TMP";
