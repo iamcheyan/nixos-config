@@ -1,0 +1,406 @@
+#!/usr/bin/env bash
+
+# omarchy:summary=Show, change, save, and restore output mode, scale, transform, and enable state.
+# omarchy:args=[--json] | --output NAME [--mode WxH[@RHz]] [--scale S] [--transform T] [--adaptive-sync on|off] [--enable|--disable] [--position X,Y] [--preferred] [--persist] | --save | --restore
+# omarchy:examples=omarchy display randr --json | omarchy display randr --output HDMI-A-1 --scale 1.5 --persist | omarchy display randr --restore
+#
+# Labwc (and any wlroots compositor) is driven through wlr-randr. Hyprland
+# keeps its historical hyprctl path so the shared omarchy-* surface stays
+# valid in both sessions. `--persist` records the live layout in the Anchor
+# Shell state directory; `--restore` replays it on a later login.
+
+set -euo pipefail
+
+STATE_DIR="${ANCHOR_SHELL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/anchor-shell}"
+LAYOUT_FILE="$STATE_DIR/display-layout.json"
+
+is_hyprland() {
+  [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} || ${XDG_CURRENT_DESKTOP:-} == "Hyprland" ]]
+}
+
+die() {
+  printf '%s\n' "$*" >&2
+  exit 1
+}
+
+require_tool() {
+  command -v "$1" >/dev/null 2>&1 || die "$1 is not installed"
+}
+
+# ---------------------------------------------------------------- wlr-randr
+
+randr_json() {
+  require_tool wlr-randr
+  wlr-randr --json
+}
+
+# Compact state for the panel: one entry per connected output. Modes are
+# deduplicated by resolution+refresh (wlr-randr repeats some EDID modes) and
+# flagged `current` so the panel can render a resolution picker directly.
+randr_state() {
+  local focused="${1:-}"
+  randr_json | jq -c --arg focused "$focused" '
+    def current($m): [$m[] | select(.current == true)] | first;
+    def distinct($m): reduce $m[] as $mode ([];
+      if any(.[]; .width == $mode.width and .height == $mode.height and .refresh == $mode.refresh)
+      then . else . + [$mode] end);
+    map(. as $d
+      | ($d.modes // []) as $modes
+      | ($d.position // {}) as $pos
+      | (current($modes)) as $cur
+      | {
+          name: $d.name,
+          enabled: ($d.enabled == true),
+          scale: ($d.scale // 1),
+          transform: ($d.transform // "normal"),
+          x: ($pos.x // 0),
+          y: ($pos.y // 0),
+          adaptiveSync: ($d.adaptive_sync == true),
+          width: (if $cur == null then 0 else $cur.width end),
+          height: (if $cur == null then 0 else $cur.height end),
+          refresh: (if $cur == null then 0 else $cur.refresh end),
+          modes: (distinct($modes)
+            | map(select(.width > 0 and .height > 0)
+              | {width, height, refresh, preferred: (.preferred == true), current: (.current == true)})
+            | sort_by([(.preferred | if . then 0 else 1 end), -(.width * .height), -.refresh]))
+        })
+    | { session: "labwc", focused: $focused, displays: . }'
+}
+
+randr_apply() {
+  local output="$1" mode="$2" scale="$3" transform="$4" adaptive="$5" position="$6" enabled="$7" preferred="$8"
+  [[ $output =~ ^[A-Za-z0-9._-]+$ ]] || die "Refusing unsafe output name: $output"
+
+  # wlr-randr silently drops mode/scale/position for a disabled output, so a
+  # bare "set the mode" on a dark monitor would report success and change
+  # nothing. Turn it back on unless the caller explicitly asked to disable.
+  if [[ -z $enabled ]]; then
+    local currently_on
+    currently_on="$(randr_json | jq -r --arg name "$output" '([.[] | select(.name == $name)] | first).enabled == true')"
+    [[ $currently_on == "true" ]] || enabled="on"
+  fi
+
+  local args=(--output "$output")
+  if [[ $enabled == "off" ]]; then
+    args+=(--off)
+  else
+    [[ $enabled == "on" ]] && args+=(--on)
+    [[ -n $mode ]] && args+=(--mode "$mode")
+    [[ -n $preferred ]] && args+=(--preferred)
+    [[ -n $scale ]] && args+=(--scale "$scale")
+    [[ -n $transform ]] && args+=(--transform "$transform")
+    [[ -n $position ]] && args+=(--pos "$position")
+    if [[ -n $adaptive ]]; then
+      case "$adaptive" in
+      on | enabled | true | 1) args+=(--adaptive-sync enabled) ;;
+      off | disabled | false | 0) args+=(--adaptive-sync disabled) ;;
+      *) die "Invalid --adaptive-sync value: $adaptive" ;;
+      esac
+    fi
+  fi
+
+  # wlr-randr silently accepts an out-of-range scale and snaps it, so read the
+  # result back and report what the compositor actually committed.
+  wlr-randr "${args[@]}" >/dev/null 2>&1 || die "wlr-randr rejected: ${args[*]}"
+  randr_readback "$output"
+}
+
+randr_readback() {
+  local output="$1"
+  randr_json | jq -r --arg name "$output" '
+    ([.[] | select(.name == $name)] | first) as $d
+    | if $d == null then "" else
+        (([$d.modes[] | select(.current == true)] | first)) as $m
+        | "\($d.name)\t\($d.scale // 1)\t\($d.transform // "normal")\t"
+        + (if $m == null then "-" else "\($m.width)x\($m.height)@\($m.refresh)" end) + "\t"
+        + "\($d.position.x // 0),\($d.position.y // 0)\t\(if $d.enabled then "on" else "off" end)"
+      end'
+}
+
+# ---------------------------------------------------------------- hyprland
+
+hypr_state() {
+  require_tool hyprctl
+  local focused="$1"
+  hyprctl monitors all -j | jq -c --arg focused "$focused" '
+    map({
+      name: .name,
+      description: (.description // .name),
+      enabled: (.disabled != true),
+      scale: (.scale // 1),
+      transform: (.transform | tostring),
+      x: (.x // 0),
+      y: (.y // 0),
+      adaptiveSync: false,
+      width: (.width // 0),
+      height: (.height // 0),
+      refresh: (.refreshRate // 0),
+      modes: []
+    })
+    | { session: "hyprland", focused: $focused, displays: . }'
+}
+
+hypr_apply() {
+  local output="$1" mode="$2" scale="$3" transform="$4" position="$5" enabled="$6"
+  local spec="$output"
+  [[ $enabled == "off" ]] && spec="$output,disable"
+  if [[ $enabled != "off" ]]; then
+    local parts=()
+    [[ -n $mode ]] && parts+=("$mode")
+    [[ -n $position ]] && parts+=("$position")
+    [[ -n $scale ]] && parts+=("$scale")
+    [[ ${#parts[@]} -eq 0 ]] && parts=("preferred" "auto" "auto")
+    spec="$output,$(IFS=,; echo "${parts[*]}")"
+  fi
+  hyprctl keyword monitor "$spec" >/dev/null 2>&1 || die "hyprctl rejected: $spec"
+  printf '%s\n' "$spec"
+}
+
+# ---------------------------------------------------------------- persist
+
+# Remember the layout the user chose. The file records every connected output's
+# live state with the one change just applied folded in, so a later
+# `--restore` can replay it on a fresh session. It deliberately does not touch
+# kanshi: kanshi's include/profile precedence is order- and whitespace-sensitive
+# (a profile that matches the same heads wins outright, and a malformed include
+# aborts the whole config), so coupling the panel to it would let a stray edit
+# blank the desktop on next login.
+persist_layout() {
+  local target="$1" field="$2" value="$3"
+  mkdir -p "$STATE_DIR"
+
+  python3 - "$LAYOUT_FILE" "$target" "$field" "$value" <<'PYEOF'
+import json, subprocess, sys
+
+path, target, field, value = sys.argv[1:5]
+displays = json.loads(subprocess.check_output(["wlr-randr", "--json"]).decode())
+
+saved = []
+for display in displays:
+    if display["name"] == target:
+        if field == "mode":
+            width, height, refresh = value.split(",")
+            for mode in display["modes"]:
+                mode["current"] = (
+                    mode["width"] == int(width)
+                    and mode["height"] == int(height)
+                    and abs(mode["refresh"] - float(refresh)) < 0.01
+                )
+        elif field == "scale":
+            display["scale"] = float(value)
+        elif field == "transform":
+            display["transform"] = value
+        elif field == "enabled":
+            display["enabled"] = value == "true"
+        elif field == "adaptive_sync":
+            display["adaptive_sync"] = value == "true"
+
+    current = next((m for m in display["modes"] if m.get("current")), None)
+    position = display.get("position") or {}
+    saved.append({
+        "name": display["name"],
+        "enabled": display.get("enabled", True),
+        "width": current["width"] if current else 0,
+        "height": current["height"] if current else 0,
+        "refresh": current["refresh"] if current else 0,
+        "x": position.get("x", 0),
+        "y": position.get("y", 0),
+        "scale": display.get("scale", 1),
+        "transform": display.get("transform", "normal"),
+        "adaptive_sync": display.get("adaptive_sync", False),
+    })
+
+with open(path, "w") as handle:
+    json.dump({"version": 1, "displays": saved}, handle, indent=2)
+    handle.write("\n")
+PYEOF
+}
+
+# Replay a stored layout. Missing outputs are skipped rather than fatal so a
+# monitor the user has unplugged does not abort the rest of the restore.
+restore_layout() {
+  [[ -r $LAYOUT_FILE ]] || die "No saved layout at $LAYOUT_FILE"
+  command -v wlr-randr >/dev/null 2>&1 || die "wlr-randr is not installed"
+
+  python3 - "$LAYOUT_FILE" <<'PYEOF'
+import json, subprocess, sys
+
+with open(sys.argv[1]) as handle:
+    saved = json.load(handle).get("displays", [])
+
+live = {d["name"] for d in json.loads(subprocess.check_output(["wlr-randr", "--json"]).decode())}
+
+for display in saved:
+    if display["name"] not in live:
+        continue
+    args = ["wlr-randr", "--output", display["name"]]
+    if not display.get("enabled", True):
+        args.append("--off")
+    else:
+        if display.get("width") and display.get("height"):
+            refresh = display.get("refresh") or 0
+            args += ["--mode", f"{display['width']}x{display['height']}@{refresh}Hz"]
+        args += ["--scale", str(display.get("scale", 1))]
+        args += ["--pos", f"{display.get('x', 0)},{display.get('y', 0)}"]
+        transform = display.get("transform", "normal")
+        if transform and transform != "normal":
+            args += ["--transform", transform]
+    subprocess.run(args, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+PYEOF
+}
+
+# ---------------------------------------------------------------- main
+
+json_mode=0
+output=""
+mode=""
+scale=""
+transform=""
+adaptive=""
+position=""
+enabled=""
+preferred=""
+action=""
+persist=0
+
+while (($# > 0)); do
+  case "$1" in
+  --json | --state)
+    json_mode=1
+    shift
+    ;;
+  --output)
+    (($# >= 2)) || die "--output needs a name"
+    output="$2"
+    shift 2
+    ;;
+  --mode)
+    (($# >= 2)) || die "--mode needs a value"
+    mode="$2"
+    shift 2
+    ;;
+  --scale)
+    (($# >= 2)) || die "--scale needs a value"
+    scale="$2"
+    shift 2
+    ;;
+  --transform)
+    (($# >= 2)) || die "--transform needs a value"
+    transform="$2"
+    shift 2
+    ;;
+  --adaptive-sync)
+    (($# >= 2)) || die "--adaptive-sync needs on or off"
+    adaptive="$2"
+    shift 2
+    ;;
+  --position)
+    (($# >= 2)) || die "--position needs X,Y"
+    position="$2"
+    shift 2
+    ;;
+  --enable)
+    enabled="on"
+    shift
+    ;;
+  --disable)
+    enabled="off"
+    shift
+    ;;
+  --preferred)
+    preferred="preferred"
+    shift
+    ;;
+  --persist)
+    persist=1
+    shift
+    ;;
+  -h | --help)
+    sed -n '3,9p' "$0"
+    exit 0
+    ;;
+  --save)
+    action="save"
+    shift
+    ;;
+  --restore)
+    action="restore"
+    shift
+    ;;
+  *)
+    die "Unknown argument: $1"
+    ;;
+  esac
+done
+
+if [[ $action == "restore" ]]; then
+  restore_layout
+  exit 0
+fi
+
+# The panel passes the bar's own output name so the state is scoped to the
+# monitor whose widget was clicked. Fall back to the first enabled output for
+# CLI callers.
+if [[ -z $output ]]; then
+  if is_hyprland; then
+    output="$(hyprctl monitors -j | jq -r '[.[] | select(.focused == true)][0].name // ""')"
+  else
+    output="$(randr_json | jq -r '[.[] | select(.enabled == true)][0].name // ""')"
+  fi
+fi
+
+if ((json_mode)); then
+  if is_hyprland; then hypr_state "$output"; else randr_state "$output"; fi
+  exit 0
+fi
+
+if [[ $action == "save" ]]; then
+  [[ -n $output ]] || die "No output selected"
+  persist_layout "$output" mode "$(randr_json | jq -r --arg name "$output" '
+    ([.[] | select(.name == $name)] | first) as $d
+    | ([$d.modes[] | select(.current == true)] | first) as $m
+    | if $m == null then "0,0,0" else "\($m.width),\($m.height),\($m.refresh)" end')"
+  printf 'Saved layout to %s\n' "$LAYOUT_FILE"
+  exit 0
+fi
+
+[[ -n $output ]] || die "No output selected"
+
+# Mode is accepted as "WxH", "WxH@RHz", or "WxH@R" and normalized to the exact
+# form wlr-randr wants, using the display's own mode list so the refresh string
+# matches what the compositor reported.
+if [[ -n $mode && $mode != *@* ]]; then
+  if ! is_hyprland; then
+    resolved="$(randr_json | jq -r --arg name "$output" --arg mode "$mode" '
+      ([.[] | select(.name == $name)] | first).modes
+      | map(select("\(.width)x\(.height)" == $mode))
+      | sort_by([(.preferred | if . then 0 else 1 end), -.refresh])
+      | first | if . == null then "" else "\(.width)x\(.height)@\(.refresh)Hz" end')"
+    [[ -n $resolved ]] || die "Unknown mode for $output: $mode"
+    mode="$resolved"
+  fi
+fi
+
+if is_hyprland; then
+  hypr_apply "$output" "$mode" "$scale" "$transform" "$position" "$enabled"
+  exit 0
+fi
+
+readback="$(randr_apply "$output" "$mode" "$scale" "$transform" "$adaptive" "$position" "$enabled" "$preferred")"
+printf '%s\n' "$readback"
+
+if ((persist)); then
+  if [[ -n $enabled ]]; then
+    persist_layout "$output" enabled "$([[ $enabled == on ]] && echo true || echo false)"
+  fi
+  if [[ -n $mode ]]; then
+    width_height="${mode%@*}"
+    refresh="${mode#*@}"
+    persist_layout "$output" mode "${width_height/x/,},${refresh%Hz}"
+  fi
+  if [[ -n $scale ]]; then persist_layout "$output" scale "$scale"; fi
+  if [[ -n $transform ]]; then persist_layout "$output" transform "$transform"; fi
+  if [[ -n $adaptive ]]; then
+    persist_layout "$output" adaptive_sync "$([[ $adaptive == on ]] && echo true || echo false)"
+  fi
+fi

@@ -1,0 +1,193 @@
+#!/usr/bin/env bash
+
+# omarchy:summary=Show, set, enable, or disable the night light colour temperature.
+# omarchy:args=[status|on|off|toggle|adjust up|down|TEMPERATURE]
+# omarchy:examples=omarchy display nightlight status | omarchy display nightlight on | omarchy display nightlight 3000
+#
+# Labwc (wlroots) filters colour through wlsunset, Hyprland keeps hyprsunset.
+# wlroots hands each output's gamma ramp to exactly one client, so the filter
+# is global by design: a second instance would be refused and a per-monitor
+# split would leave one screen unfiltered.
+
+set -euo pipefail
+
+STATE_DIR="${ANCHOR_SHELL_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/anchor-shell}"
+STATE_FILE="$STATE_DIR/nightlight-temperature"
+
+DAY_TEMPERATURE=6500
+NIGHT_TEMPERATURE=4000
+IDENTITY_TEMPERATURE=6000
+MIN_TEMPERATURE=2500
+MAX_TEMPERATURE=6500
+STEP=250
+
+is_hyprland() {
+  [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} || ${XDG_CURRENT_DESKTOP:-} == "Hyprland" ]]
+}
+
+die() {
+  printf '%s\n' "$*" >&2
+  exit 1
+}
+
+# Refuse a temperature outside the ramp we can build, and snap to the UI's
+# 250K stops so the CLI and the panel always agree on the same value.
+normalize_temperature() {
+  local value="$1"
+  [[ $value =~ ^[0-9]+$ ]] || die "Invalid temperature: $value"
+  ((value < MIN_TEMPERATURE)) && value=$MIN_TEMPERATURE
+  ((value > MAX_TEMPERATURE)) && value=$MAX_TEMPERATURE
+  ((value = (value + STEP / 2) / STEP * STEP))
+  printf '%s\n' "$value"
+}
+
+read_temperature() {
+  [[ -r $STATE_FILE ]] || return 0
+  local value
+  read -r value <"$STATE_FILE" || return 0
+  [[ $value =~ ^[0-9]+$ ]] || return 0
+  printf '%s\n' "$value"
+}
+
+write_temperature() {
+  mkdir -p "$STATE_DIR"
+  printf '%s\n' "$1" >"$STATE_FILE"
+}
+
+# ---------------------------------------------------------------- wlsunset
+
+wlsunset_pid() {
+  pgrep -x wlsunset 2>/dev/null | head -n1 || true
+}
+
+stop_wlsunset() {
+  local pid
+  pid="$(wlsunset_pid)"
+  [[ -n $pid ]] || return 0
+  kill "$pid" 2>/dev/null || true
+  # Killing the client hands the identity ramp back to the compositor; wait for
+  # it so a following apply does not race the teardown.
+  for _ in $(seq 1 20); do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.1
+  done
+}
+
+# wlsunset needs high > low; a one-degree gap pins it to a constant
+# temperature instead of following a day/night schedule.
+start_wlsunset() {
+  local temperature="$1"
+  command -v wlsunset >/dev/null 2>&1 || die "wlsunset is not installed"
+  setsid wlsunset -t "$temperature" -T "$((temperature + 1))" >/dev/null 2>&1 &
+  disown 2>/dev/null || true
+}
+
+apply_wlsunset() {
+  local temperature="$1"
+  stop_wlsunset
+  if ((temperature >= IDENTITY_TEMPERATURE)); then
+    # No filter: leave the identity ramp in place rather than running a client
+    # that would install a neutral one.
+    write_temperature "$DAY_TEMPERATURE"
+    return 0
+  fi
+  start_wlsunset "$temperature"
+  write_temperature "$temperature"
+}
+
+# ---------------------------------------------------------------- hyprsunset
+
+hypr_temperature() {
+  local output value
+  output="$(hyprctl hyprsunset temperature 2>/dev/null)" || return 0
+  value="$(grep -oE '[0-9]+' <<<"$output" | head -n1 || true)"
+  [[ -n $value ]] && printf '%s\n' "$value"
+}
+
+apply_hyprsunset() {
+  local temperature="$1"
+  if ! pgrep -x hyprsunset >/dev/null 2>&1; then
+    setsid hyprsunset >/dev/null 2>&1 &
+    sleep 0.6
+  fi
+  hyprctl hyprsunset temperature "$temperature" >/dev/null 2>&1 || die "hyprctl rejected the temperature"
+  write_temperature "$temperature"
+}
+
+# ---------------------------------------------------------------- dispatch
+
+current_temperature() {
+  if is_hyprland; then
+    local live
+    live="$(hypr_temperature)"
+    if [[ -n $live ]]; then
+      printf '%s\n' "$live"
+      return 0
+    fi
+  fi
+  local stored
+  stored="$(read_temperature)"
+  if [[ -n $stored ]]; then
+    printf '%s\n' "$stored"
+  else
+    printf '%s\n' "$DAY_TEMPERATURE"
+  fi
+}
+
+apply_temperature() {
+  local temperature
+  temperature="$(normalize_temperature "$1")"
+  if is_hyprland; then
+    apply_hyprsunset "$temperature"
+  else
+    apply_wlsunset "$temperature"
+  fi
+  printf '%s\n' "$temperature"
+}
+
+status_json() {
+  local temperature enabled
+  temperature="$(current_temperature)"
+  if ((temperature < IDENTITY_TEMPERATURE)); then enabled=true; else enabled=false; fi
+  jq -cn --argjson enabled "$enabled" --argjson temperature "$temperature" \
+    '{enabled:$enabled, temperature:$temperature}'
+}
+
+case "${1:-status}" in
+status)
+  status_json
+  ;;
+on)
+  apply_temperature "${NIGHT_TEMPERATURE}" >/dev/null
+  status_json
+  ;;
+off)
+  apply_temperature "${DAY_TEMPERATURE}" >/dev/null
+  status_json
+  ;;
+toggle)
+  if [[ "$(status_json | jq -r '.enabled')" == "true" ]]; then
+    apply_temperature "${DAY_TEMPERATURE}" >/dev/null
+  else
+    apply_temperature "${NIGHT_TEMPERATURE}" >/dev/null
+  fi
+  status_json
+  ;;
+up | down)
+  temperature="$(current_temperature)"
+  if [[ $1 == up ]]; then
+    ((temperature += STEP))
+  else
+    ((temperature -= STEP))
+  fi
+  apply_temperature "$temperature" >/dev/null
+  status_json
+  ;;
+-h | --help)
+  sed -n '2,7p' "$0"
+  ;;
+*)
+  apply_temperature "$1" >/dev/null
+  status_json
+  ;;
+esac

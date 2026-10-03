@@ -328,6 +328,10 @@ in
       wofi
       wbg
       wlr-randr
+      # Night light for the Labwc session. hyprsunset (used by Hyprland) talks
+      # to Hyprland only; wlsunset drives the wlroots gamma protocol that labwc
+      # exposes.
+      wlsunset
       zbar
     ];
 
