@@ -40,7 +40,6 @@
       "nextcloud"
       "orbstack"
       "snipaste"
-      "tailscale-app"
       "vlc"
       "upscayl"
       "visual-studio-code"
@@ -54,6 +53,7 @@
     brews = [
       "mas"
       "ntfs-3g-mac"
+      "tailscale"
     ];
 
     # Mac App Store applications. IDs come from `mas list` on this Mac.

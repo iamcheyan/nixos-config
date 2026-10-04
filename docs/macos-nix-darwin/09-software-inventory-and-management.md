@@ -72,7 +72,7 @@ masApps = {
 - OneDrive；
 - OpenMTP；
 - Snipaste；
-- Tailscale；
+- Tailscale CLI-only daemon（Homebrew formula + LaunchDaemon，支持 Tailscale SSH 服务端；不安装 GUI）；
 - TigerVNC；
 - UTM；
 - Upscayl；
