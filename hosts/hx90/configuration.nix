@@ -16,7 +16,11 @@ in
   networking.hostName = "hx90";
 
   # Tailscale mesh VPN; authentication is performed after activation.
-  services.tailscale.enable = true;
+  services.tailscale = {
+    enable = true;
+    # Keep the daemon's Tailscale SSH server preference enabled on activation.
+    extraSetFlags = [ "--ssh" ];
+  };
   services.flatpak.enable = true;
   services.syncthing = {
     enable = true;
