@@ -2,6 +2,7 @@
 
 let
   cfg = config.programs.labwcPreview;
+  fluxPackage = pkgs.callPackage ./packages/flux.nix { };
 
   # Labwc Quickshell source is independent of the compatibility Hyprland shell.
   quickshellRoot = pkgs.runCommand "anchor-shell" { } ''
@@ -28,8 +29,8 @@ let
   # that module explicitly for both the immutable and dev source modes.
   quickshellWithKirigami = lib.hiPrio (pkgs.writeShellScriptBin "quickshell" ''
     export QT_QUICK_CONTROLS_STYLE=Basic
-    export QML2_IMPORT_PATH="${pkgs.kdePackages.kirigami.unwrapped}/lib/qt-6/qml''${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
-    export QML_IMPORT_PATH="${pkgs.kdePackages.kirigami.unwrapped}/lib/qt-6/qml''${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
+    export QML2_IMPORT_PATH="${fluxPackage}/lib/flux/qml:${pkgs.kdePackages.kirigami.unwrapped}/lib/qt-6/qml''${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
+    export QML_IMPORT_PATH="${fluxPackage}/lib/flux/qml:${pkgs.kdePackages.kirigami.unwrapped}/lib/qt-6/qml''${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
     exec ${pkgs.quickshell}/bin/quickshell "$@"
   '');
 
@@ -303,7 +304,29 @@ in
       };
     };
 
+    # Flux is a per-user desktop daemon. Keep it inside the graphical session
+    # and run the Nix package's immutable binary directly.
+    systemd.user.services.fluxd = {
+      description = "Flux daemon that connects this computer to phones";
+      path = with pkgs; [ wf-recorder wlr-randr xdotool wtype ];
+      # Labwc imports session variables through Anchor Shell's probe service;
+      # graphical-session.target alone is not consistently activated here.
+      wantedBy = [ "graphical-session.target" "anchor-shell-labwc-probe.service" ];
+      partOf = [ "graphical-session.target" "anchor-shell-labwc-probe.service" ];
+      after = [ "graphical-session.target" "anchor-shell-labwc-probe.service" ];
+      unitConfig.ConditionEnvironment = "WAYLAND_DISPLAY";
+      serviceConfig = {
+        ExecStart = "${fluxPackage}/bin/fluxd";
+        ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
+        Restart = "on-failure";
+        RestartSec = 2;
+        SuccessExitStatus = 75;
+        RestartForceExitStatus = 75;
+      };
+    };
+
     environment.systemPackages = with pkgs; [
+      fluxPackage
       quickshellWithKirigami
       kdePackages.kirigami
       kdePackages.qqc2-desktop-style
@@ -327,7 +350,9 @@ in
       wl-clipboard
       wofi
       wbg
+      wf-recorder
       wlr-randr
+      wtype
       xdotool
       # Night light for the Labwc session. hyprsunset (used by Hyprland) talks
       # to Hyprland only; wlsunset drives the wlroots gamma protocol that labwc
@@ -342,7 +367,13 @@ in
       xdg.configFile."labwc/environment".source = labwcEnvironment;
       xdg.configFile."labwc/environment.d/90-keyboard.env".source = labwcKeyboardEnvironment;
       xdg.configFile."labwc/keybinds".source = labwcKeybinds;
-      xdg.configFile."labwc/scripts".source = ./labwc/labwc/scripts;
+      xdg.configFile."labwc/scripts" = {
+        source = ./labwc/labwc/scripts;
+        # Dev mode points this path through a symlink into the preserved
+        # anchor-shell overlay. Replacing that link on a successful NixOS
+        # activation leaves the overlay directory intact for later dev use.
+        force = true;
+      };
       home.file = lib.genAttrs
         (map (name: ".local/share/themes/${name}") labwcThemeNames)
         (target: {

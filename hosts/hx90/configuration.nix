@@ -75,6 +75,7 @@ in
     nodejs_24
     (pkgs.callPackage ../../modules/packages/ai-usagebar.nix { })
     ripgrep
+    tigervnc
     xz
   ];
 
@@ -88,6 +89,19 @@ in
     iptables -w -D nixos-fw -s 192.168.3.0/24 -p tcp --dport 8377 -j nixos-fw-accept 2>/dev/null || true
     iptables -w -D nixos-fw -s 192.168.3.0/24 -p tcp --dport 22000 -j nixos-fw-accept 2>/dev/null || true
   '';
+
+  # Flux negotiates its TCP listener on one port in this range and uses UDP
+  # 1716 for discovery. Permit those connections from the home LAN and the
+  # Tailscale interface only; do not expose the phone-link service on every
+  # network interface.
+  networking.firewall.interfaces."wlp3s0" = {
+    allowedTCPPortRanges = [ { from = 1716; to = 1764; } ];
+    allowedUDPPorts = [ 1716 ];
+  };
+  networking.firewall.interfaces."tailscale0" = {
+    allowedTCPPortRanges = [ { from = 1716; to = 1764; } ];
+    allowedUDPPorts = [ 1716 ];
+  };
   systemd.tmpfiles.rules = [ "d /home/tetsuya/mir2ei-webdata 0750 tetsuya users -" ];
 
   home-manager.users.tetsuya = { ... }: {

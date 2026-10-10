@@ -1,0 +1,375 @@
+diff --git i/internal/core/remotedesktop.go w/internal/core/remotedesktop.go
+index a2a8d65..7e629ce 100644
+--- i/internal/core/remotedesktop.go
++++ w/internal/core/remotedesktop.go
+@@ -178 +178,54 @@ func cpuRecorder(path string) recorder {
+-	return recorder{desktopCPURecorder, path, hyprMonitors, cpuRecorderArgs}
++	list := hyprMonitors
++	if labwcSession() {
++		list = labwcMonitors
++	}
++	return recorder{desktopCPURecorder, path, list, cpuRecorderArgs}
++}
++
++func labwcSession() bool {
++	for _, desktop := range strings.Split(os.Getenv("XDG_CURRENT_DESKTOP"), ":") {
++		if strings.EqualFold(desktop, "labwc") {
++			return true
++		}
++	}
++	return strings.EqualFold(os.Getenv("XDG_SESSION_DESKTOP"), "labwc")
++}
++
++// labwcMonitors reads active outputs from the wlroots wlr-randr utility.
++func labwcMonitors(ctx context.Context) ([]monitor, error) {
++	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
++	defer cancel()
++	out, err := exec.CommandContext(ctx, "wlr-randr").Output()
++	if err != nil {
++		return nil, fmt.Errorf("list Labwc outputs with wlr-randr: %w", err)
++	}
++	var ms []monitor
++	var name string
++	var enabled bool
++	var width, height int
++	flush := func() {
++		if name != "" && enabled && width > 0 && height > 0 {
++			ms = append(ms, monitor{name, width, height})
++		}
++	}
++	for _, line := range strings.Split(string(out), "\\n") {
++		if !strings.HasPrefix(line, " ") && strings.TrimSpace(line) != "" {
++			flush()
++			name = strings.Fields(line)[0]
++			enabled = false
++			width, height = 0, 0
++			continue
++		}
++		trimmed := strings.TrimSpace(line)
++		if trimmed == "Enabled: yes" {
++			enabled = true
++		}
++		if strings.Contains(trimmed, " px,") && strings.Contains(trimmed, "current") {
++			fmt.Sscanf(trimmed, "%dx%d", &width, &height)
++		}
++	}
++	flush()
++	if len(ms) == 0 {
++		return nil, errors.New("Labwc has no enabled output to capture")
++	}
++	return ms, nil
+@@ -187,0 +241,6 @@ func pickRecorder(ctx context.Context, lookPath func(string) (string, error)) (r
++	if labwcSession() {
++		if cpuErr != nil {
++			return recorder{}, errors.New("Labwc remote desktop needs wf-recorder")
++		}
++		return cpuRecorder(cpu), nil
++	}
+@@ -300,0 +360,3 @@ func wakeDisplays(ctx context.Context) error {
++	if labwcSession() {
++		return nil
++	}
+@@ -310,0 +373,56 @@ func focusedMonitor(ctx context.Context) string {
++	if labwcSession() {
++		// Match the pointer to wlr-randr output geometry. This mirrors the
++		// output selection used by Anchor Shell's Labwc screenshot action.
++		location, err := exec.CommandContext(ctx, "xdotool", "getmouselocation", "--shell").Output()
++		if err != nil {
++			return ""
++		}
++		var px, py int
++		for _, line := range strings.Split(string(location), "\\n") {
++			if strings.HasPrefix(line, "X=") {
++				fmt.Sscanf(line, "X=%d", &px)
++			}
++			if strings.HasPrefix(line, "Y=") {
++				fmt.Sscanf(line, "Y=%d", &py)
++			}
++		}
++		out, err := exec.CommandContext(ctx, "wlr-randr").Output()
++		if err != nil {
++			return ""
++		}
++		var name string
++		var x, y, w, h int
++		scale := 1.0
++		enabled := false
++		found := ""
++		flush := func() {
++			if enabled && w > 0 && h > 0 && float64(px) >= float64(x) && float64(px) < float64(x)+float64(w)/scale && float64(py) >= float64(y) && float64(py) < float64(y)+float64(h)/scale {
++				found = name
++			}
++		}
++		for _, line := range strings.Split(string(out), "\\n") {
++			if !strings.HasPrefix(line, " ") && strings.TrimSpace(line) != "" {
++				flush()
++				name = strings.Fields(line)[0]
++				x, y, w, h = 0, 0, 0, 0
++				scale = 1
++				enabled = false
++				continue
++			}
++			t := strings.TrimSpace(line)
++			if t == "Enabled: yes" {
++				enabled = true
++			}
++			if strings.Contains(t, " px,") && strings.Contains(t, "current") {
++				fmt.Sscanf(t, "%dx%d", &w, &h)
++			}
++			if strings.HasPrefix(t, "Position:") {
++				fmt.Sscanf(t, "Position: %d,%d", &x, &y)
++			}
++			if strings.HasPrefix(t, "Scale:") {
++				fmt.Sscanf(t, "Scale: %f", &scale)
++			}
++		}
++		flush()
++		return found
++	}
+diff --git i/internal/core/shortcuts.go w/internal/core/shortcuts.go
+index 8bc0208..43b63c6 100644
+--- i/internal/core/shortcuts.go
++++ w/internal/core/shortcuts.go
+@@ -5,0 +6 @@ import (
++	"encoding/xml"
+@@ -7,0 +9 @@ import (
++	"os"
+@@ -8,0 +11 @@ import (
++	"path/filepath"
+@@ -9,0 +13,2 @@ import (
++	"sort"
++	"strconv"
+@@ -302,0 +308,3 @@ func (d *Daemon) runShortcut(b shortcutBody) error {
++	if labwcSession() {
++		return d.runLabwcShortcut(ctx, b)
++	}
+@@ -338,0 +347,3 @@ func (d *Daemon) shortcutState(list bool) (map[string]any, error) {
++	if labwcSession() {
++		return labwcShortcutState(list)
++	}
+@@ -373,0 +385,225 @@ func (d *Daemon) shortcutState(list bool) (map[string]any, error) {
++
++type labwcKeybind struct {
++	Key     string `xml:"key,attr"`
++	Actions []struct {
++		Name    string `xml:"name,attr"`
++		To      string `xml:"to,attr"`
++		Command string `xml:"command,attr"`
++	} `xml:"action"`
++}
++type labwcConfig struct {
++	Keybinds []labwcKeybind `xml:"keyboard>keybind"`
++	Desktops struct {
++		Number int `xml:"number,attr"`
++	} `xml:"desktops"`
++}
++
++func readLabwcConfig() (labwcConfig, error) {
++	path := filepath.Join(os.Getenv("HOME"), ".config/labwc/rc.xml")
++	b, err := os.ReadFile(path)
++	if err != nil {
++		return labwcConfig{}, fmt.Errorf("read Labwc configuration: %w", err)
++	}
++	var c labwcConfig
++	if err := xml.Unmarshal(b, &c); err != nil {
++		return c, fmt.Errorf("parse Labwc configuration: %w", err)
++	}
++	if c.Desktops.Number < 1 || c.Desktops.Number > maxWorkspace {
++		c.Desktops.Number = 4
++	}
++	return c, nil
++}
++
++func labwcModifiers(key string) ([]string, string) {
++	parts := strings.Split(key, "-")
++	mods := []string{}
++	for len(parts) > 1 {
++		switch strings.ToUpper(parts[0]) {
++		case "W":
++			mods = append(mods, "logo")
++		case "A":
++			mods = append(mods, "alt")
++		case "C":
++			mods = append(mods, "ctrl")
++		case "S":
++			mods = append(mods, "shift")
++		default:
++			return nil, ""
++		}
++		parts = parts[1:]
++	}
++	if len(parts) != 1 || parts[0] == "" {
++		return nil, ""
++	}
++	return mods, parts[0]
++}
++
++func labwcShortcutList(c labwcConfig) []Shortcut {
++	out := []Shortcut{}
++	for i, b := range c.Keybinds {
++		mods, key := labwcModifiers(b.Key)
++		if key == "" {
++			continue
++		}
++		labels := []string{}
++		for _, a := range b.Actions {
++			label := a.Name
++			if label == "Execute" && a.Command != "" {
++				label = a.Command
++			}
++			if label != "" {
++				labels = append(labels, label)
++			}
++		}
++		if len(labels) == 0 {
++			continue
++		}
++		out = append(out, Shortcut{Ref: strconv.Itoa(i + 1), Keys: strings.ToUpper(strings.Join(append(mods, key), " ")), Description: strings.Join(labels, ", ")})
++	}
++	return out
++}
++
++func labwcWorkspaceFiles() ([]string, error) {
++	runtime := os.Getenv("XDG_RUNTIME_DIR")
++	if runtime == "" {
++		return nil, errors.New("XDG_RUNTIME_DIR is not set")
++	}
++	files, err := filepath.Glob(filepath.Join(runtime, "labwc", "workspace-*"))
++	if err != nil {
++		return nil, err
++	}
++	var outputs []string
++	for _, f := range files {
++		if strings.HasSuffix(f, ".goto") {
++			continue
++		}
++		outputs = append(outputs, f)
++	}
++	sort.Strings(outputs)
++	if len(outputs) == 0 {
++		return nil, errors.New("Labwc workspace state is not available")
++	}
++	return outputs, nil
++}
++
++func labwcActiveWorkspace() (int, int, string, error) {
++	files, err := labwcWorkspaceFiles()
++	if err != nil {
++		return 0, 0, "", err
++	}
++	output := focusedMonitor(context.Background())
++	selected := files[0]
++	for _, f := range files {
++		if output != "" && strings.TrimPrefix(f, filepath.Dir(f)+"/workspace-") == output {
++			selected = f
++			break
++		}
++	}
++	b, err := os.ReadFile(selected)
++	if err != nil {
++		return 0, 0, "", err
++	}
++	var current, count int
++	if _, err := fmt.Sscanf(string(b), "%d %d", &current, &count); err != nil || current < 1 || count < 1 {
++		return 0, 0, "", errors.New("invalid Labwc workspace state")
++	}
++	return current, count, selected, nil
++}
++
++func labwcShortcutState(list bool) (map[string]any, error) {
++	c, err := readLabwcConfig()
++	if err != nil {
++		return nil, err
++	}
++	active, count, _, err := labwcActiveWorkspace()
++	if err != nil {
++		return nil, err
++	}
++	workspaces := make([]Workspace, count)
++	for i := range workspaces {
++		workspaces[i] = Workspace{ID: i + 1}
++	}
++	body := map[string]any{"workspaces": workspaces, "active": active}
++	if list {
++		body["shortcuts"] = labwcShortcutList(c)
++	}
++	return body, nil
++}
++
++func writeLabwcWorkspace(id int) error {
++	active, count, state, err := labwcActiveWorkspace()
++	_ = active
++	if err != nil {
++		return err
++	}
++	if id < 1 || id > count {
++		return fmt.Errorf("workspace %d is not from 1 to %d", id, count)
++	}
++	request := state + ".goto"
++	tmp := request + ".tmp-" + strconv.Itoa(os.Getpid())
++	if err := os.WriteFile(tmp, []byte(strconv.Itoa(id)+"\\n"), 0600); err != nil {
++		return err
++	}
++	return os.Rename(tmp, request)
++}
++
++func labwcBindingForAction(c labwcConfig, name string, to string) (string, bool) {
++	for _, b := range c.Keybinds {
++		for _, a := range b.Actions {
++			if a.Name == name && (to == "" || a.To == to) {
++				return b.Key, true
++			}
++		}
++	}
++	return "", false
++}
++
++func pressLabwcBinding(ctx context.Context, key string) error {
++	mods, name := labwcModifiers(key)
++	if name == "" {
++		return fmt.Errorf("unsupported Labwc key binding %s", peerText(key))
++	}
++	return (desktop.Keyboard{}).Key(ctx, name, mods)
++}
++
++func (d *Daemon) runLabwcShortcut(ctx context.Context, b shortcutBody) error {
++	c, err := readLabwcConfig()
++	if err != nil {
++		return err
++	}
++	if b.Run != "" {
++		idx, err := strconv.Atoi(b.Run)
++		if err != nil || idx < 1 || idx > len(c.Keybinds) {
++			return errors.New("the shortcut is gone. Labwc read its configuration again")
++		}
++		key := c.Keybinds[idx-1].Key
++		if _, name := labwcModifiers(key); name == "" {
++			return errors.New("this Labwc shortcut cannot be sent remotely")
++		}
++		return pressLabwcBinding(ctx, key)
++	}
++	if b.Action == "workspace" {
++		return writeLabwcWorkspace(b.Workspace)
++	}
++	if b.Action == "moveToWorkspace" {
++		key, ok := labwcBindingForAction(c, "SendToDesktop", strconv.Itoa(b.Workspace))
++		if !ok {
++			return fmt.Errorf("Labwc has no key binding to move a window to workspace %d", b.Workspace)
++		}
++		return pressLabwcBinding(ctx, key)
++	}
++	actions := map[string]string{"close": "Close", "fullscreen": "ToggleFullscreen", "nextWindow": "NextWindow", "nextWorkspace": "GoToDesktop"}
++	name, ok := actions[b.Action]
++	if !ok {
++		return fmt.Errorf("the action %s is not supported by Labwc", peerText(b.Action))
++	}
++	to := ""
++	if b.Action == "nextWorkspace" {
++		to = "right"
++	}
++	key, ok := labwcBindingForAction(c, name, to)
++	if !ok {
++		return fmt.Errorf("Labwc has no key binding for %s", name)
++	}
++	return pressLabwcBinding(ctx, key)
++}

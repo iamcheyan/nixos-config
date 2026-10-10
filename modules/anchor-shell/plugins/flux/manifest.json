@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "flux",
+  "name": "Flux",
+  "version": "0.10.1-anchor.1",
+  "description": "Connect Anchor Shell to Flux for Android, iOS, and macOS.",
+  "kinds": ["service", "bar-widget"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Flux",
+    "description": "Open Flux to manage paired phones and share files and clipboard content.",
+    "category": "Network",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
