@@ -33,10 +33,12 @@ BarWidget {
   readonly property int trayItemGap: 0
   readonly property int trayJoinGap: 0
   readonly property int drawerExtent: drawerCount > 0 ? drawerCount * trayItemExtent + (drawerCount - 1) * trayItemGap : 0
-  // Inactive indicators and the tray drawer open and close together, at once:
-  // no animation and no staggering between the two groups.
-  readonly property bool indicatorsRevealed: expanded
-  readonly property real revealProgress: expanded ? 1 : 0
+  // Center-space hover also reveals the tray, matching the status indicators'
+  // existing behavior. Keep both groups driven by this same reveal state.
+  readonly property bool centerReveal: bar && bar.centerSectionRevealHeld === true
+    && bar.centerHoverRevealSuppressed !== true
+  readonly property bool indicatorsRevealed: expanded || centerReveal
+  readonly property real revealProgress: indicatorsRevealed ? 1 : 0
   readonly property real revealExtent: drawerExtent * revealProgress
 
   // Short grace period so moving the pointer across the gap between two icons
@@ -197,19 +199,17 @@ BarWidget {
     return id === "fcitx" || id.indexOf("fcitx") !== -1 || icon.indexOf("fcitx") !== -1 || icon.indexOf("input-keyboard") !== -1
   }
 
-  // Detect whether the input method is currently in Chinese or English mode
+  // Detect the active input method language from its tray icon and tooltip.
   function inputMethodStatus(item) {
-    if (!item) return "zh"
+    if (!item) return "en"
     var icon = String(item.icon || "").toLowerCase()
     var title = String(item.title || item.tooltipTitle || "").toLowerCase()
     if (icon.indexOf("image://icon/") === 0) icon = icon.substring(13)
-    if (icon.indexOf("keyboard") !== -1 || icon.indexOf("latin") !== -1) {
-      return "en"
-    }
-    if (icon.indexOf("rime") !== -1 || icon.indexOf("pinyin") !== -1 || icon.indexOf("chinese") !== -1 || icon.indexOf("wubi") !== -1 || icon.indexOf("_im") !== -1 || title.indexOf("rime") !== -1) {
-      return "zh"
-    }
-    return "zh"
+    var identity = icon + " " + title
+    if (identity.indexOf("mozc") !== -1 || identity.indexOf("anthy") !== -1 || identity.indexOf("skk") !== -1 || identity.indexOf("japanese") !== -1 || identity.indexOf("kana") !== -1) return "jp"
+    if (identity.indexOf("rime") !== -1 || identity.indexOf("pinyin") !== -1 || identity.indexOf("chinese") !== -1 || identity.indexOf("wubi") !== -1 || identity.indexOf("_im") !== -1) return "zh"
+    if (icon.indexOf("keyboard") !== -1 || icon.indexOf("latin") !== -1 || title.indexOf("english") !== -1) return "en"
+    return "en"
   }
 
   function needsTrayFallback(item) {
@@ -848,10 +848,10 @@ BarWidget {
     readonly property bool showFallback: forceFallback || imageLoadFailed || !hasIconSource || isInputMethod
     readonly property string fallbackGlyph: {
       if (isInputMethod) {
-        return imStatus === "zh" ? "中" : "英"
+        return imStatus.toUpperCase()
       }
       var source = String(icon || "").toLowerCase()
-      if (source.indexOf("input-keyboard") !== -1) return "英"
+      if (source.indexOf("input-keyboard") !== -1) return "EN"
       var value = String(fallbackText || "").trim()
       return value ? value.charAt(0).toLocaleUpperCase() : "?"
     }
@@ -872,7 +872,7 @@ BarWidget {
       color: root.foreground
       font.family: root.fontFamily
       font.pixelSize: trayIconRoot.isInputMethod
-        ? Math.round(parent.height * 0.72)
+        ? Math.round(parent.height * 0.48)
         : Math.max(9, Math.round(parent.height * 0.68))
       font.bold: true
       font.weight: Font.DemiBold

@@ -223,7 +223,7 @@ Item {
             anchors.fill: parent
             spacing: 0
 
-            // Top Padded胶囊搜索栏 (Maccy Style)
+            // Top padded pill-shaped search field (Maccy style).
             Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 48

@@ -6,6 +6,8 @@ import Quickshell.Io
 import Quickshell.Networking
 import qs.Ui
 import qs.Commons
+import "../bluetooth" as BluetoothComponents
+import "." as NetworkComponents
 import "Model.js" as Model
 
 Panel {
@@ -207,6 +209,17 @@ Panel {
     Qt.callLater(function() { root.refresh(true) })
   }
 
+  function focusBluetoothControls() {
+    if (!bluetoothSection.visible) return false
+    root.cursorActive = false
+    bluetoothSection.cursorActive = true
+    bluetoothSection.focusSection = bluetoothSection.visibleSections.length > 0
+      ? bluetoothSection.visibleSections[0] : "header"
+    bluetoothSection.selectedIndex = 0
+    contentViewport.contentY = Math.max(0, contentViewport.contentHeight - contentViewport.height)
+    return true
+  }
+
   IpcHandler {
     target: "omarchy.network"
 
@@ -220,6 +233,20 @@ Panel {
     // network target; both cards are their own plugins now.
     function showQr() { root.summonWifiQr(true) }
     function speedTest() { root.summonSpeedTest() }
+  }
+
+  // Preserve the Bluetooth IPC target for existing shortcuts and scripts.
+  // Opening it now reveals the combined network panel, while the radio action
+  // still controls Bluetooth directly.
+  IpcHandler {
+    target: "omarchy.bluetooth"
+
+    function open() { root.open() }
+    function close() { root.close() }
+    function show() { root.open() }
+    function hide() { root.close() }
+    function toggle() { root.toggle() }
+    function toggleBluetooth() { bluetoothSection.toggleBluetooth() }
   }
 
   function activateHeader() {
@@ -982,8 +1009,8 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(380))
-    contentHeight: panel.fittedContentHeight(column.implicitHeight)
+    contentWidth: panel.fittedContentWidth(Style.space(980))
+    contentHeight: panel.fittedContentHeight(splitRow.implicitHeight)
 
     // Catches all unhandled keys for keyboard navigation. AfterItem priority
     // lets the passphrase TextField (a child via focus chain) get its keys
@@ -996,6 +1023,23 @@ Panel {
       blocked: root.passwordSsid !== ""
 
       onMoveRequested: function(dx, dy) {
+        if (bluetoothSection.cursorActive) {
+          if (dy !== 0) {
+            if (dy < 0 && bluetoothSection.focusSection === "header") {
+              bluetoothSection.cursorActive = false
+              root.focusSection = root.wifiNetworks.length > 0 ? "wifi" : "dns"
+              root.selectedIndex = Math.max(0, root.wifiNetworks.length - 1)
+              root.wifiActionFocused = false
+              root.cursorActive = true
+              if (root.focusSection === "dns") contentViewport.contentY = 0
+            } else {
+              bluetoothSection.moveCursor(dy)
+            }
+          }
+          if (dx !== 0) bluetoothSection.moveCursorH(dx)
+          contentViewport.contentY = Math.max(0, contentViewport.contentHeight - contentViewport.height)
+          return
+        }
         if (!root.cursorActive) {
           root.cursorActive = true
           if (dy >= 0) return
@@ -1042,6 +1086,8 @@ Panel {
             } else if (root.wifiNetworks.length > 0) {
               root.focusSection = "wifi"
               if (root.selectedIndex < 0) root.selectedIndex = 0
+            } else if (bluetoothSection.visible) {
+              root.focusBluetoothControls()
             }
           } else {  // wifi
             // k from the top row escapes back up to the DNS row rather than
@@ -1050,7 +1096,11 @@ Panel {
               root.focusSection = "dns"
               root.wifiActionFocused = false
             }
-            else root.selectByDelta(dy)
+            else if (dy > 0 && root.wifiNetworks.length > 0
+                && root.selectedIndex >= root.wifiNetworks.length - 1
+                && bluetoothSection.visible) {
+              root.focusBluetoothControls()
+            } else root.selectByDelta(dy)
           }
         }
         if (dx !== 0) {
@@ -1061,7 +1111,8 @@ Panel {
         }
       }
       onActivateRequested: {
-        if (root.cursorActive) {
+        if (bluetoothSection.cursorActive) bluetoothSection.activateCursor()
+        else if (root.cursorActive) {
           if (root.focusSection === "header") root.activateHeader()
           else if (root.focusSection === "band") root.activateBand()
           else if (root.focusSection === "dns") root.activateDns()
@@ -1070,17 +1121,74 @@ Panel {
       }
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
+      onDeleteRequested: {
+        if (bluetoothSection.cursorActive) bluetoothSection.deleteSelected()
+        else if (root.cursorActive) root.deleteSelected()
+      }
       onTextKey: function(t) {
         if (t === "r" || t === "R") root.refresh()
         else if (t === "w" || t === "W") root.toggleNetwork()
+        else if (t === "b" || t === "B") bluetoothSection.toggleBluetooth()
       }
 
-    Column {
-      id: column
-      anchors.left: parent.left
-      anchors.right: parent.right
+    Flickable {
+      id: contentViewport
+      anchors.fill: parent
+      contentHeight: splitRow.implicitHeight
+      clip: true
+      boundsBehavior: Flickable.StopAtBounds
+      interactive: contentHeight > height
+
+      ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+    Row {
+      id: splitRow
+      width: contentViewport.width
       anchors.top: parent.top
-      spacing: Style.space(12)
+      spacing: Style.space(14)
+
+      Column {
+        id: tailscaleColumn
+        width: Math.min(Style.space(340), Math.max(Style.space(1), (parent.width - parent.spacing * 4 - Style.space(2)) * 0.37))
+        spacing: Style.space(12)
+
+        NetworkComponents.TailscaleSection {
+          width: parent.width
+          bar: root.bar
+          active: root.opened
+          onCloseRequested: root.close()
+        }
+      }
+
+      Rectangle {
+        width: Math.max(1, Style.space(1))
+        height: Math.max(bluetoothColumn.implicitHeight, tailscaleColumn.implicitHeight, column.implicitHeight)
+        color: Qt.darker(root.bar.foreground, 3.5)
+      }
+
+      Column {
+        id: bluetoothColumn
+        width: Math.min(Style.space(220), Math.max(Style.space(1), (parent.width - parent.spacing * 4 - Style.space(2)) * 0.24))
+        spacing: Style.space(12)
+
+        BluetoothComponents.BluetoothSection {
+          id: bluetoothSection
+          width: parent.width
+          bar: root.bar
+          active: root.opened
+        }
+      }
+
+      Rectangle {
+        width: Math.max(1, Style.space(1))
+        height: Math.max(bluetoothColumn.implicitHeight, tailscaleColumn.implicitHeight, column.implicitHeight)
+        color: Qt.darker(root.bar.foreground, 3.5)
+      }
+
+      Column {
+        id: column
+        width: Math.max(1, parent.width - bluetoothColumn.width - tailscaleColumn.width - parent.spacing * 4 - Style.space(2))
+        spacing: Style.space(12)
 
       // ---------- Hero: network icon · SSID + state · actions ----------
       Item {
@@ -1522,8 +1630,12 @@ Panel {
           }
         }
       }
+
+      }
     }
     }
+  }
+
   }
 
   // One Wi-Fi band pill. `active` (fill) is the band actually in use and

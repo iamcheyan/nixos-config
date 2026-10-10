@@ -55,8 +55,13 @@ Item {
     root.refreshRunning()
     refreshTimer.start()
     Qt.callLater(function() {
-      if (panelLoader.item)
-        panelLoader.item.searchFieldControl.forceActiveFocus()
+      if (!panelLoader.item) return
+      var appList = panelLoader.item.appListControl
+      if (appList && root.filteredApps.length > 0) {
+        appList.currentIndex = 0
+        appList.positionViewAtIndex(0, ListView.Contain)
+      }
+      panelLoader.item.searchFieldControl.forceActiveFocus()
     })
   }
 
@@ -277,10 +282,11 @@ Item {
         if (String(next[j].id || "") === selectedId) { restored = j; break }
       }
     }
-    // The launcher opens without a highlighted row; keyboard navigation can still
-    // select the first item with Down or Return.
+    // When the current item disappears from a search result, select the first
+    // remaining item so Tab and arrow navigation always start from a row.
     if (panelLoader.item)
-      panelLoader.item.appListControl.currentIndex = restored
+      panelLoader.item.appListControl.currentIndex = restored >= 0
+        ? restored : (next.length > 0 ? 0 : -1)
   }
 
   function launch(entry) {

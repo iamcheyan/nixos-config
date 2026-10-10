@@ -27,7 +27,7 @@ BarIndicator {
 
   active: isDevMode
   activeText: "󰅩"
-  inactiveText: ""
+  inactiveText: "󰅩"
   activeTooltipText: "Developer Mode (Click for actions)"
   useActiveColor: true
   activeColor: "#eab308"

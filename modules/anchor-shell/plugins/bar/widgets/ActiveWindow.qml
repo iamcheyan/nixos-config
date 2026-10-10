@@ -88,9 +88,15 @@ BarWidget {
   readonly property string title: toplevel ? (toplevel.title || toplevel.appId || "") : ""
   readonly property string iconSource: iconForToplevel(toplevel)
   readonly property int maxLabelWidth: Number(setting("maxWidth", 280))
+  // The measured text width is only the label itself. Reserve room for the
+  // widget margins and app icon too, or short titles get elided to make space.
+  readonly property int labelChromeWidth: Style.space(16)
+    + (iconSource !== "" ? Style.font.body + Style.space(6) : 0)
 
   visible: title !== "" && !vertical
-  implicitWidth: visible ? Math.min(maxLabelWidth, labelText.implicitWidth) + Style.spacing.controlPaddingX * 2 : 0
+  implicitWidth: visible
+    ? Math.min(maxLabelWidth, labelText.implicitWidth) + labelChromeWidth + Style.spacing.controlPaddingX * 2
+    : 0
   implicitHeight: barSize
 
   Behavior on implicitWidth {

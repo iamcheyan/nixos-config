@@ -47,7 +47,7 @@
           "id": "omarchy.tray"
         },
         {
-          "id": "omarchy.bluetooth"
+          "id": "flux"
         },
         {
           "id": "omarchy.network"
@@ -76,6 +76,9 @@
     },
     {
       "id": "tetsuya.bitwarden"
+    },
+    {
+      "id": "flux"
     }
   ],
   "disabledPlugins": [

@@ -42,10 +42,10 @@ Panel {
         { id: "paraformer-zh-int8", title: "Paraformer Large · int8", detail: "232 MB · Chinese-first", engine: "paraformer", backendModel: "paraformer-zh" }
     ]
     readonly property var languages: [
-        { key: "zh", title: "中文" },
+        { key: "zh", title: "Chinese" },
         { key: "en", title: "English" },
-        { key: "ja", title: "日本語" },
-        { key: "ko", title: "한국어" },
+        { key: "ja", title: "Japanese" },
+        { key: "ko", title: "Korean" },
         { key: "auto", title: "Auto detect" }
     ]
 

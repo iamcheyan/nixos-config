@@ -38,12 +38,8 @@ BarWidget {
         } else panelLoader.item.openAtCursor();
     }
     function toggleAtCursor() {
-        if (!panelLoader.item) {
-            root.openAtCursor();
-            return;
-        }
-
-        panelLoader.item.toggleAtScreen();
+        if (panelLoader.item && panelLoader.item.opened) panelLoader.item.close();
+        else root.openAtCursor();
     }
     function close() { if (panelLoader.item) panelLoader.item.close(); }
     function toggleAtBar() { root.opened ? root.close() : root.openAtBar(); }

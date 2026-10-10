@@ -64,10 +64,9 @@ Example `shell.json` (bar subtree only shown):
 | `omarchy.microphone` | Mic icon + scroll volume | left = mute toggle · middle = audio panel · scroll = source volume |
 
 | `omarchy.audio` | Volume icon + popup with master slider, output-device picker, per-app mixer | left = popup · right = mute · middle = popup · scroll = volume |
-| `omarchy.network` | Wi-Fi/Ethernet icon + popup with Wi-Fi scan, signal, connect, DNS provider selection | left = popup |
+| `omarchy.network` | Wi-Fi/Ethernet icon + popup with Wi-Fi and Bluetooth controls, device scan, connect, and DNS selection | left = popup |
 | `omarchy.tailscale` | Tailscale status, connection switcher, machine browser, and copy actions | left = popup · right = toggle · middle = refresh |
 | `omarchy.power` | Battery/AC icon + popup with battery stats, power profiles, and system info | left = popup · right = toggle percentage |
-| `omarchy.bluetooth` | Bluetooth icon + popup with device list, connect/disconnect, battery | left = popup · right = toggle radio |
 | `omarchy.monitor` | Brightness and laptop display controls | left = popup |
 
 The system tray hosts `omarchy.indicators` by default: active indicators stay beside the pinned tray icons, and hovering the combined group reveals inactive indicators and the remaining tray icons together. This keeps the right side as one compact group. The `omarchy.indicators` widget can still be placed separately when a custom layout needs it. It loads individual bar indicators from `indicators/`. Omit `items` (or set it to an empty array) to show all indicators in the default order, or set `items` to a subset such as `["Dnd", "Reminder", "NightLight"]`. Set `alwaysShow` to `true` to keep inactive indicators visible instead of revealing them only on hover.

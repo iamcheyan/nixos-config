@@ -11,7 +11,7 @@ export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
 QS=/run/current-system/sw/bin/quickshell
 
-pid="$(ps -eo pid=,args= | awk '/[q]uickshell/ && / -p / { print $1; exit }')"
+pid="$("$QS" list --all 2>/dev/null | awk '/Process ID:/ { print $3; exit }')"
 if [[ -n "$pid" ]]; then
   exec "$QS" ipc --pid "$pid" call iamcheyan.clipboard toggleAtCursor
 fi

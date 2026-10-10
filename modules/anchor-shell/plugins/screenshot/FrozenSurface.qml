@@ -101,7 +101,7 @@ PanelWindow {
     Text {
       id: hint
       anchors.centerIn: parent
-      text: "拖动选择截图区域  ·  Shift 正方形  ·  Esc 取消"
+      text: "Drag to select a screenshot area  ·  Shift for square  ·  Esc to cancel"
       color: "white"
       font.pixelSize: 14
     }

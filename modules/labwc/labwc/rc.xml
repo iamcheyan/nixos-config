@@ -30,6 +30,15 @@
     <popupTime>0</popupTime>
   </desktops>
 
+  <!-- Flux remote desktop: grant only the wlroots screen capture and virtual
+       input protocols it needs. fluxd still requires an enabled feature and
+       a paired device before it starts a remote session. -->
+  <privilegedInterfaces>
+    <allow>zwlr_screencopy_manager_v1</allow>
+    <allow>zwlr_virtual_pointer_manager_v1</allow>
+    <allow>zwp_virtual_keyboard_manager_v1</allow>
+  </privilegedInterfaces>
+
   <windowSwitcher>
     <osd show="yes" style="thumbnail" preview="yes" outlines="yes" output="cursor"
       thumbnailLabelFormat="%W — %T" />
