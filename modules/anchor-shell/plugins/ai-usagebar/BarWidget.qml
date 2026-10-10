@@ -7,6 +7,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "tetsuya.ai-usagebar"
+  readonly property bool suppressPanelIndicator: true
 
   property string label: ""
   property string usageLabel: ""
@@ -53,9 +54,7 @@ BarWidget {
     if (!resetCreditsProc.running) resetCreditsProc.running = true
   }
 
-  function openDashboard() {
-    if (root.bar) root.bar.run("omarchy-launch-floating-terminal-with-presentation ai-usagebar-tui")
-  }
+  function close() { root.quotaPopupOpen = false }
 
   function updateTooltip() { root.tip = "" }
 
@@ -541,25 +540,7 @@ BarWidget {
     horizontalMargin: 8.75
     verticalPadding: 8.75
     tooltipText: ""
-    onPressed: root.openDashboard()
-  }
-
-  HoverHandler {
-    id: anchorHover
-    onHoveredChanged: {
-      if (hovered) {
-        popupCloseTimer.stop()
-        root.quotaPopupOpen = true
-      } else {
-        popupCloseTimer.restart()
-      }
-    }
-  }
-
-  Timer {
-    id: popupCloseTimer
-    interval: 220
-    onTriggered: if (!quotaPopup.containsMouse && !anchorHover.hovered) root.quotaPopupOpen = false
+    onPressed: root.quotaPopupOpen = !root.quotaPopupOpen
   }
 
   PopupCard {
@@ -567,14 +548,10 @@ BarWidget {
     anchorItem: root
     bar: root.bar
     owner: root
-    triggerMode: "hover"
+    triggerMode: "click"
     open: root.quotaPopupOpen
     contentWidth: quotaPopup.fittedContentWidth(Style.space(360), Style.space(480))
     contentHeight: quotaPopup.fittedContentHeight(quotaColumn.implicitHeight)
-    onContainsMouseChanged: {
-      if (containsMouse) popupCloseTimer.stop()
-      else popupCloseTimer.restart()
-    }
 
     Flickable {
       id: scroll

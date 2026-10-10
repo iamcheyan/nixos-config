@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "id": "akitaonrails.ai-usagebar",
+  "name": "AI Usage",
+  "version": "1.30.0",
+  "author": "AkitaOnRails",
+  "license": "MIT",
+  "description": "Multi-provider AI plan usage and balances in a native Omarchy Quattro panel. Needs the ai-usagebar binary as well as this plugin: omarchy pkg aur add ai-usagebar-bin",
+  "kinds": [
+    "bar-widget"
+  ],
+  "activation": "on-demand",
+  "entryPoints": {
+    "barWidget": "omarchy/BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "AI Usage",
+    "description": "Usage windows, reset countdowns, balances, and provider switching for every provider configured in ai-usagebar. This is the display frontend only — install the binary with omarchy pkg aur add ai-usagebar-bin.",
+    "category": "AI",
+    "aliases": [
+      "ai-usage",
+      "usagebar",
+      "quota"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "provider": "",
+      "refreshIntervalSec": 300,
+      "showValue": true,
+      "showProvider": false,
+      "showAll": false,
+      "colorCodeUsage": false,
+      "barWindow": "auto",
+      "showCursorModels": true,
+      "showCursorOther": true,
+      "showCursorOnDemand": true
+    },
+    "schema": [
+      {
+        "key": "provider",
+        "type": "string",
+        "label": "Provider or account id",
+        "description": "Optional id from ai-usagebar usage --json (for example openai or anthropic@work). Leave blank to switch between all configured entries.",
+        "defaultValue": ""
+      },
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "min": 30,
+        "max": 3600,
+        "step": 30,
+        "defaultValue": 300
+      },
+      {
+        "key": "showValue",
+        "type": "boolean",
+        "label": "Show usage value",
+        "description": "Show the selected provider's percentage or balance next to the icon in the top bar.",
+        "defaultValue": true
+      },
+      {
+        "key": "showProvider",
+        "type": "boolean",
+        "label": "Show provider name",
+        "description": "Show the selected provider's short code (cld, gpt, zai, agy) before the usage value, the way Waybar's {vendor_short} does. Off by default.",
+        "defaultValue": false
+      },
+      {
+        "key": "showAll",
+        "type": "boolean",
+        "label": "Show all providers",
+        "description": "Show every configured provider's icon and usage in the top bar at once, instead of cycling one at a time. Off by default.",
+        "defaultValue": false
+      },
+      {
+        "key": "colorCodeUsage",
+        "type": "boolean",
+        "label": "Color-code usage by level",
+        "description": "Paint bar values, panel meters, and the tooltip green → yellow → orange → red as usage climbs, using your Omarchy theme. Turn off for a single foreground color. Off by default.",
+        "defaultValue": false
+      },
+      {
+        "key": "barWindow",
+        "type": "enum",
+        "label": "Top bar usage window",
+        "description": "Which quota window the top bar shows. Auto keeps the highest percent; 5-hour pins the session/rolling window; weekly pins the 7-day window; monthly pins the monthly pool where one exists. Falls back to highest when a vendor lacks the pinned window.",
+        "options": [
+          "auto",
+          "session",
+          "weekly",
+          "monthly"
+        ],
+        "defaultValue": "auto"
+      },
+      {
+        "key": "showCursorModels",
+        "type": "boolean",
+        "label": "Show Cursor Models",
+        "description": "Show the Cursor Models pool in the top bar and tooltip. The open panel always lists every pool. At least one Cursor pool stays visible.",
+        "defaultValue": true
+      },
+      {
+        "key": "showCursorOther",
+        "type": "boolean",
+        "label": "Show Other Models",
+        "description": "Show the Other Models pool in the top bar and tooltip. The open panel always lists every pool. At least one Cursor pool stays visible.",
+        "defaultValue": true
+      },
+      {
+        "key": "showCursorOnDemand",
+        "type": "boolean",
+        "label": "Show On-Demand",
+        "description": "Show prepaid on-demand usage in the top bar and tooltip. The open panel always lists every pool. At least one Cursor pool stays visible.",
+        "defaultValue": true
+      }
+    ]
+  }
+}

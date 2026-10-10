@@ -1,0 +1,392 @@
+# Format placeholders
+
+Use placeholders with `--format` and `--tooltip-format`. Unsupported or absent
+metrics expand to an empty string unless noted otherwise.
+
+## Cross-provider formats
+
+`{vendor_short}` identifies the active provider:
+
+| Provider | Value | Provider | Value |
+|---|---:|---|---:|
+| Claude | `cld` | Codex | `gpt` |
+| GitHub Copilot | `ghc` | Z.AI | `zai` |
+| OpenRouter | `opr` | DeepSeek | `dsk` |
+| DeepInfra | `dif` | | |
+| Kimi | `kmi` | Kilo | `klo` |
+| Novita | `nvt` | Moonshot | `msh` |
+| Grok | `grk` | SuperGrok | `sgk` |
+| Anthropic API | `aac` | Antigravity | `agy` |
+| Cursor | `cur` | MiniMax | `mmx` |
+| Kiro CLI | `kir` | Nous Research | `nrs` |
+| OpenCode Go | `ocg` | Command Code | `cmc` |
+| Ollama Cloud | `oll` | | |
+
+The same codes ride the `ai-usagebar usage --json` report as each entry's
+`short_name`, so a native frontend can draw a Waybar-style provider tag without
+restating the table. Every account of one provider shares that provider's code.
+
+Use `{session_pct}`, `{session_reset}`, `{weekly_pct}`, and `{weekly_reset}`
+when one format must work across providers. Providers without matching time
+windows return neutral values. Cursor maps Cursor Models to the session slot
+and Other Models to the weekly slot; both reset with the billing cycle. Kiro
+has one pool, so it maps `kiro_pct` to both percentage slots.
+
+Claude and Codex also provide `*_elapsed`, `*_pace`, and `*_bar` families.
+Z.AI, MiniMax, and OpenCode Go provide elapsed aliases plus provider-specific pace families.
+Antigravity provides elapsed values plus `{session_model}`, `{weekly_model}`,
+`{scoped_model}`, and `{extra_model}` for whichever of its four windows the
+running product reports — a product that exposes only weekly buckets leaves the
+5-hour placeholders empty rather than reporting a figure it never received.
+Provider-specific families such as `{oai_*}`, `{zai_*}`, `{or_*}`, and
+`{orc_*}` are empty for providers that do not define them.
+
+## Shared and Claude placeholders
+
+These are compatible with claudebar.
+
+| Placeholder | Example |
+|---|---|
+| `{plan}` | `Max 5x` |
+| `{session_pct}`, `{session_reset}`, `{session_bar}`, `{session_elapsed}` | `62`, `1h 30m`, `█████████████░░░░░░░`, `58` |
+| `{session_pace}`, `{session_pace_indicator}`, `{session_pace_pct}`, `{session_pace_pts}`, `{session_pace_delta}`, `{session_pace_abs_delta}` | `↑`, `↑`, `12% ahead`, `4pts ahead`, `4`, `4` |
+| `{weekly_*}` | The same family for the seven-day window. |
+| `{sonnet_*}` | The same family for the seven-day Sonnet window. Empty when absent. |
+| `{scoped_model}`, `{scoped_pct}`, `{scoped_reset}`, `{scoped_elapsed}`, `{scoped_bar}` | `Fable`, `84`, `5d 2h`, `27`, `█████████████████░░░` |
+| `{extra_spent}`, `{extra_limit}`, `{extra_pct}`, `{extra_bar}` | `$2.50`, `$50.00`, `5`, `█░░░░░░░░░░░░░░░░░░░` |
+| `{resets_available}`, `{resets}` | `1`, `1 reset available` |
+
+The scoped family describes the first model-specific weekly window. When that
+window is absent, it returns neutral empty, `0`, or `—` values as appropriate.
+
+`{resets_available}` is the number of banked limit resets Claude is offering —
+the ones the app shows under "Resets", which you redeem by hand rather than
+waiting for `{session_reset}`. `{resets}` is the compact count (`1 reset
+available`); it reads `0 resets available` when there is no grant, so gate the
+row on `{resets_available}` if you only want it when there is one. The
+per-grant labels and expiry dates appear in the default tooltip and in the TUI
+panel. Claude only offers these during a campaign, and only to accounts it
+selects — most of the time both are `0`.
+
+## Codex
+
+`{oai_plan}`, `{oai_session_pct}`, `{oai_session_reset}`,
+`{oai_session_elapsed}`, `{oai_session_pace}`,
+`{oai_session_pace_indicator}`, `{oai_weekly_*}`,
+`{oai_code_review_pct}`, `{oai_credit_balance}`, `{oai_local_msgs}`,
+`{oai_cloud_msgs}`, `{oai_resets_available}`, `{oai_resets}`
+
+Session and weekly families are empty when the API omits that window. The
+default widget automatically uses weekly values for a weekly-only response.
+
+`{oai_resets_available}` is the number of banked rate-limit reset credits —
+the ones Codex lets you redeem by hand, not the automatic window rollover in
+`{oai_session_reset}`. `{oai_resets}` is the compact count (`2 resets
+available`). The panel lists each credit on its own row with title and
+expiry. Accounts that have never earned one report `0`.
+
+- `{oai_extra_limits}` lists Codex's *named* limits with their worst window
+  (`GPT-5.3-Codex-Spark 34% · gpt-reserve 71%`), and is empty for an account
+  that has none. These sit beside the headline window and can be the binding
+  constraint while it still reads low.
+- `{oai_unavailable_models}` names models the account cannot dispatch to right
+  now, comma separated, and is empty when everything is reachable. This is what
+  "Selected model is at capacity" looks like in the data — no percentage
+  anywhere reflects it.
+
+## GitHub Copilot
+
+`{copilot_plan}`, `{copilot_reset}`, `{copilot_premium_pct}`,
+`{copilot_premium_used}`, `{copilot_premium_limit}`, `{copilot_chat_pct}`,
+`{copilot_chat_used}`, `{copilot_chat_limit}`, `{copilot_completions_pct}`,
+`{copilot_completions_used}`, `{copilot_completions_limit}`
+
+These represent the `premium_interactions`, `chat`, and `completions` quota
+snapshots that GitHub reports. The default bar format is
+`{copilot_premium_pct}% · {copilot_reset}`. `{session_*}` aliases Premium and
+`{weekly_*}` aliases Chat so one cross-provider format can still render it;
+both use Copilot's account-wide quota reset, not a weekly window. Missing
+quota buckets expand to `—`.
+
+## Z.AI
+
+`{zai_plan}`, `{zai_session_pct}`, `{zai_session_reset}`,
+`{zai_session_elapsed}`, `{zai_session_pace}`,
+`{zai_session_pace_indicator}`, `{zai_weekly_pct}`, `{zai_weekly_reset}`,
+`{zai_weekly_elapsed}`, `{zai_weekly_pace}`,
+`{zai_weekly_pace_indicator}`, `{zai_mcp_pct}`, `{zai_mcp_reset}`,
+`{zai_mcp_elapsed}`, `{zai_mcp_pace}`, `{zai_mcp_pace_indicator}`
+
+`{session_elapsed}` and `{weekly_elapsed}` are cross-provider aliases. An
+absent window returns empty values. A present window whose API response omits
+its reset uses the shared neutral pacing values: elapsed `0` and arrow `→`.
+
+## MiniMax
+
+`{minimax_plan}`, `{minimax_session_pct}`, `{minimax_session_reset}`,
+`{minimax_session_elapsed}`, `{minimax_session_pace}`,
+`{minimax_session_pace_indicator}`, `{minimax_weekly_pct}`,
+`{minimax_weekly_reset}`, `{minimax_weekly_elapsed}`,
+`{minimax_weekly_pace}`, `{minimax_weekly_pace_indicator}`,
+`{minimax_video_pct}`, `{minimax_video_reset}`, `{minimax_video_elapsed}`,
+`{minimax_video_pace}`, `{minimax_video_pace_indicator}`,
+`{minimax_video_weekly_pct}`, `{minimax_video_weekly_reset}`,
+`{minimax_video_weekly_elapsed}`, `{minimax_video_weekly_pace}`,
+`{minimax_video_weekly_pace_indicator}`
+
+`{session_elapsed}` and `{weekly_elapsed}` alias the text pool. Optional video
+windows return `—` when absent. As with Z.AI, a present window without a reset
+uses elapsed `0` and the neutral `→` pace marker.
+
+## OpenCode Go
+
+`{ocg_plan}`, `{ocg_rolling_pct}`, `{ocg_rolling_reset}`,
+`{ocg_rolling_elapsed}`, `{ocg_rolling_pace}`,
+`{ocg_rolling_pace_indicator}`, `{ocg_weekly_pct}`, `{ocg_weekly_reset}`,
+`{ocg_weekly_elapsed}`, `{ocg_weekly_pace}`,
+`{ocg_weekly_pace_indicator}`, `{ocg_monthly_pct}`, `{ocg_monthly_reset}`,
+`{ocg_rolling_status}`, `{ocg_weekly_status}`, `{ocg_monthly_status}`
+
+`{session_elapsed}` and `{weekly_elapsed}` are cross-provider aliases for the
+rolling (5h) and weekly (7d) windows. An absent window returns empty elapsed
+and pace values. The monthly window keeps `pct`/`reset`/`status` but has no
+pace family: its cycle follows the subscription date, so no fixed length is
+exact. Rolling (5h) and weekly (7d) lengths are constants: the usage endpoint
+reports only `percent` and `resetsAt`, never a duration.
+
+## OpenRouter
+
+`{or_label}`, `{or_balance}`, `{or_total}`, `{or_used}`,
+`{or_used_today}`, `{or_used_week}`, `{or_used_month}`,
+`{or_consumed_pct}`, `{or_free_tier}`, `{or_limit}`,
+`{or_limit_remaining}`, `{or_balance_bar}`
+
+## OrcaRouter
+
+`{orc_spend}`, `{orc_limit}`, `{orc_remaining}`, `{orc_consumed_pct}`,
+`{orc_expires}`, `{orc_bar}`
+
+These report the one-api compatible dashboard billing card. `{orc_spend}` is
+cumulative usage (the API reports it in US cents; `275` renders as `$2.75`).
+
+## Model Studio
+
+`{mst_plan}`, `{mst_session_pct}`, `{mst_session_reset}`,
+`{mst_session_elapsed}`, `{mst_session_pace}`,
+`{mst_session_pace_indicator}`, `{mst_weekly_pct}`, `{mst_weekly_reset}`,
+`{mst_weekly_elapsed}`, `{mst_weekly_pace}`,
+`{mst_weekly_pace_indicator}`
+
+The default bar format is `5h {mst_session_pct}% · 7d {mst_weekly_pct}%`.
+`{session_*}` and `{weekly_*}` are cross-provider aliases. The API has no plan
+name, so `{mst_plan}` is always `Model Studio`. An absent window (no-data,
+possibly unlimited) expands to the empty string — never `0%`. The percentages
+are whole numbers: the wire carries ratios in `[0,1]` (`0.4217` → `42`).
+`{orc_limit}` and `{orc_remaining}` render `unlimited` for unlimited-quota
+keys — the API's `100000000` sentinel is collapsed to "no limit" rather than a
+$100M wallet, and `{orc_consumed_pct}` renders `—`. `{orc_expires}` counts
+down to the key's `access_until`, or `—` when it has no expiry.
+
+## DeepSeek
+
+`{ds_balance}`, `{ds_granted}`, `{ds_topped_up}`, `{ds_available}`
+
+These report the `/user/balance` credit balance. USD is preferred when both
+currencies are present; otherwise they use CNY.
+
+## DeepInfra
+
+`{dif_balance}`, `{dif_used_month}`, `{dif_limit}`, `{dif_period}`,
+`{dif_consumed_pct}`
+
+`{dif_balance}` is the general prepaid balance after recent uninvoiced usage.
+`{dif_used_month}` converts `/payment/usage`'s cent-denominated `total_cost` to
+US dollars. `{dif_limit}` is the monthly spending limit or `no limit`, and
+`{dif_consumed_pct}` renders `—` when the account has no monthly limit.
+
+## Kimi
+
+`{kimi_plan}`, `{kimi_weekly_pct}`, `{kimi_weekly_used}`,
+`{kimi_weekly_limit}`, `{kimi_weekly_remaining}`, `{kimi_weekly_reset}`,
+`{kimi_window_pct}`, `{kimi_window_used}`, `{kimi_window_limit}`,
+`{kimi_window_remaining}`, `{kimi_window_reset}`,
+`{kimi_monthly_pct}`, `{kimi_monthly_reset}`
+
+These cover the subscription quota and rolling five-hour window from
+`api.kimi.com/coding/v1/usages`. The default format is
+`5h {kimi_window_pct}% · 7d {kimi_weekly_pct}%`, shortest window first like
+every other two-window vendor. Generic aliases are `{plan}` for the plan,
+`{weekly_pct}` for weekly usage, and `{session_pct}` for the five-hour
+window.
+
+Accounts on the newer response shape have no weekly bucket — only the
+combined monthly pool — so the weekly placeholders (`kimi_weekly_*` and the
+`weekly_pct`/`weekly_reset` aliases) render empty there, and
+`{kimi_monthly_pct}` / `{kimi_monthly_reset}` carry the monthly pool
+instead. On legacy-shape accounts the monthly placeholders render empty.
+
+## Grok Bot
+
+`{gbt_plan}`, `{gbt_weekly_pct}`, `{gbt_weekly_reset}`, `{gbt_on_demand}`
+
+These cover the desktop app's weekly included-usage pool from
+`api2.cursor.sh/aiserver.v1.DashboardService/GetSandUsageStatus`
+(Linux and macOS). The default format is `{gbt_weekly_pct}%`. Generic
+aliases are `{plan}` and `{weekly_pct}` / `{weekly_reset}`.
+`{gbt_on_demand}` renders `on`/`off` for pay-as-you-go past the included
+pool.
+
+An account with no included allowance (`hasNonZeroIncludedLimit: false`) is
+a distinct state, not 0%: the weekly placeholders (`gbt_weekly_*` and the
+`weekly_pct`/`weekly_reset` aliases) render empty there, and the tooltip
+says "No included allowance" instead of drawing a meter.
+
+## Kilo
+
+`{kilo_balance}` is the remaining USD balance from
+`api.kilo.ai/api/profile/balance`.
+
+## Novita
+
+`{nv_balance}`, `{nv_cash}`, `{nv_credit_limit}`, `{nv_owed}` report the USD
+balance and its breakdown from `api.novita.ai/openapi/v1/billing/balance/detail`.
+
+## Moonshot
+
+`{km_balance}`, `{km_voucher}`, `{km_cash}`, `{currency}` report the account
+balance from `api.moonshot.ai` or `api.moonshot.cn`. The global service uses
+USD; the China service uses CNY.
+
+## Grok
+
+`{grok_balance}` is the prepaid USD balance from the xAI Management API.
+
+## SuperGrok
+
+`{sgk_plan}`, `{sgk_pct}`, `{sgk_reset}`, `{sgk_period}`, `{sgk_prepaid}`,
+`{sgk_resets_available}`, `{sgk_resets}`
+
+- `{sgk_period}` is `Weekly`, `Monthly`, or `Current period`.
+- The default bar format is `{sgk_pct}% · {sgk_reset}`.
+- `{session_pct}` and `{weekly_pct}` remain aliases for `sgk_pct`.
+- Per-product slices (Grok Build, Grok Chat, Grok Imagine, …) appear beside
+  the overall meter everywhere: full meters in the TUI, one dim line each
+  (no gauge, no severity colour, aligned percentages) in the tooltip and
+  `--pretty` box, and metric rows in `usage --json`. They share the same
+  reset as `{sgk_pct}` and do not have their own placeholders. In the report
+  each slice carries `group: "Breakdown"` (absent on the overall meter), so a
+  frontend can draw it under a heading; the Omarchy panel does exactly that.
+- The prepaid line is shown only when the billing document reports credit —
+  a `prepaidBalance` of zero draws no row, while `{sgk_prepaid}` still
+  publishes the raw figure.
+- `{plan}` is the subscription tier when Grok Build supplies one.
+- `{sgk_resets_available}` is the number of banked resets you can redeem by
+  hand, and `{sgk_resets}` the compact count (`1 reset available`). These are
+  unrelated to `{sgk_reset}`, which is the current period's automatic rollover.
+
+SuperGrok is the subscription path. It is separate from the Grok Management
+API prepaid balance. Billing comes from Grok Build's documented
+`cli-chat-proxy.grok.com` endpoint, with the CLI's `x.ai/billing` ACP extension
+as a fallback for builds where that endpoint is unavailable.
+
+The HTTPS path reads the `key` from the login's `auth.json` and uses it inside
+the outgoing `Authorization` headers of the billing request and, separately,
+the remaining-resets RPC. ai-usagebar never copies, caches, refreshes, logs,
+or writes that key back, and never echoes it in an error; account selection
+and token rotation stay with Grok Build. The config file is read only as
+opaque bytes for the one-way digest that keeps caches separate between logins.
+
+The default executable is `$GROK_HOME/bin/grok`, or `~/.grok/bin/grok` when
+`GROK_HOME` is unset. ai-usagebar does not search `PATH`. Set
+`[supergrok] grok_binary` only when the trusted official binary lives elsewhere.
+
+## Anthropic API
+
+`{aapi_headline}`, `{aapi_spent}`, `{aapi_limit}`, `{aapi_pct}` report
+month-to-date spend from the Admin API `cost_report`.
+
+- With a positive finite `monthly_limit`, the headline looks like
+  `$1.34 / $1000 · 0%`.
+- Without a limit, it looks like `$1.34/mo`.
+- `{plan}`, `{session_pct}`, and `{weekly_pct}` are generic aliases. Both
+  percentage aliases use spend versus limit.
+
+This is spend, not prepaid balance. Anthropic does not expose prepaid balance
+through the API. The
+[Cost API documentation](https://platform.claude.com/docs/en/manage-claude/usage-cost-api)
+also says that Priority Tier costs are omitted.
+
+## Cursor
+
+`{cursor_plan}`, `{cursor_auto_pct}`, `{cursor_api_pct}`,
+`{cursor_total_pct}`, `{cursor_reset}`, `{cursor_on_demand}`,
+`{cursor_unlimited}`
+
+- `{cursor_auto_pct}` is the Cursor Models pool (Auto and Composer).
+- `{cursor_api_pct}` is the Other Models pool (named and API models).
+- `{cursor_total_pct}` is the overall included-usage headline.
+- `{cursor_on_demand}` and `{cursor_unlimited}` return `on`/`off` and
+  `yes`/`no`.
+- `{session_pct}`, `{weekly_pct}`, and `{plan}` alias Cursor Models, Other
+  Models, and `Cursor <Plan>`.
+
+A pool can exceed 100%. The default format is
+`{cursor_auto_pct}·{cursor_api_pct}%` and uses the worse pool's severity color.
+
+Cursor's dashboard also reports overage and per-member team spend; ai-usagebar
+does not. Team payloads without `individualUsage.plan` fall back to the
+dashboard's display messages and add `(team)` to the inferred plan. This path
+has not been verified against a live team account.
+
+## Kiro CLI
+
+`{kiro_plan}`, `{kiro_pct}`, `{kiro_used}`, `{kiro_limit}`, `{kiro_reset}`
+
+These describe the current credit cycle returned by
+`AmazonCodeWhispererService.GetUsageLimits`, the same call used by kiro-cli's
+`/usage` command. Raw credit counts keep two decimal places only when needed.
+The default format is `{kiro_pct}%`; `{session_pct}` and `{weekly_pct}` alias
+the same pool, and `{plan}` aliases the subscription title.
+
+Kiro access tokens expire after roughly an hour. ai-usagebar refreshes them
+through the documented AWS SSO OIDC `CreateToken` API and stores refreshed or
+rotated credentials in an account-scoped `kiro/oauth.json` file. That file is
+mode `0600` on Unix. kiro-cli's database is opened read-only and is never
+modified.
+
+## Command Code
+
+`{cc_plan}`, `{cc_session_pct}`, `{cc_session_reset}`, `{cc_session_used}`,
+`{cc_session_cap}`, `{cc_weekly_pct}`, `{cc_weekly_reset}`,
+`{cc_weekly_used}`, `{cc_weekly_cap}`, `{cc_monthly_pct}`,
+`{cc_monthly_reset}`, `{cc_monthly_used}`, `{cc_monthly_cap}`,
+`{cc_credits}`, `{cc_credits_pool}`, `{cc_credits_spent}`,
+`{cc_credits_reset}`
+
+The rolling windows are priced in dollars, so the `*_used` and `*_cap`
+placeholders expand to money rather than counts. The monthly family describes
+the plan's credit allowance as a window: `{cc_monthly_used}` is the spend
+derived from the credit ledger against the plan pool, and
+`{cc_monthly_reset}` is the subscription's billing period end, when the
+ledger refills. A plan the release does not know, or a response without the
+credit ledger, leaves the monthly family and `{cc_credits_reset}` at `—`.
+`{session_pct}` and `{weekly_pct}` alias the 5-hour and weekly windows.
+
+
+## Ollama Cloud
+
+`{oll_session_pct}`, `{oll_session_reset}`, `{oll_session_pace}`,
+`{oll_weekly_pct}`, `{oll_weekly_reset}`, `{oll_weekly_pace}`,
+`{oll_monthly_pct}`, `{oll_monthly_reset}`, `{oll_monthly_pace}`,
+`{oll_plan}`, `{oll_cost}`
+
+Ollama Cloud reports either a 5-hour session + weekly pair, or a single
+calendar-month window, as a fraction of the plan limit — never both in the
+same response — so all three percentage placeholders are whole numbers
+after clamping to 0..=100, and the pair the account does not report stays
+at `0`. The API does not publish reset timestamps, pace deltas, or a plan
+label: `{oll_plan}` falls back to the `plan` string from your config, and
+the reset/pace families render neutral values when the window projection
+is unavailable. `{oll_cost}` is the dollar figure the settings page reports
+for the last four weeks of activity. `{session_pct}` and `{weekly_pct}`
+alias the session and weekly windows.

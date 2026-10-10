@@ -1,0 +1,118 @@
+# Vendor endpoints and live tests
+
+Some providers do not publish a stable usage API. ai-usagebar keeps its parsers
+defensive and includes opt-in live tests for catching response changes.
+
+## Support matrix
+
+| Vendor | Endpoint | What you see | Native desktop selector (v0.13) |
+|---|---|---|---|
+| **Claude** | `api.anthropic.com/api/oauth/usage` (undocumented) | Session (5h), Weekly (7d), model-scoped weekly (e.g. Fable), Extra usage $ | Yes |
+| **Codex** | `chatgpt.com/backend-api/wham/usage`, plus `…/wham/rate-limit-reset-credits` when any are banked (undocumented; both used by the official `codex` CLI) | Codex 5h and/or weekly, Code-review weekly, named extra limits with their own windows, models currently at capacity, Credits, banked reset credits + expiry | Yes |
+| **GitHub Copilot** | `api.github.com/copilot_internal/user` (private; used by VS Code) | Premium requests, Chat, and Completions quota %, counts when supplied, plan, reset | Yes |
+| **Z.AI** | `api.z.ai/api/monitor/usage/quota/limit` (undocumented) | Session 5h, Weekly 7d, MCP tools monthly | Yes |
+| **OpenRouter** | `openrouter.ai/api/v1/{credits,key}` (documented) | Balance, today/week/month spend, free vs paid tier | Yes |
+| **DeepSeek** | `api.deepseek.com/user/balance` (documented) | Balance, granted, topped-up credits | Yes |
+| **DeepInfra** | `api.deepinfra.com/payment/checklist` and `/payment/usage?from=current` (documented) | Available prepaid balance, current-month spend, optional monthly limit | No — widget/TUI only |
+| **Kimi** | `api.kimi.com\|.ai/coding/v1/usages` (undocumented; community-confirmed), plus `auth.kimi.com\|.ai/api/oauth/token` to refresh a Kimi Code CLI login | Weekly subscription quota + 5h rolling rate-limit window; newer accounts return a `usages` ratio map instead of the weekly block, and only the combined monthly pool (`limit_month_total`) is read from it | No — widget/TUI only; desktop protocol and marker parity are future work |
+| **MiniMax** | `api.minimax.io/v1/token_plan/remains` (official Token Plan quota route) | Token Plan rolling interval window + weekly, per model bucket (text, video) | No — widget/TUI only |
+| **Kilo** | `api.kilo.ai/api/profile/balance` (undocumented; extension-internal) | Remaining credit balance ($) | No — widget/TUI only |
+| **Novita** | `api.novita.ai/openapi/v1/billing/balance/detail` (documented) | Remaining credit balance ($) | No — widget/TUI only |
+| **Moonshot** | `api.moonshot.ai\|.cn/v1/users/me/balance` (documented) | Account balance ($ on `.ai`, ¥ on `.cn`) | No — widget/TUI only |
+| **Grok (xAI)** | `management-api.x.ai/v1/billing/teams/{team}/prepaid/balance` (Management API; documented) | Prepaid credit balance ($) | No — widget/TUI only |
+| **SuperGrok** | `cli-chat-proxy.grok.com/v1/billing` with the Grok Build login's key, falling back to its `x.ai/billing` ACP extension; `grok.com` `ConsumerUiSvc/GetRemainingResets` for banked resets | Current weekly/monthly included-credit %, per-product slices (`GrokBuild` / `GrokChat` / `GrokImagine` / …), prepaid API balance, reset, banked resets + expiry | No — widget/TUI only |
+| **Grok Bot** | `api2.cursor.sh/aiserver.v1.DashboardService/GetSandUsageStatus` (Connect-RPC, POST `{}`; undocumented, captured from the desktop app) with the app's own OAuth session, refreshed at `api2.cursor.sh/oauth/token` | Weekly included-usage pool % + reset, plan label, on-demand eligibility flag | No — widget/TUI only; Linux (`~/.config/Grok Bot/sand-secrets.json`) and macOS (`~/Library/Application Support/Grok Bot/sand-secrets.json`) |
+| **Anthropic API** | `api.anthropic.com/v1/organizations/cost_report` (Admin API; documented) | Month-to-date spend ($, excludes Priority Tier), optional spend-vs-limit % | No — widget/TUI only |
+| **Google Antigravity** | A loopback RPC on the local Antigravity product's own port, discovered from `/proc` (Linux), `lsof` (macOS), or the process/TCP tables (Windows). When no product is running, or `agy` requires its undiscoverable CSRF token: `POST https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary` (fallback `cloudcode-pa.googleapis.com`) and `…:loadCodeAssist` for the plan, with the Google OAuth session Antigravity saved in the OS keyring or `~/.gemini/antigravity-cli/antigravity-oauth-token`, refreshed at `https://oauth2.googleapis.com/token` | Whichever quota windows the account reports — Gemini and Claude/GPT pools, 5-hour and weekly | Yes |
+| **Cursor** | `cursor.com/api/usage-summary` (undocumented; the dashboard's own frontend) | Two included-usage pools this billing cycle — Cursor Models (Auto/Composer) % and Other Models (named/API) % — plus plan, reset, and on-demand spend/limit when available | Yes |
+| **Kiro CLI** | `codewhisperer.<region>.amazonaws.com` `GetUsageLimits` (undocumented; the same call kiro-cli's own `/usage` slash command makes) | Single credit pool this cycle — used/limit/%, plan, reset | No — widget/TUI only |
+| **Nous Research** | `portal.nousresearch.com/api/oauth/account` (OAuth-authenticated Portal account response) | Subscription usage %, subscription credits, top-up/purchased credits, total usable credits, renewal | Yes |
+| **OpenCode Go** | `opencode.ai/zen/go/v1/usage` | Rolling, weekly, and monthly `percent` windows with absolute reset timestamps | Yes |
+| **Command Code** | `api.commandcode.ai` `/alpha/billing/credits` + `/alpha/billing/subscriptions` (undocumented; the same calls the official `commandcode` CLI's `/usage` makes) | 5-hour and weekly rolling spend windows ($ used of $ cap), plan, and remaining monthly credits | No — widget/TUI only |
+| **Ollama Cloud** | `ollama.com/api/usage` (undocumented; the same route the official ollama.com/settings page calls) | 5-hour session % and weekly %, **or** a single monthly % (accounts report one shape or the other, never both), per-model request counts, last-4-weeks activity cost, config-supplied plan label | No — widget/TUI only |
+| **OrcaRouter** | `api.orcarouter.ai/v1/dashboard/billing/{usage,subscription}` (one-api compatible; the structs are named verbatim in OrcaRouter's docs) | Credit card — cumulative spend (US cents on the wire), total credit limit, remaining, key expiry; unlimited keys report the `100000000` sentinel and render spend-only | No — widget/TUI only |
+| **Alibaba Cloud Model Studio** | Console gateway `POST https://{host}/cli/api.json?action={action}&product=sfm_bailian&api=zeldaHttp.apikeyMgr.%2Ftokenplan%2Fpersonal%2Fapi%2Fv2%2Fusage` (undocumented console gateway, reconstructed from the official open-source `bl` CLI), with the console session `bl auth login --console` stored in `~/.bailian/config.json`. Host×action by region×site: `bailian-cs.console.aliyun.com`/`bailian-cs.console.alibabacloud.com` + `BroadScopeAspnGateway` (cn-beijing), `modelstudio-cs.console.aliyun.com`/`bailian-singapore-cs.alibabacloud.com` + `IntlBroadScopeAspnGateway` (ap-southeast-1) | Token Plan 5-hour and weekly percentage windows with epoch-ms resets; an absent window is no-data (possibly unlimited), never 0% | No — widget/TUI only |
+
+When Antigravity uses the Cloud Code fallback, the TUI labels the source
+`Google API`. The saved session may come from the OS keyring or
+the CLI token file.
+
+
+## Providers evaluated and not added
+
+Requests for a new provider come down to one question: **is the quota reachable
+with a credential the user already has, obtained the way this project obtains
+credentials?** Every supported vendor uses one of three: an API key the user
+holds, an OAuth file an official CLI wrote (`~/.codex/auth.json`, kiro-cli's
+`data.sqlite3`, Cursor's `state.vscdb`), or an official CLI invoked for a token
+(`gh auth token`). CLI, editor and browser credentials are never parsed, copied,
+or stored, and no vendor asks the user to paste a session cookie.
+
+| Provider | Status | Why |
+|---|---|---|
+| **Xiaomi MiMo** (Token Plan) | Not implementable | The quota routes (`platform.xiaomimimo.com/api/v1/tokenPlan/{usage,detail}`) authenticate with a Xiaomi Account **web SSO session**, not the plan's API key. The API key reaches only the inference gateway, which exposes no quota surface and returns no rate-limit headers. The effective session credential is an HttpOnly cookie, so there is no CLI-written file to read — only a browser profile. Waiting on Xiaomi to expose quota to API keys. (#146) |
+| **Meta Muse** (Muse Spark) | Not implementable as a native vendor | `https://api.meta.ai/v1` serves inference only: Meta publishes no usage, quota, or billing endpoint for it. The `dev.meta.ai` dashboard reads team spend through a private GraphQL route on a browser session — a browser credential, which this project never uses. The Muse Code OAuth token (macOS Keychain `ai.meta.dev.credentials`, `~/.config/muse/auth.json`) reaches the same inference gateway, so there is no quota-bearing credential to read. Workaround inside the rules: tally the per-call token usage Muse Code already writes to its local `~/.local/share/muse/sessions` logs (`model_completed` events) and serve it through a `[[custom]]` provider — see the commented `muse` recipe in `config.example.toml`. |
+
+
+## Stability notes
+
+| Provider | Status |
+|---|---|
+| Claude | Undocumented usage endpoint, but used by the official `claude` CLI. Less fragile than a scraped web page. |
+| Codex | Undocumented ChatGPT usage endpoint used by the official `codex` CLI. Windows are identified by duration instead of response position. |
+| GitHub Copilot | Private endpoint used by VS Code. It requires a GitHub OAuth token and VS Code-compatible client headers; ai-usagebar gets it from the official `gh auth token` command after `gh auth login --web`. A non-empty `GITHUB_COPILOT_TOKEN` is an optional explicit override. GitHub CLI/editor/browser credentials are never parsed, copied, or stored. |
+| Z.AI | Reverse-engineered from a third-party plugin. Treat this as the most fragile integration. |
+| Kimi | Community-confirmed `/coding/v1/usages` route used by third-party quota tools. Drift is possible. The refresh grant is the Kimi Code CLI's own documented-by-behaviour device-flow token endpoint, using the CLI's public client id. |
+| Cursor | Undocumented endpoint called by Cursor's dashboard. Its shape may change with Cursor pricing. |
+| MiniMax | The Token Plan route is official, but no formal response schema is published. |
+| Kiro CLI | `GetUsageLimits` is the same undocumented CodeWhisperer operation used by kiro-cli's `/usage` command. AWS SSO OIDC `CreateToken`, used for refresh, is documented. |
+| Grok Bot | Undocumented Connect-RPC dashboard call, captured live from the desktop app (#206). The request omits `x-cursor-checksum` (Cursor's machine checksum cannot be reproduced); if the server starts requiring it, the fetch fails closed onto the cache. Auth is the app's own session: OSCrypt `v10`/`v11` blobs in `sand-secrets.json` — Linux one-round PBKDF2, trying both the `secret-tool` item and Chromium's `"peanuts"` default because the app's Secret Service backend decides which one it encrypts with, macOS 1003-round Keychain item `Grok Bot Safe Storage` / `Grok Bot Key`. Refreshed through Cursor's public installed-app OAuth client; rotations persist only to ai-usagebar's vendor cache, never to the app's file. Windows is fail-closed. |
+| Command Code | Undocumented `/alpha/*` routes called by the official `commandcode` CLI. The `alpha` path segment is the vendor's own signal that these may move. Windows are read by name (`fiveHour`, `weekly`) rather than by position, and `windowLimits` is accepted both at the top level and beside the ledger, so the most likely reshuffles are already tolerated. |
+| Ollama Cloud | Undocumented, but the route the official settings page itself calls. Auth is a static Bearer key minted at ollama.com/settings/keys — unrelated to the CLI's Ed25519 registry key, which ai-usagebar never reads. `usage` is a fraction (0..1), not a percent; the parser clamps it to a bounded percent. Two response shapes are live-verified under the same `"pro"` plan label — `session` + `weekly`, or `monthly` alone — never combined; the parser accepts either. |
+| Model Studio | Undocumented console gateway, reconstructed from the official open-source `bl` CLI — the request shape (URL, form body, `cornerstoneParam` context) and the tolerant double-`DataV2` unwrap follow its source, so a CLI update is the drift signal to watch. Percentages arrive as ratios in [0,1] and resets as epoch milliseconds; anything outside that contract is reported as schema drift rather than a figure. Auth is the CLI's own console token in `~/.bailian/config.json`, read-only; AK/SK refresh is out of scope, and a `NotLogined` errorCode surfaces as the `bl auth login --console` re-auth hint. |
+
+Codex's known five-hour and seven-day windows are matched by their reported
+duration, not by `primary_window` or `secondary_window` position. This handles
+both the normal response and the temporary
+[weekly-only response](https://github.com/openai/codex/issues/32707) without a
+config switch.
+
+### Banked resets
+
+Codex and SuperGrok both let you *earn* quota resets and redeem them by hand,
+which is a different thing from the window rollover in the table above. Both
+report them behind a second endpoint, and both are read-only here:
+ai-usagebar shows what you have and when it lapses, and never redeems one. The
+redemption identifier each provider returns beside the expiry
+(`credits[].id`, `tokens[].token_id`) is skipped during parsing rather than
+parsed and dropped, so it reaches neither the cache nor the screen.
+
+| Provider | Endpoint | Notes |
+|---|---|---|
+| Codex | `GET chatgpt.com/backend-api/wham/rate-limit-reset-credits` | Called only when the usage response's `rate_limit_reset_credits.available_count` is non-zero. The count always comes from the usage response — that is the one consistent with the quota figures beside it. A failure of this call costs the expiry date and nothing else. |
+| SuperGrok | `POST grok.com/prod_mc_billing.ConsumerUiSvc/GetRemainingResets` | gRPC-Web (`application/grpc-web+proto`) with the Grok Build login's own bearer key — the same key `direct.rs` uses, in one outgoing header, never copied or cached. The response is a `repeated ConsumerResetToken` whose `validity_end` is the expiry; a hand-written bounded protobuf reader takes the count and that field, skipping everything else by wire type. gRPC reports failure in a trailer *behind* HTTP 200, so the trailer's `grpc-status` is checked before any count is believed. |
+
+Neither is documented, and both are more fragile than the usage endpoints they
+accompany. Both fail quietly by design: a broken reset call leaves the rest of
+the vendor's snapshot exactly as it was.
+
+## Run the live tests
+
+```bash
+make smoke
+```
+
+Claude, Codex, Z.AI, and OpenRouter tests require their normal credentials or
+API keys. Command Code needs no key of its own — it reuses whichever local
+agent harness is signed in, and skips when none is. Kimi is optional: its test
+prints a skip reason when `KIMI_API_KEY` is unset (the smoke test covers the
+API-key path; a subscription login is exercised by `ai-usagebar --vendor kimi`).
+
+To test only Kimi:
+
+```bash
+cargo test --test live kimi_live -- --ignored --nocapture
+```
+
+The tests validate the fields used by ai-usagebar and report which part of a
+response changed.
