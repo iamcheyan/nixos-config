@@ -269,7 +269,7 @@ in
     alacritty
     ghostty
     foot
-    firefox
+    firefoxpwa
     nautilus
 
     # KDE applications used from Labwc need their dark widget style, color
@@ -308,6 +308,15 @@ in
     brightnessctl
     pamixer
   ];
+
+  # Firefox's NixOS module installs the browser with its declared native
+  # messaging hosts and managed extension settings.
+  programs.firefox.enable = true;
+  programs.firefox.nativeMessagingHosts.packages = [ pkgs.firefoxpwa ];
+  programs.firefox.policies.ExtensionSettings."firefoxpwa@filips.si" = {
+    installation_mode = "normal_installed";
+    install_url = "https://addons.mozilla.org/firefox/downloads/latest/pwas-for-firefox/latest.xpi";
+  };
 
   systemd.services.amdgpu-dpm = {
     description = "Pin amdgpu DPM performance level (AC=high, battery=auto)";

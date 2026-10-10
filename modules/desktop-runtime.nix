@@ -22,7 +22,7 @@ in {
   environment.systemPackages = [ desktopPackage ] ++ (with pkgs; [
     bash coreutils util-linux fontconfig findutils gnused gnugrep gawk jq gum curl socat systemd glib libsecret xdg-utils libnotify
     hyprpicker hyprsunset hyprlock quickshell wl-clipboard wtype grim slurp
-    imagemagick ffmpeg gpu-screen-recorder mpv yt-dlp tesseract zbar qrencode pciutils brightnessctl ddcutil
+    imagemagick ffmpeg mpv yt-dlp tesseract zbar qrencode pciutils brightnessctl ddcutil
     pulseaudio wireplumber playerctl bluez networkmanager fastfetch nh btop ripgrep fd dua bat fzf tmux inotify-tools python3
     xdg-terminal-exec uwsm foot chromium nautilus neovim mise lazygit lazydocker eza zoxide starship gtk3 udiskie git less man-db
     unzip pamixer alsa-utils imv evince tldr inxi ffmpegthumbnailer vips file libxkbcommon xdg-user-dirs satty wl-screenrec
@@ -40,6 +40,7 @@ in {
     pipewire.jack.enable = lib.mkDefault true;
     logind.settings.Login = { HandlePowerKey = lib.mkDefault "ignore"; InhibitDelayMaxSec = lib.mkDefault 15; };
   };
+  programs.gpu-screen-recorder.enable = true;
   environment.etc."omarchy/xcompose".source = "${tree}/default/xcompose";
   virtualisation.docker.enable = lib.mkDefault true;
   networking.firewall.allowedTCPPorts = [ 53317 ];

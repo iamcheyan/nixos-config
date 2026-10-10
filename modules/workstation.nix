@@ -30,6 +30,8 @@
   home-manager.backupFileExtension = "hm-backup-nixos-v6";
 
   boot.loader.systemd-boot.enable = true;
+  # Keep a small set of bootable rollback generations on the 1 GiB ESP.
+  boot.loader.systemd-boot.configurationLimit = 10;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.kernelPackages = pkgs.linuxPackages_latest;
   time.timeZone = "Asia/Tokyo";
