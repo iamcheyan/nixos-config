@@ -78,7 +78,7 @@ printf '%s applied: output=%s scale=%s\n' \
 # the target output's scale. All other outputs keep their current settings.
 mkdir -p "$(dirname "$_KANSHI_CFG")"
 python3 - "$_KANSHI_CFG" "$cur_out" "$scale" <<'PYEOF'
-import sys, subprocess
+import os, sys, subprocess
 
 cfg_path, target_out, target_scale = sys.argv[1], sys.argv[2], sys.argv[3]
 
@@ -126,6 +126,12 @@ for o in outputs:
     if o['name'] == target_out:
         o['scale'] = fmt_scale(target_scale)
 
+if os.path.islink(cfg_path):
+    try:
+        os.unlink(cfg_path)
+    except OSError:
+        pass
+
 with open(cfg_path, 'w') as f:
     f.write("profile auto {\n")
     for o in outputs:
@@ -144,6 +150,10 @@ with open(cfg_path, 'w') as f:
         f.write(' '.join(row) + '\n')
     f.write("}\n")
 PYEOF
+
+systemctl --user reload-or-restart kanshi.service >/dev/null 2>&1 || pkill -HUP kanshi >/dev/null 2>&1 || true
+command -v omarchy-display-randr >/dev/null 2>&1 &&
+    omarchy-display-randr --output "$cur_out" --scale "$scale" --persist >/dev/null 2>&1 || true
 
 printf '%s persisted: output=%s scale=%s → %s\n' \
     "$(date '+%F %T')" "$cur_out" "$scale" "$_KANSHI_CFG" >>"$log"

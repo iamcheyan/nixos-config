@@ -13,9 +13,20 @@ Item {
   property int capturesFinished: 0
   property int captureCount: Quickshell.screens.length
   property string captureScript: Quickshell.env("HOME") + "/.config/labwc/scripts/omarchy-capture-frozen"
+  property string desktopCaptureScript: (Quickshell.env("QUICKSHELL_ROOT") || Quickshell.shellDir)
+    + "/plugins/screenshot/bin/anchor-screenshot-desktop"
+  property string pendingDesktopOutput: ""
+
+  function beginDesktop(outputName) {
+    if (capturing || selecting || Quickshell.screens.length === 0) return
+    pendingDesktopOutput = String(outputName || "")
+    closePopups()
+    desktopCaptureTimer.restart()
+  }
 
   function begin() {
     if (capturing || selecting || Quickshell.screens.length === 0) return "busy"
+    closePopups()
     requestId = String(Date.now())
     captureDir = (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp")
       + "/anchor-frozen-screenshot-" + requestId
@@ -106,6 +117,20 @@ Item {
     function status(): string {
       return JSON.stringify({ capturing: service.capturing, selecting: service.selecting,
         capturesFinished: service.capturesFinished, captureCount: service.captureCount })
+    }
+  }
+
+  Timer {
+    id: desktopCaptureTimer
+    interval: 250
+    repeat: false
+    onTriggered: {
+      if (service.pendingDesktopOutput === "") {
+        console.warn("screenshot: no display selected for desktop capture")
+        return
+      }
+      Quickshell.execDetached([service.desktopCaptureScript, service.pendingDesktopOutput])
+      service.pendingDesktopOutput = ""
     }
   }
 }

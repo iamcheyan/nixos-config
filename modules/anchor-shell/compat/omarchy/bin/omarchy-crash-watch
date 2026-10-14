@@ -1,6 +1,6 @@
 #!/nix/store/pkf547jp8a92k4wmxikkyby58w10pysr-bash-interactive-5.3p9/bin/bash
 
-# omarchy:summary=Watch for process crashes and offer an AI diagnosis
+# omarchy:summary=Notify when a process crashes
 # omarchy:hidden=true
 
 # systemd-coredump journals every core dump under a known MESSAGE_ID with
@@ -41,8 +41,7 @@ announce() {
     --urgency critical \
     --glyph "$CRASH_GLYPH" \
     "Process crashed: $comm" \
-    "Click to diagnose with AI" \
-    --exec omarchy-agent-crash "$pid" "$comm" "$exe" "$signal"
+    "Crash captured by systemd-coredump (PID $pid, $signal)"
 }
 
 # -n 0 so a restart does not re-announce crashes already dealt with.
@@ -57,11 +56,6 @@ journalctl -f -n 0 -o json "MESSAGE_ID=$COREDUMP_MESSAGE_ID" 2>/dev/null |
     )
 
     [[ $pid =~ ^[0-9]+$ ]] || continue
-
-    # The toast only offers a diagnosis, so it has nothing to offer until an
-    # agent is chosen. Checked per crash, not at startup, so picking one takes
-    # effect without restarting this service.
-    [[ -n $(omarchy-default-agent) ]] || continue
 
     # Only this user's crashes; a daemon dumping core is a sysadmin's problem.
     [[ $uid =~ ^[0-9]+$ ]] || continue

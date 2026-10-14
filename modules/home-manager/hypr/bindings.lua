@@ -51,6 +51,16 @@ o.bind("CTRL + SHIFT + F3", "MINILA-R delayed fullscreen screenshot", "omarchy-d
 -- Disable a default binding without replacing it.
 -- hl.unbind("SUPER + SHIFT + B")
 
+-- Leave Win+C and Win+V available to applications.
+hl.unbind("SUPER + C")
+hl.unbind("SUPER + V")
+
+-- Use Alt for mouse window manipulation.
+hl.unbind("SUPER + mouse:272")
+hl.unbind("SUPER + mouse:273")
+o.bind("ALT + mouse:272", "Move window", hl.dsp.window.drag(), { mouse = true })
+o.bind("ALT + mouse:273", "Resize window", hl.dsp.window.resize(), { mouse = true })
+
 -- Logitech MX Keys examples:
 -- o.bind("SUPER + SHIFT + S", nil, "omarchy-capture-screenshot")
 -- o.bind("SUPER + H", nil, "voxtype record toggle")
@@ -59,3 +69,6 @@ o.bind("CTRL + SHIFT + F3", "MINILA-R delayed fullscreen screenshot", "omarchy-d
 -- Delayed screenshot (script managed by chezmoi at ~/.local/bin/).
 -- Usage: omarchy-delayed-screenshot [seconds] [region|fullscreen]
 o.bind("SHIFT + PRINT", "Delayed screenshot", "omarchy-delayed-screenshot 3")
+
+-- Inua owns standalone Win and Win+Tab through its runtime keyboard listener.
+-- Keep Alt+Tab's normal window switching bindings.

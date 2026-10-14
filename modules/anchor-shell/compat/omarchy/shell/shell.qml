@@ -213,7 +213,7 @@ ShellRoot {
 
   function configureBar(target, manifest) {
     if (!target) return
-    if ("omarchyPath" in target) target.omarchyPath = shell.omarchyPath
+    if ("integrationPath" in target) target.integrationPath = shell.omarchyPath
     if ("shell" in target) target.shell = shell
     if ("manifest" in target) target.manifest = manifest
     if ("barWidgetRegistry" in target) target.barWidgetRegistry = shell.barWidgetRegistry
@@ -226,7 +226,7 @@ ShellRoot {
     id: defaultBarComponent
 
     Bar {
-      omarchyPath: shell.omarchyPath
+      integrationPath: shell.omarchyPath
       barWidgetRegistry: shell.barWidgetRegistry
       barConfig: shell.barConfig
       shell: shell

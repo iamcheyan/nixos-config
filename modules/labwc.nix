@@ -110,9 +110,15 @@ let
   # 1280px-wide Philips output is followed directly by the 1920px-wide
   # logical area of the scaled 4K output.
   labwcKanshiConfig = pkgs.writeText "labwc-kanshi.conf" ''
-    profile {
-      output HDMI-A-1 mode 1280x1024@60Hz position 0,0 scale 1
-      output HDMI-A-2 mode 3840x2160@60Hz position 1280,0 scale 2
+    profile dual {
+      output HDMI-A-1 mode 1280x1024 position 0,0 scale 1
+      output HDMI-A-2 mode 3840x2160 position 1280,0 scale 2
+    }
+    profile single-4k {
+      output HDMI-A-2 mode 3840x2160 position 0,0 scale 2
+    }
+    profile single-hd {
+      output HDMI-A-1 mode 1280x1024 position 0,0 scale 1
     }
   '';
 
@@ -173,8 +179,10 @@ let
     export QML2_IMPORT_PATH="${pkgs.kdePackages.kirigami.unwrapped}/lib/qt-6/qml''${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}"
     export QML_IMPORT_PATH="${pkgs.kdePackages.kirigami.unwrapped}/lib/qt-6/qml''${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
 
-    # Apply output modes, positions, and scale on login and on hotplug.
-    ${pkgs.kanshi}/bin/kanshi -c "${labwcKanshiConfig}" >/dev/null 2>&1 &
+    # Restore display layout if saved by Anchor Shell monitor controls.
+    if [ -f "$anchor_state_dir/display-layout.json" ]; then
+      ${pkgs.bash}/bin/bash "${quickshellCompatRoot}/bin/omarchy-display-randr" --restore >/dev/null 2>&1 || true
+    fi
 
     # Labwc owns the desktop wallpaper via set-wallpaper script.
     "$HOME/.config/labwc/scripts/set-wallpaper" wayland >/dev/null 2>&1 &
@@ -242,8 +250,8 @@ let
     # Anchor Shell is supervised by the user systemd service below.  Keep
     # exactly one owner for the Quickshell process; a second shell here can
     # race the IPC/layer-shell instance and leave labwc looking black.
-    ${pkgs.systemd}/bin/systemctl --user reset-failed anchor-shell-labwc-probe.service 2>/dev/null || true
-    ${pkgs.systemd}/bin/systemctl --user restart --no-block anchor-shell-labwc-probe.service &
+    ${pkgs.systemd}/bin/systemctl --user reset-failed anchor-shell-labwc-probe.service anchor-fcitx5.service kanshi.service 2>/dev/null || true
+    ${pkgs.systemd}/bin/systemctl --user restart --no-block anchor-shell-labwc-probe.service anchor-fcitx5.service kanshi.service &
   '';
 in
 {
@@ -293,11 +301,26 @@ in
 
     systemd.user.services.anchor-fcitx5 = {
       description = "Fcitx5 input method for Anchor Shell sessions";
-      after = [ "graphical-session.target" ];
-      partOf = [ "graphical-session.target" ];
+      after = [ "graphical-session.target" "anchor-shell-labwc-probe.service" ];
+      partOf = [ "graphical-session.target" "anchor-shell-labwc-probe.service" ];
+      wantedBy = [ "graphical-session.target" "anchor-shell-labwc-probe.service" ];
       unitConfig.ConditionEnvironment = "WAYLAND_DISPLAY";
       serviceConfig = {
         ExecStart = "${config.i18n.inputMethod.package}/bin/fcitx5";
+        Restart = "always";
+        RestartSec = 2;
+        Type = "simple";
+      };
+    };
+
+    systemd.user.services.kanshi = {
+      description = "Kanshi dynamic display configuration daemon";
+      after = [ "graphical-session.target" "anchor-shell-labwc-probe.service" ];
+      partOf = [ "graphical-session.target" "anchor-shell-labwc-probe.service" ];
+      wantedBy = [ "graphical-session.target" "anchor-shell-labwc-probe.service" ];
+      unitConfig.ConditionEnvironment = "WAYLAND_DISPLAY";
+      serviceConfig = {
+        ExecStart = "${pkgs.kanshi}/bin/kanshi -c %h/.config/kanshi/config";
         Restart = "always";
         RestartSec = 2;
         Type = "simple";
@@ -395,7 +418,10 @@ in
             executable = true;
           };
       };
-      xdg.configFile."kanshi/config".source = labwcKanshiConfig;
+      xdg.configFile."kanshi/config" = {
+        source = labwcKanshiConfig;
+        force = true;
+      };
       xdg.configFile."wofi".source = labwcWofi;
       xdg.configFile."fuzzel".source = labwcFuzzel;
       xdg.configFile."mako".source = labwcMako;

@@ -70,6 +70,7 @@ Item {
   property color barForeground: useTransparentForeground ? transparentForeground : themeForeground
   property bool foregroundAnimationEnabled: true
   property color background: Color.bar.background
+  property real backgroundOpacity: 0.8
   property color urgent: Color.bar.active
 
   Behavior on barForeground { enabled: root.foregroundAnimationEnabled; ColorAnimation { duration: 420; easing.type: Easing.InOutCubic } }
@@ -355,6 +356,9 @@ Item {
     var config = Util.isPlainObject(barConfig) ? barConfig : fallbackBarConfig
 
     position = normalizePosition(config.position)
+    var configuredOpacity = Number(config.backgroundOpacity)
+    backgroundOpacity = isFinite(configuredOpacity)
+      ? Math.max(0, Math.min(1, configuredOpacity)) : 0.8
     setRequestedTransparency(config.transparent === true)
     centerAnchor = Util.canonicalWidgetId(config.centerAnchor || "")
 
@@ -1031,7 +1035,8 @@ Item {
     implicitHeight: root.vertical ? 0 : root.barSize
     // Keep the bar itself solid in layout, but render its background with 20%
     // transparency so the desktop shows through without dimming widgets/text.
-    color: root.transparent ? "transparent" : Util.alpha(root.background, 0.8)
+    color: root.transparent ? "transparent"
+      : Qt.rgba(root.background.r, root.background.g, root.background.b, root.backgroundOpacity)
     surfaceFormat.opaque: false
     WlrLayershell.namespace: "omarchy-bar"
     WlrLayershell.layer: WlrLayer.Top

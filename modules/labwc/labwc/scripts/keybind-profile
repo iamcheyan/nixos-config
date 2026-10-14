@@ -48,7 +48,7 @@ cat > "$rc_file" << HEADER
   <theme>
     <name>BL-Lithium-dark</name>
     <cornerRadius>0</cornerRadius>
-    <maximizedDecoration>none</maximizedDecoration>
+    <maximizedDecoration>border</maximizedDecoration>
 
     <font place="ActiveWindow" name="MesloLGS NF" size="9" />
     <font place="InactiveWindow" name="MesloLGS NF" size="9" />
@@ -151,17 +151,7 @@ cat >> "$rc_file" << 'FOOTER'
       <action name="Execute" command="~/.config/labwc/scripts/omarchy-delayed-screenshot 3 fullscreen" />
     </keybind>
     <keybind key="C-S-Print">
-      <action name="If">
-        <query><monitor>HDMI-A-1</monitor></query>
-        <then><action name="Execute" command="nixarchy-screenshot-active-monitor HDMI-A-1" /></then>
-        <else>
-          <action name="If">
-            <query><monitor>HDMI-A-2</monitor></query>
-            <then><action name="Execute" command="nixarchy-screenshot-active-monitor HDMI-A-2" /></then>
-            <else><action name="Execute" command="~/.config/labwc/scripts/screenshot-pointer-output" /></else>
-          </action>
-        </else>
-      </action>
+      <action name="Execute" command="~/.config/labwc/scripts/omarchy-capture-screenshot fullscreen copy" />
     </keybind>
     <keybind key="W-S-a">
       <action name="Execute" command="~/.config/labwc/scripts/omarchy-capture-screenshot region copy" />

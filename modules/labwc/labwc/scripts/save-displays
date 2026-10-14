@@ -41,7 +41,12 @@ def main():
     kanshi_dir = os.path.expanduser('~/.config/kanshi')
     os.makedirs(kanshi_dir, exist_ok=True)
     
-    config_path = os.path.join(kanshi_dir, 'config')
+    if os.path.islink(config_path):
+        try:
+            os.unlink(config_path)
+        except OSError:
+            pass
+
     with open(config_path, 'w') as f:
         f.write("profile saved_layout {\n")
         for out in outputs:
@@ -61,6 +66,7 @@ def main():
         f.write("}\n")
         
     print(f"Saved current display layout to {config_path}")
+    subprocess.run(["systemctl", "--user", "reload-or-restart", "kanshi.service"], check=False)
 
 if __name__ == '__main__':
     main()

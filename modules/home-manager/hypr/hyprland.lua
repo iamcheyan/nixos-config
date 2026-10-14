@@ -28,3 +28,5 @@ require("default.hypr.toggles")
 -- Add any other personal Hyprland configuration below.
 -- o.window("qemu", { workspace = "5" })
 
+-- Inua shell integration (keybindings and settings)
+pcall(function() require("hypr.inua") end)

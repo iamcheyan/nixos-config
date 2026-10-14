@@ -134,6 +134,20 @@ def clipboard_changed() -> bool:
 
 def hyprland_environment() -> dict[str, str]:
     environment = dict(os.environ)
+    # User services may have a minimal PATH which predates the Inua session.
+    # The session manager receives the compositor's PATH at login, including
+    # the versioned Hyprland package that provides hyprctl.
+    if not shutil.which("hyprctl", path=environment.get("PATH")):
+        try:
+            manager_environment = subprocess.check_output(
+                ["systemctl", "--user", "show-environment"], text=True
+            )
+            for line in manager_environment.splitlines():
+                if line.startswith("PATH="):
+                    environment["PATH"] = line.partition("=")[2]
+                    break
+        except (OSError, subprocess.CalledProcessError):
+            pass
     if environment.get("HYPRLAND_INSTANCE_SIGNATURE"):
         return environment
     try:
@@ -257,6 +271,32 @@ def paste_to_focused_kitty() -> bool:
         return False
 
     sockets = sorted(pathlib.Path("/tmp").glob("mykitty-*"))
+
+    # Kitty's own `is_focused` flags can briefly lag compositor focus during
+    # push-to-talk release. When Hyprland confirms that Kitty is the active
+    # app, prefer the socket belonging to that exact Kitty process and let
+    # Kitty resolve its internally focused terminal window.
+    environment = hyprland_environment()
+    if environment.get("HYPRLAND_INSTANCE_SIGNATURE"):
+        try:
+            active = json.loads(
+                subprocess.check_output(
+                    ["hyprctl", "activewindow", "-j"],
+                    text=True,
+                    env=environment,
+                )
+            )
+        except (OSError, subprocess.CalledProcessError, json.JSONDecodeError):
+            active = {}
+        active_class = str(active.get("class", "")).lower()
+        active_pid = str(active.get("pid", ""))
+        if active_class == "kitty" and active_pid.isdigit():
+            focused_socket = pathlib.Path(f"/tmp/mykitty-{active_pid}")
+            if focused_socket in sockets:
+                sockets.remove(focused_socket)
+                sockets.insert(0, focused_socket)
+                log(f"paste_to_focused_kitty: Hyprland selected active socket {focused_socket}")
+
     for socket_path in sockets:
         if not socket_path.exists():
             continue
@@ -271,7 +311,13 @@ def paste_to_focused_kitty() -> bool:
         except (OSError, subprocess.CalledProcessError, json.JSONDecodeError):
             continue
 
-        if not any(
+        hyprland_confirms_kitty = (
+            environment.get("HYPRLAND_INSTANCE_SIGNATURE")
+            and active_class == "kitty"
+            and active_pid.isdigit()
+            and socket_path.name == f"mykitty-{active_pid}"
+        )
+        if not hyprland_confirms_kitty and not any(
             isinstance(item, dict) and item.get("is_focused")
             for item in _walk_dicts(windows)
         ):
@@ -304,12 +350,84 @@ def paste_to_focused_kitty() -> bool:
     return False
 
 
+def paste_text_to_active_kitty() -> bool | None:
+    """Use Kitty remote control for voice text, never its image-paste keybind.
+
+    Return None when Kitty is not the compositor-focused app, so other apps
+    continue through their normal clipboard path.
+    """
+    environment = hyprland_environment()
+    if not environment.get("HYPRLAND_INSTANCE_SIGNATURE"):
+        return None
+    try:
+        active = json.loads(
+            subprocess.check_output(
+                ["hyprctl", "activewindow", "-j"], text=True, env=environment
+            )
+        )
+    except (OSError, subprocess.CalledProcessError, json.JSONDecodeError):
+        return None
+    if str(active.get("class", "")).lower() != "kitty":
+        return None
+
+    pid = str(active.get("pid", ""))
+    socket_path = pathlib.Path(f"/tmp/mykitty-{pid}") if pid.isdigit() else None
+    if socket_path is None or not socket_path.exists():
+        log(f"paste_text_to_active_kitty: no socket for focused Kitty pid={pid}")
+        return False
+    try:
+        payload = subprocess.check_output(
+            ["wl-paste", "--no-newline", "--type", "text/plain"],
+            stderr=subprocess.DEVNULL,
+        )
+        text = payload.decode("utf-8")
+        result = subprocess.run(
+            [
+                "kitty", "@", "--to", f"unix:{socket_path}", "send-text",
+                "--match", "state:focused", "--bracketed-paste", "auto", text,
+            ],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=environment,
+        )
+    except (OSError, subprocess.CalledProcessError, UnicodeDecodeError) as exc:
+        log(f"paste_text_to_active_kitty: injection failed: {exc}")
+        return False
+    log(f"paste_text_to_active_kitty: kitty remote-control exit={result.returncode}")
+    return result.returncode == 0
+
+
 def paste_to_focused_xwayland_app() -> bool:
     """Bridge the Wayland clipboard and send Ctrl+V through XTEST."""
     xdotool = shutil.which("xdotool")
     xclip = shutil.which("xclip")
     app_id = active_app_id()
-    if not xdotool or not xclip or not app_id:
+    if not xdotool or not xclip:
+        return False
+
+    # Inua does not expose its active application through Quickshell IPC.
+    # Hyprland does expose both the app class and whether the window is
+    # XWayland, which lets this branch reliably select Telegram and similar
+    # apps even when there is no shell IPC instance.
+    hypr_env = hyprland_environment()
+    if hypr_env.get("HYPRLAND_INSTANCE_SIGNATURE"):
+        try:
+            window = json.loads(
+                subprocess.check_output(
+                    ["hyprctl", "activewindow", "-j"],
+                    text=True,
+                    env=hypr_env,
+                )
+            )
+        except (OSError, subprocess.CalledProcessError, json.JSONDecodeError):
+            return False
+        if not window.get("xwayland"):
+            return False
+        app_id = str(window.get("class", "")).lower()
+        if not app_id:
+            return False
+    elif not app_id:
         return False
 
     try:
@@ -438,6 +556,13 @@ def main() -> None:
         return
     if paste_to_focused_kitty():
         log("main: handled by paste_to_focused_kitty")
+        return
+    kitty_result = paste_text_to_active_kitty()
+    if kitty_result is not None:
+        if kitty_result:
+            log("main: handled by paste_text_to_active_kitty")
+        else:
+            log("main: focused Kitty paste failed; left text on clipboard without sending Shift+Insert")
         return
     if paste_to_focused_xwayland_app():
         log("main: handled by paste_to_focused_xwayland_app")

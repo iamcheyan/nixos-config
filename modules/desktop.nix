@@ -317,6 +317,10 @@ in
     installation_mode = "normal_installed";
     install_url = "https://addons.mozilla.org/firefox/downloads/latest/pwas-for-firefox/latest.xpi";
   };
+  programs.firefox.policies.ExtensionSettings."{f610e21f-3434-46e8-8db2-a811f4dbfd5f}" = {
+    installation_mode = "force_installed";
+    install_url = "https://addons.mozilla.org/firefox/downloads/latest/furigana-maker/latest.xpi";
+  };
 
   systemd.services.amdgpu-dpm = {
     description = "Pin amdgpu DPM performance level (AC=high, battery=auto)";

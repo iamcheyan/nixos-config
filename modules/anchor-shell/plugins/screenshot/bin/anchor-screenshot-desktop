@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+output=${1:?usage: anchor-screenshot-desktop OUTPUT_NAME}
+grim -o "$output" - | wl-copy --type image/png
+notify-send -a "Anchor Shell" "Screenshot" "Desktop copied to clipboard" -t 2500 2>/dev/null || true

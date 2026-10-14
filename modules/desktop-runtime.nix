@@ -86,7 +86,7 @@ in {
         };
 
         omarchy-crash-watch = {
-          description = "Announce process crashes and offer an AI diagnosis";
+          description = "Notify when a process crashes";
           after = [ "graphical-session.target" ];
           partOf = [ "graphical-session.target" ];
           wantedBy = [ "graphical-session.target" ];

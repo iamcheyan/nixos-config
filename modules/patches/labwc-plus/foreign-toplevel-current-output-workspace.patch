@@ -1,0 +1,31 @@
+diff --git a/src/foreign-toplevel/wlr-foreign.c b/src/foreign-toplevel/wlr-foreign.c
+--- a/src/foreign-toplevel/wlr-foreign.c
++++ b/src/foreign-toplevel/wlr-foreign.c
+@@ -7,2 +7,3 @@
+ #include "output.h"
++#include "workspaces.h"
+ #include "view.h"
+@@ -127,7 +128,8 @@ handle_new_outputs(struct wl_listener *listener, void *data)
+ 	 */
+ 	struct output *output;
+ 	wl_list_for_each(output, &server.outputs, link) {
+-		if (view_on_output(wlr_toplevel->view, output)) {
++		if (view_on_output(wlr_toplevel->view, output)
++				&& workspaces_view_is_visible(wlr_toplevel->view)) {
+ 			wlr_foreign_toplevel_handle_v1_output_enter(
+ 				wlr_toplevel->handle, output->wlr_output);
+ 		} else {
+diff --git a/src/workspaces.c b/src/workspaces.c
+--- a/src/workspaces.c
++++ b/src/workspaces.c
+@@ -799,6 +799,10 @@ workspaces_switch_to_on_output(struct output *output,
+ 	struct view *view;
+ 	wl_list_for_each(view, &server.views, link) {
+ 		if (view->output == output && view->scene_tree) {
+ 			view_update_visibility(view);
++			/* Refresh foreign-toplevel output membership after the active
++			 * workspace changes, so shell task docks see only this output's
++			 * currently visible windows. */
++			wl_signal_emit_mutable(&view->events.new_outputs, NULL);
+ 		}
+ 	}

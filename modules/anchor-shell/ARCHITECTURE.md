@@ -20,6 +20,7 @@ modules/anchor-shell/
 │   ├── bar/               顶栏、工作区、活动窗口
 │   ├── clipboard/         剪贴板（runtime id: iamcheyan.clipboard）
 │   ├── desktop-icons/     桌面图标（runtime id: desktop-icons）
+│   ├── omadock/           左侧应用 dock（runtime id: thepathless.omadock）
 │   ├── voxtype/           语音粘贴（runtime id: hancore.voxtype-enhance）
 │   ├── launcher/          启动器
 │   ├── lock/              锁屏（runtime id: omarchy.lock）

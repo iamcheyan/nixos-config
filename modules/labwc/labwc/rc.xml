@@ -12,7 +12,7 @@
       <layout>:max,close</layout>
     </titlebar>
     <cornerRadius>0</cornerRadius>
-    <maximizedDecoration>none</maximizedDecoration>
+    <maximizedDecoration>border</maximizedDecoration>
 
     <font place="ActiveWindow" name="Cantarell" size="10" weight="semibold" />
     <font place="InactiveWindow" name="Cantarell" size="10" weight="semibold" />
@@ -29,15 +29,6 @@
     <!-- Disable the centered workspace-switch notification. -->
     <popupTime>0</popupTime>
   </desktops>
-
-  <!-- Flux remote desktop: grant only the wlroots screen capture and virtual
-       input protocols it needs. fluxd still requires an enabled feature and
-       a paired device before it starts a remote session. -->
-  <privilegedInterfaces>
-    <allow>zwlr_screencopy_manager_v1</allow>
-    <allow>zwlr_virtual_pointer_manager_v1</allow>
-    <allow>zwp_virtual_keyboard_manager_v1</allow>
-  </privilegedInterfaces>
 
   <windowSwitcher>
     <osd show="yes" style="thumbnail" preview="yes" outlines="yes" output="cursor"
@@ -196,17 +187,7 @@
       <action name="Execute" command="~/.config/labwc/scripts/omarchy-delayed-screenshot 3 fullscreen" />
     </keybind>
     <keybind key="C-S-Print">
-      <action name="If">
-        <query><monitor>HDMI-A-1</monitor></query>
-        <then><action name="Execute" command="nixarchy-screenshot-active-monitor HDMI-A-1" /></then>
-        <else>
-          <action name="If">
-            <query><monitor>HDMI-A-2</monitor></query>
-            <then><action name="Execute" command="nixarchy-screenshot-active-monitor HDMI-A-2" /></then>
-            <else><action name="Execute" command="~/.config/labwc/scripts/screenshot-pointer-output" /></else>
-          </action>
-        </else>
-      </action>
+      <action name="Execute" command="~/.config/labwc/scripts/omarchy-capture-screenshot fullscreen copy" />
     </keybind>
     <keybind key="W-S-a">
       <action name="Execute" command="~/.config/labwc/scripts/omarchy-capture-screenshot region copy" />

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "thepathless.omadock",
+  "name": "OmaDock for Labwc",
+  "version": "0.3.0",
+  "author": "thepathless / Anchor Shell port",
+  "license": "MIT",
+  "description": "Per-monitor left-side application dock for Labwc. Uses wlr-foreign-toplevel; no Hyprland protocols.",
+  "keepLoaded": true,
+  "kinds": ["panel"],
+  "entryPoints": { "panel": "Dock.qml" }
+}

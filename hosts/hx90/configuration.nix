@@ -9,6 +9,7 @@ in
     ../../mir2ei.nix
     ../../modules/workstation.nix
     ../../modules/update-snapshots.nix
+    ../../inux.nix
     ./apps.nix
     ../../modules/devenv.nix
   ] ++ lib.optional (localHost != null && builtins.pathExists localHost) localHost;
@@ -78,6 +79,14 @@ in
     tigervnc
     xz
   ];
+
+  # Install Furigana Maker from the Chrome Web Store for every Chrome profile.
+  environment.etc."opt/chrome/policies/managed/furigana-maker.json".text = builtins.toJSON {
+    ExtensionSettings.heodojceeinbkfjfilnfminlkgbacpfp = {
+      installation_mode = "force_installed";
+      update_url = "https://clients2.google.com/service/update2/crx";
+    };
+  };
 
   # The peer is bound to this host's LAN address; only the local subnet may
   # connect to TCP/8377 and the Syncthing data port.

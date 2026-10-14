@@ -650,7 +650,10 @@ ShellRoot {
             // Loader.errorString() reflects the source-load failure even when
             // sourceComponent is null. Surface both so the user sees something
             // actionable instead of a panel that silently refuses to open.
-            var detail = errorString && errorString() ? errorString() : ""
+            var detail = ""
+            try {
+              if (typeof errorString === "function") detail = errorString()
+            } catch (e) {}
             if (!detail && sourceComponent) detail = sourceComponent.errorString()
             console.warn("panel plugin " + panelEntry.pluginId + " failed to load:", detail)
             shell.hide(panelEntry.pluginId)

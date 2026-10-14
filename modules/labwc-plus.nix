@@ -54,6 +54,9 @@ let
 
     # NixOS/Home Manager already provides the session lifecycle wiring.  Do
     # not let Meson install a user unit into the systemd package output.
+    patches = (old.patches or [ ]) ++ [
+      ./patches/labwc-plus/foreign-toplevel-current-output-workspace.patch
+    ];
     mesonFlags = (old.mesonFlags or [ ]) ++ [
       (lib.mesonOption "systemd-session" "disabled")
     ];

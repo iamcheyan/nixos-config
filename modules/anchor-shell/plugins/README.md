@@ -23,6 +23,7 @@ unchanged for compatibility.
 | Voxtype Enhance | `voxtype/` | `hancore.voxtype-enhance` |
 | Clipboard | `clipboard/` | `iamcheyan.clipboard` |
 | Desktop Icons | `desktop-icons/` | `desktop-icons` |
+| OmaDock | `omadock/` | `thepathless.omadock` |
 | Lock Screen | `lock/` | `omarchy.lock` |
 | Screen Recording | `screen-recording/` | `anchor.screen-recording` |
 
@@ -48,6 +49,7 @@ unchanged for compatibility.
 | OSD           | `omarchy.osd`             | `panel`                 | `osd/Osd.qml`                         |
 | Polkit agent  | `omarchy.polkit`          | `service`               | `polkit/PolkitAgent.qml`              |
 | Desktop Icons | `desktop-icons`           | `service`               | `desktop-icons/Service.qml`           |
+| OmaDock       | `thepathless.omadock`     | `panel`                 | `omadock/Dock.qml`                    |
 
 First-party bar-only widgets also carry manifests next to their QML files,
 e.g. `bar/widgets/Workspaces.manifest.json`. Rich popup widgets live in their

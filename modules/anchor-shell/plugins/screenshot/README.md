@@ -29,6 +29,12 @@ no fixed aspect ratio was requested: [slurp(1)](https://man.archlinux.org/man/sl
 Press Print first, then hold Shift while dragging. `Shift+Print` remains the
 separate delayed-fullscreen shortcut.
 
+The Screen Recording bar menu also provides **Capture a free area** and
+**Capture entire display**. Both close the menu before capture. The first opens
+the frozen selector; the second captures the display containing the indicator
+and copies its PNG to the clipboard, including when no application window is
+open.
+
 ## Previous Labwc shortcuts and behavior
 
 These are the bindings in `modules/labwc/labwc/rc.xml` and the matching

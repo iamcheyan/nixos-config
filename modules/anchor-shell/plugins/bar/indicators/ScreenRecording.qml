@@ -13,6 +13,9 @@ BarIndicator {
   readonly property var recorderService: root.bar && root.bar.shell
     && typeof root.bar.shell.serviceFor === "function"
     ? root.bar.shell.serviceFor("anchor.screen-recording") : null
+  readonly property var screenshotService: root.bar && root.bar.shell
+    && typeof root.bar.shell.serviceFor === "function"
+    ? root.bar.shell.serviceFor("omarchy.screenshot") : null
   readonly property var barScreen: (root.QsWindow && root.QsWindow.window && root.QsWindow.window.screen)
     ? root.QsWindow.window.screen
     : (Window.window && Window.window.screen ? Window.window.screen : null)
@@ -71,6 +74,18 @@ BarIndicator {
     else root.runRecorder(["stop"])
   }
 
+  function startScreenshotRegion() {
+    root.menuOpen = false
+    if (root.screenshotService) root.screenshotService.begin()
+    else Quickshell.execDetached([Quickshell.env("HOME")
+      + "/.config/labwc/scripts/omarchy-capture-frozen", "--start"])
+  }
+
+  function captureDesktop() {
+    root.menuOpen = false
+    if (root.screenshotService) root.screenshotService.beginDesktop(root.barOutputName)
+  }
+
   function runRecorder(args) {
     var rootDir = Quickshell.env("QUICKSHELL_ROOT") || Quickshell.shellDir
     var command = rootDir + "/plugins/screen-recording/bin/anchor-screen-recording"
@@ -105,15 +120,12 @@ BarIndicator {
   }
 
   onPressed: function(button) {
-    if (root.recording || root.selecting) {
-      root.stopRecording()
-      return
-    }
     if (button === Qt.RightButton) {
       root.menuOpen = !root.menuOpen
       return
     }
-    root.startRegion()
+    if (root.recording || root.selecting) root.stopRecording()
+    else root.startRegion()
   }
 
   PopupCard {
@@ -132,6 +144,7 @@ BarIndicator {
 
       Button {
         width: parent.width
+        visible: !root.recording && !root.selecting
         leftAlign: true
         iconText: "󰍹"
         text: "Record active display"
@@ -143,11 +156,51 @@ BarIndicator {
 
       Button {
         width: parent.width
+        visible: root.recording
+        leftAlign: true
+        iconText: root.paused ? "󰐊" : "󰏤"
+        text: root.paused ? "Resume recording" : "Pause recording"
+        onClicked: {
+          root.menuOpen = false
+          if (root.recorderService) root.recorderService.togglePause()
+        }
+      }
+
+      Button {
+        width: parent.width
+        visible: root.recording
+        leftAlign: true
+        iconText: "󰓛"
+        text: "Stop recording"
+        onClicked: root.stopRecording()
+      }
+
+      Button {
+        width: parent.width
+        visible: !root.recording && !root.selecting
         leftAlign: true
         iconText: "󰒉"
         text: "Record a region"
         tooltipText: "Drag to choose what to record"
         onClicked: root.startRegion()
+      }
+
+      Button {
+        width: parent.width
+        leftAlign: true
+        iconText: "󰍹"
+        text: "Capture a free area"
+        tooltipText: "Hide this menu, then drag to select an area"
+        onClicked: root.startScreenshotRegion()
+      }
+
+      Button {
+        width: parent.width
+        leftAlign: true
+        iconText: "󰄀"
+        text: "Capture entire display"
+        tooltipText: "Copy the display containing this button to the clipboard"
+        onClicked: root.captureDesktop()
       }
     }
   }
