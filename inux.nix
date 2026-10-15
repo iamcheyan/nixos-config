@@ -1,14 +1,21 @@
 { config, lib, pkgs, ... }:
 
 let
-  # inua is built from source at a pinned commit rather than from an upstream
-  # release tarball. v0.0.12 (the latest release, 2026-10-14) ships the
-  # workspace overview crash from upstream issue #13 — its window cards
-  # unreference their icon and title twice, so pressing Win segfaults the
-  # shell. Commit 54f7f2aa2f4d carries the fix but is not in any release yet.
-  # Move back to a release tarball once upstream tags one that includes it.
-  rev = "54f7f2aa2f4deddc1153dcfc327facdee2cd32f3";
-  version = "0.0.12-unstable-2026-10-14";
+  # Build the machine's Inua package from the development checkout so system
+  # upgrades pick up its current source, including uncommitted development work.
+  # Set INUA_DEV_DIR="$HOME/development/inua" when evaluating the flake with
+  # --impure; this keeps the checkout path independent of the login name.
+  version = "dev";
+  inuaDevDir = builtins.getEnv "INUA_DEV_DIR";
+  inuaSource = lib.cleanSourceWith {
+    src = if inuaDevDir == "" then
+      throw "INUA_DEV_DIR must point to the Inua development checkout (use --impure)"
+    else
+      builtins.toPath inuaDevDir;
+    filter = path: type:
+      let name = builtins.baseNameOf (toString path);
+      in name != ".git" && name != "bin";
+  };
   gtkDeps = lib.closePropagation [ pkgs.gtk4 pkgs.gtk4-layer-shell ];
 
   inua = pkgs.buildGoModule {
@@ -16,12 +23,7 @@ let
     inherit version;
     passthru.providedSessions = [ "inua" ];
 
-    src = pkgs.fetchFromGitHub {
-      owner = "lyricat";
-      repo = "inua";
-      inherit rev;
-      hash = "sha256-VxXajOsAEBEuioSnji7UOLkDhegGTXPx81tB/e2EyKQ=";
-    };
+    src = inuaSource;
 
     # No vendor/ directory upstream; buildGoModule derives it from go.mod.
     vendorHash = "sha256-iM/qEJ/PJM9PLILeC7jpw+Hz7Qd1Xy7E5YvBz5hkoSE=";
