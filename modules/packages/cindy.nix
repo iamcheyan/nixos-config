@@ -61,13 +61,16 @@ let
       xdg-utils
       zlib
     ];
-    runScript = "${app}/usr/lib/cindy/Cindy";
+    runScript = writeShellScript "cindy-fhs-launcher" ''
+      # Keep the Electron backend selection inside the FHS container so every
+      # entry point (desktop, command line, and URI handler) uses Wayland.
+      export ELECTRON_OZONE_PLATFORM_HINT=wayland
+      export OZONE_PLATFORM=wayland
+      exec ${app}/usr/lib/cindy/Cindy --ozone-platform=wayland "$@"
+    '';
   };
   launcher = writeShellScript "cindy-wayland-launcher" ''
-    # Pass through Hyprland Wayland output scaling so the UI follows each monitor.
-    export ELECTRON_OZONE_PLATFORM_HINT=wayland
-    export OZONE_PLATFORM=wayland
-    exec ${fhs}/bin/cindy --ozone-platform=wayland "$@"
+    exec ${fhs}/bin/cindy "$@"
   '';
 in
 stdenvNoCC.mkDerivation {
