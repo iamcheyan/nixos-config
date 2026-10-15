@@ -75,6 +75,7 @@ in
     microsoft-edge
     nodejs_24
     (pkgs.callPackage ../../modules/packages/ai-usagebar.nix { })
+    (pkgs.callPackage ../../modules/packages/cindy.nix { })
     ripgrep
     tigervnc
     xz
