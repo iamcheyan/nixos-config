@@ -82,18 +82,22 @@ in
 
   # The complete Hyprland user directory is now owned by Home Manager.  Keep
   # the source files in this repository; only input.lua is rendered per host.
+  # base/ carries the configuration the session used to inherit from Omarchy.
   home.file = {
     ".config/hypr/README.md" = { source = ./hypr/README.md; force = true; };
     ".config/hypr/autostart.lua" = { source = ./hypr/autostart.lua; force = true; };
     ".config/hypr/bindings.lua" = { source = ./hypr/bindings.lua; force = true; };
-    ".config/hypr/bindings.lua.bak.overview-interrupt-cleanup-1788595221" = {
-      source = ./hypr/bindings.lua.bak.overview-interrupt-cleanup-1788595221;
-      force = true;
-    };
+    ".config/hypr/bootstrap.lua" = { source = ./hypr/bootstrap.lua; force = true; };
+    ".config/hypr/base/helpers.lua" = { source = ./hypr/base/helpers.lua; force = true; };
+    ".config/hypr/base/envs.lua" = { source = ./hypr/base/envs.lua; force = true; };
+    ".config/hypr/base/input.lua" = { source = ./hypr/base/input.lua; force = true; };
+    ".config/hypr/base/windows.lua" = { source = ./hypr/base/windows.lua; force = true; };
+    ".config/hypr/base/looknfeel.lua" = { source = ./hypr/base/looknfeel.lua; force = true; };
     ".config/hypr/hyprland.lua" = { source = ./hypr/hyprland.lua; force = true; };
     ".config/hypr/hyprsunset.conf" = { source = ./hypr/hyprsunset.conf; force = true; };
     ".config/hypr/input.lua" = { text = inputWithLayout; force = true; };
     ".config/hypr/looknfeel.lua" = { source = ./hypr/looknfeel.lua; force = true; };
+    ".config/hypr/monitors.lua" = { source = ./hypr/monitors.lua; force = true; };
     ".config/hypr/xdph.conf" = { source = ./hypr/xdph.conf; force = true; };
   };
 }

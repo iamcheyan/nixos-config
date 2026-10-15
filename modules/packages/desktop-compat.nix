@@ -13,6 +13,33 @@ in stdenvNoCC.mkDerivation {
   postPatch = ''
     python3 ${./normalize-desktop-compat.py} . ${nixos-icons} ${coreutils}
     patchShebangs bin default
+
+    # This package now carries only the shared compatibility layer: the
+    # historical omarchy-* helper commands, the theme catalogue and the
+    # system-level assets that the Labwc/Anchor Shell session and the
+    # non-desktop plumbing (shell rc, fcitx5 XCompose, fonts, plymouth)
+    # depend on.
+    #
+    # The Omarchy Quickshell shell and its Hyprland configuration layer are
+    # gone: the Hyprland session now runs inua and keeps its base
+    # configuration in modules/home-manager/hypr/base/. Keeping those here
+    # would ship a shell nothing starts and a default.hypr.* tree nothing
+    # requires.
+    rm -rf default/hypr
+    rm -rf install
+    find shell -mindepth 1 -maxdepth 1 \
+      ! -name plugins -exec rm -rf {} +
+
+    # Anchor Shell still reads two helpers out of shell/plugins: the image
+    # picker's model files and the Dropbox panel's status script. Keep those
+    # subtrees and drop the rest of the shell's plugins.
+    mkdir -p shell/plugins
+    find shell/plugins -mindepth 1 -maxdepth 1 \
+      ! -name image-picker ! -name panels -exec rm -rf {} +
+    if [ -d shell/plugins/panels ]; then
+      find shell/plugins/panels -mindepth 1 -maxdepth 1 \
+        ! -name dropbox -exec rm -rf {} +
+    fi
   '';
   installPhase = ''
     runHook preInstall

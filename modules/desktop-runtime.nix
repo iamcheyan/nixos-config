@@ -4,6 +4,16 @@ let
   tree = "${desktopPackage}/share/omarchy";
   usingFcitx5 = config.i18n.inputMethod.enable && config.i18n.inputMethod.type == "fcitx5";
 in {
+  # The desktop-compat package holds only the shared compatibility layer: the
+  # historical omarchy-* helper commands, the theme catalogue and the
+  # system-level assets (shell rc, xcompose, fonts, plymouth). It no longer
+  # ships the Omarchy Quickshell shell or its Hyprland configuration layer;
+  # the Hyprland session runs inua and keeps its base config in
+  # modules/home-manager/hypr/base/.
+  #
+  # OMARCHY_PATH stays because the Labwc/Anchor Shell session resolves its
+  # helper commands and theme assets through it, and because the helper
+  # scripts themselves read it.
   nix.settings = {
     experimental-features = lib.mkDefault [ "nix-command" "flakes" ];
     substituters = [ "https://hyprland.cachix.org" ];
@@ -65,8 +75,11 @@ in {
           };
         };
 
+        # Shared by the Hyprland and Labwc sessions. The unit keeps its
+        # historical name because the Labwc session references it by name;
+        # the command itself is a session-agnostic helper from desktop-compat.
         omarchy-sleep-lock = {
-          description = "Lock Omarchy before suspend";
+          description = "Lock the session before suspend";
           after = [
             "dbus.socket"
             "wayland-session-waitenv.service"
@@ -85,6 +98,8 @@ in {
           };
         };
 
+        # Shared by the Hyprland and Labwc sessions; the Labwc session
+        # references the unit by name.
         omarchy-crash-watch = {
           description = "Notify when a process crashes";
           after = [ "graphical-session.target" ];

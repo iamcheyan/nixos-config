@@ -1,32 +1,28 @@
 -- Learn how to configure Hyprland: https://wiki.hypr.land/Configuring/Start/
 
--- Omarchy's bootstrap keeps path setup out of this user config.
-dofile((os.getenv("OMARCHY_PATH") or "/usr/share/omarchy") .. "/default/hypr/bootstrap.lua")
+-- Module path for this configuration. Omarchy's own bootstrap is not used:
+-- the Hyprland session runs inua as its shell and carries its base
+-- configuration in hypr/base/ rather than loading $OMARCHY_PATH.
+-- dofile with an absolute path, so this works before package.path is extended.
+dofile((os.getenv("XDG_CONFIG_HOME") or ((os.getenv("HOME") or "") .. "/.config")) .. "/hypr/bootstrap.lua")
 
--- Disable all Omarchy default bindings. Add your own in hypr/bindings.lua.
--- omarchy_default_bindings = false
---
--- Or disable only bindings for Omarchy's preinstalled apps/web apps while
--- keeping core window-manager bindings:
--- omarchy_preinstalled_bindings = false
+-- Base configuration carried over from Omarchy's defaults, so the session
+-- keeps its Wayland environment, input settings and window rules.
+require("hypr.base.helpers")
+require("hypr.base.envs")
+require("hypr.base.input")
+require("hypr.base.windows")
+require("hypr.base.looknfeel")
 
--- Load Omarchy defaults.
-require("default.hypr.omarchy")
-
--- Put your personal overrides in these files. They're loaded after Omarchy's
--- defaults so package updates can improve the defaults without rewriting your
--- ~/.config/hypr files.
+-- Personal overrides, loaded after the base so they win.
 require("hypr.monitors")
 require("hypr.input")
 require("hypr.bindings")
 require("hypr.looknfeel")
 require("hypr.autostart")
 
--- Toggle config flags dynamically.
-require("default.hypr.toggles")
-
 -- Add any other personal Hyprland configuration below.
 -- o.window("qemu", { workspace = "5" })
 
--- Inua shell integration (keybindings and settings)
-pcall(function() require("hypr.inua") end)
+-- Inua shell integration (keybindings and settings). Keep this last.
+pcall(require, "inua")

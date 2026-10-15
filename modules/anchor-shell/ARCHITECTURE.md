@@ -4,8 +4,8 @@ Anchor Shell 是 Labwc 会话使用的桌面功能层：顶栏、工作区、活
 桌面图标、剪贴板、语音粘贴、锁屏、通知、闲置和相关面板。窗口管理器只
 提供 Wayland 会话、输入和窗口管理。
 
-它由 Quickshell 承载，源码全部在本目录。Labwc 改这里不会改 Hyprland 那份
-Omarchy shell。
+它由 Quickshell 承载，源码全部在本目录。Labwc 改这里不会影响 Hyprland 会话：
+后者由 inua 作为桌面壳，配置在 `modules/home-manager/hypr/`。
 
 ## 源码树
 
@@ -33,8 +33,16 @@ modules/anchor-shell/
 └── docs/                  迁移记录和插件说明
 ```
 
-`compat/omarchy/` 是给 Labwc 用的兼容层，不是 Hyprland 的运行时。Hyprland
-的 Omarchy 由本仓库 `modules/packages/desktop-compat.nix` 构建，使用 `~/.config/omarchy/`；两种会话的 shell 源码和用户状态仍分开。
+`compat/omarchy/` 是给 Labwc 会话用的兼容层：历史 `omarchy-*` 命令、主题目录
+和系统级资源（shell rc、xcompose、字体、plymouth）。它由
+`modules/packages/desktop-compat.nix` 构建。
+
+Hyprland 会话**不再**使用 Omarchy：它由 inua 作为桌面壳，基础配置在
+`modules/home-manager/hypr/base/`（从 Omarchy 的 `default.hypr.*` 移植）。
+`desktop-compat` 包里已经**没有** Omarchy 的 Quickshell 壳
+（`shell/shell.qml`、`shell/Commons`、`shell/Ui`）和 Hyprland 配置层
+（`default/hypr/`），构建时被 `rm -rf` 掉。保留的 `shell/plugins/`
+子集只有 Anchor Shell 实际读取的两处：`image-picker` 和 `panels/dropbox`。
 
 旧的 `modules/quickshell/` 已经删除。它曾经是迁到本目录之前的回退副本，
 没有任何 `.nix` 引用，Labwc 和 Hyprland 都不读它。
@@ -48,9 +56,9 @@ modules/labwc/labwc/scripts/quickshell     启动入口（安装为 quickshell-t
 modules/labwc/labwc/scripts/quickshell-mode
 ```
 
-`modules/desktop.nix`、`modules/home-manager/hypr/`、
-`modules/packages/desktop-compat.nix` 属于 Hyprland/Omarchy 会话。改
-Labwc 顶栏或插件时不要动这些文件。
+`modules/desktop.nix`、`modules/desktop-runtime.nix` 是两会话共用的系统接线
+（SDDM、输入法、音频、desktop-compat 包）。`modules/home-manager/hypr/`
+属于 Hyprland/inua 会话；改 Labwc 顶栏或插件时不要动这些文件。
 
 ## 运行时目录
 
