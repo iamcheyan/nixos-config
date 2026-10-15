@@ -8,6 +8,9 @@
 -- Add a new binding.
 -- o.bind("SUPER + SHIFT + R", "SSH", "alacritty -e ssh your-server")
 
+-- Close the focused window.
+o.bind("SUPER + Q", "Close active window", hl.dsp.window.close())
+
 -- Toggle dictation with F9. This is the user-level dictation binding.
 hl.unbind("F9")
 hl.bind("F9", hl.dsp.exec_cmd("voxtype record toggle"), {
