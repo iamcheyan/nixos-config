@@ -1,4 +1,4 @@
-{ lib, stdenvNoCC, fetchurl, dpkg, buildFHSEnv, ... }:
+{ lib, stdenvNoCC, fetchurl, dpkg, buildFHSEnv, writeShellScript, ... }:
 
 let
   version = "0.1.109";
@@ -63,6 +63,12 @@ let
     ];
     runScript = "${app}/usr/lib/cindy/Cindy";
   };
+  launcher = writeShellScript "cindy-wayland-launcher" ''
+    # Pass through Hyprland Wayland output scaling so the UI follows each monitor.
+    export ELECTRON_OZONE_PLATFORM_HINT=wayland
+    export OZONE_PLATFORM=wayland
+    exec ${fhs}/bin/cindy --ozone-platform=wayland "$@"
+  '';
 in
 stdenvNoCC.mkDerivation {
   pname = "cindy";
@@ -71,7 +77,7 @@ stdenvNoCC.mkDerivation {
   nativeBuildInputs = [ dpkg ];
   installPhase = ''
     mkdir -p "$out/bin" "$out/share/applications" "$out/share/pixmaps"
-    ln -s ${fhs}/bin/cindy "$out/bin/cindy"
+    ln -s ${launcher} "$out/bin/cindy"
     cp ${app}/usr/share/pixmaps/cindy.png "$out/share/pixmaps/cindy.png"
     substitute ${app}/usr/share/applications/cindy.desktop "$out/share/applications/cindy.desktop" \
       --replace-fail "Exec=cindy" "Exec=$out/bin/cindy" \
