@@ -1,4 +1,4 @@
-{ lib, stdenvNoCC, fetchurl, dpkg, buildFHSEnv, gtk3, nss, alsa-lib, libX11, libXcursor, libXdamage, libXrandr, libXScrnSaver, libXtst, libdrm, mesa, libnotify, libsecret, libxkbcommon, ... }:
+{ lib, stdenvNoCC, fetchurl, dpkg, buildFHSEnv, ... }:
 
 let
   version = "0.1.109";
@@ -19,7 +19,48 @@ let
   };
   fhs = buildFHSEnv {
     name = "cindy";
-    targetPkgs = pkgs: with pkgs; [ gtk3 nss alsa-lib libX11 libXcursor libXdamage libXrandr libXScrnSaver libXtst libdrm mesa libnotify libsecret libxkbcommon ];
+    targetPkgs = pkgs: with pkgs; [
+      alsa-lib
+      atk
+      at-spi2-core
+      cairo
+      cups
+      dbus
+      expat
+      fontconfig
+      freetype
+      gdk-pixbuf
+      glib
+      gtk3
+      libGL
+      libX11
+      libXcomposite
+      libXcursor
+      libXext
+      libXfixes
+      libXi
+      libXdamage
+      libXrandr
+      libXScrnSaver
+      libXrender
+      libXt
+      libXtst
+      libxcb
+      libdrm
+      libgbm
+      libnotify
+      libsecret
+      libxkbcommon
+      libxshmfence
+      mesa
+      nspr
+      nss
+      pango
+      stdenv.cc.cc.lib
+      udev
+      xdg-utils
+      zlib
+    ];
     runScript = "${app}/usr/lib/cindy/Cindy";
   };
 in
@@ -33,8 +74,8 @@ stdenvNoCC.mkDerivation {
     ln -s ${fhs}/bin/cindy "$out/bin/cindy"
     cp ${app}/usr/share/pixmaps/cindy.png "$out/share/pixmaps/cindy.png"
     substitute ${app}/usr/share/applications/cindy.desktop "$out/share/applications/cindy.desktop" \
-      --replace "Exec=cindy" "Exec=$out/bin/cindy" \
-      --replace "Icon=cindy" "Icon=$out/share/pixmaps/cindy.png"
+      --replace-fail "Exec=cindy" "Exec=$out/bin/cindy" \
+      --replace-fail "Icon=cindy" "Icon=$out/share/pixmaps/cindy.png"
   '';
   meta = {
     description = "Open-source AI agent desktop application";
