@@ -1,4 +1,4 @@
-{ config, lib, pkgs, inputs, ... }:
+{ config, lib, pkgs, inputs, hostName ? "unknown", ... }:
 
 let
   desktopPackage = pkgs.callPackage ../packages/desktop-compat.nix { };
@@ -18,6 +18,82 @@ in
     inputs.chatgpt-desktop-linux.homeManagerModules.default
     ./hyprland.nix
   ];
+  systemd.user.services.hermes-peer = lib.mkIf (hostName == "hx90") {
+    Unit = {
+      Description = "Hermes remote API peer";
+      After = [ "network-online.target" ];
+    };
+    Service = {
+      Type = "simple";
+      WorkingDirectory = "%h";
+      Environment = [
+        "HERMES_HOME=%h/.local/share/hermes-peer"
+        "API_SERVER_ENABLED=true"
+        "API_SERVER_HOST=192.168.3.188"
+        "API_SERVER_PORT=8377"
+      ];
+      EnvironmentFile = "%h/.config/hermes-peer/api.env";
+      ExecStart = "%h/.local/share/hermes-agent/venv/bin/hermes gateway";
+      Restart = "on-failure";
+      RestartSec = 5;
+    };
+    Install.WantedBy = [ "default.target" ];
+  };
+
+  programs.vscode = {
+    enable = true;
+    mutableExtensionsDir = true;
+    profiles.default = {
+      userSettings = {
+        "security.workspace.trust.untrustedFiles" = "open";
+        "[python]" = { "editor.formatOnType" = true; };
+        "workbench.colorTheme" = "Visual Studio Dark";
+        "editor.unicodeHighlight.nonBasicASCII" = false;
+        "remote.SSH.useLocalServer" = true;
+        "git.enableSmartCommit" = true;
+        "git.confirmSync" = false;
+        "git.autofetch" = true;
+        "explorer.confirmDelete" = false;
+        "window.commandCenter" = false;
+        "editor.accessibilitySupport" = "on";
+        "workbench.activityBar.location" = "top";
+        "editor.minimap.enabled" = false;
+        "workbench.sideBar.location" = "right";
+      };
+      extensions = with pkgs.vscode-extensions; [
+        alefragnani.project-manager
+        golang.go
+        mhutchie.git-graph
+        ms-python.python
+        ms-python.debugpy
+        ms-vscode-remote.remote-containers
+        ms-vscode-remote.remote-ssh
+        ms-vscode.remote-explorer
+        ms-vscode.cpptools
+        ms-vscode.cpptools-extension-pack
+        redhat.vscode-yaml
+        vue.volar
+      ];
+    };
+  };
+  xdg.desktopEntries.codex-desktop = {
+    name = "ChatGPT Community";
+    comment = "Community Linux distribution based on OpenAI ChatGPT";
+    exec = "env BAMF_DESKTOP_FILE_HINT=${config.home.profileDirectory}/share/applications/codex-desktop.desktop CHROME_DESKTOP=codex-desktop.desktop ${config.home.profileDirectory}/bin/codex-desktop --ozone-platform=wayland %u";
+    icon = "codex-desktop";
+    terminal = false;
+    categories = [ "Development" ];
+    mimeType = [ "x-scheme-handler/codex" "x-scheme-handler/codex-browser-sidebar" ];
+    settings = {
+      Keywords = "codex;openai;ai;coding;";
+      StartupNotify = "true";
+      StartupWMClass = "codex-desktop";
+      "X-GNOME-WMClass" = "codex-desktop";
+    };
+  };
+  home.sessionVariables.CODEX_OZONE_PLATFORM = "wayland";
+  systemd.user.sessionVariables.CODEX_OZONE_PLATFORM = "wayland";
+
 
   home.stateVersion = "26.05";
 
@@ -51,7 +127,31 @@ in
     source = ./agent-environment.md;
     # Replace the former chezmoi-managed links at these exact destinations.
     force = true;
-  });
+  }) // {
+    ".local/share/applications/codex-desktop.desktop" = {
+      text = ''
+        [Desktop Action new-window]
+        Name=New Window
+        Exec=env BAMF_DESKTOP_FILE_HINT=${config.home.profileDirectory}/share/applications/codex-desktop.desktop CHROME_DESKTOP=codex-desktop.desktop CODEX_MULTI_LAUNCH=1 ${config.home.profileDirectory}/bin/codex-desktop --ozone-platform=wayland --new-instance
+        Icon=codex-desktop
+
+        [Desktop Entry]
+        Name=ChatGPT Community
+        Comment=Community Linux distribution based on OpenAI ChatGPT
+        Exec=env BAMF_DESKTOP_FILE_HINT=${config.home.profileDirectory}/share/applications/codex-desktop.desktop CHROME_DESKTOP=codex-desktop.desktop ${config.home.profileDirectory}/bin/codex-desktop --ozone-platform=wayland %u
+        Icon=codex-desktop
+        Terminal=false
+        Type=Application
+        Categories=Development;
+        MimeType=x-scheme-handler/codex;x-scheme-handler/codex-browser-sidebar;
+        Keywords=codex;openai;ai;coding;
+        StartupNotify=true
+        StartupWMClass=codex-desktop
+        X-GNOME-WMClass=codex-desktop
+        Actions=new-window;
+      '';
+    };
+  };
 
 
   # Install the official Linux ChatGPT/Codex desktop package declaratively.

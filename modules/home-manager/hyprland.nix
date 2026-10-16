@@ -1,6 +1,8 @@
-{ config, hostName ? "unknown", lib, pkgs, ... }:
+{ config, hostName ? "unknown", inputs, lib, pkgs, ... }:
 
 let
+  hyprland = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.default;
+
   # Hyprland uses XKB names.  Keep the choice with the host configuration so
   # the same Home Manager module can be reused by other NixOS workstations.
   kbLayout = {
@@ -15,7 +17,7 @@ let
 
   active-monitor-screenshot = pkgs.writeShellApplication {
     name = "nixarchy-screenshot-active-monitor";
-    runtimeInputs = [ pkgs.coreutils pkgs.grim pkgs.hyprland pkgs.jq pkgs.libnotify pkgs.wl-clipboard pkgs.wlr-randr pkgs.xdotool ];
+    runtimeInputs = [ pkgs.coreutils pkgs.grim hyprland pkgs.jq pkgs.libnotify pkgs.wl-clipboard pkgs.wlr-randr pkgs.xdotool ];
     text = ''
       if [ "$#" -gt 0 ]; then
         monitor="$1"

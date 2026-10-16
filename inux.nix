@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, inputs, ... }:
 
 let
   # Build the machine's Inua package from the development checkout so system
@@ -17,6 +17,9 @@ let
       in name != ".git" && name != "bin";
   };
   gtkDeps = lib.closePropagation [ pkgs.gtk4 pkgs.gtk4-layer-shell ];
+  # Use the separately locked Hyprland input. The Nixpkgs package remains on
+  # 0.55.4 and lacks the upstream wl_output lifetime fix for monitor reconnects.
+  hyprland = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.default;
 
   inua = pkgs.buildGoModule {
     pname = "inua";
@@ -26,7 +29,7 @@ let
     src = inuaSource;
 
     # No vendor/ directory upstream; buildGoModule derives it from go.mod.
-    vendorHash = "sha256-iM/qEJ/PJM9PLILeC7jpw+Hz7Qd1Xy7E5YvBz5hkoSE=";
+    vendorHash = "sha256-aIW4FAdef+6ZkmmeYHXYLnjqFQBLOngpy8Py5PZ1gyE=";
 
     # Pure Go (CGO_ENABLED=0): GTK4 through puregotk, layer surfaces through
     # gtk4-layer-shell. The .ui files are committed, so no blueprint-compiler.
@@ -40,6 +43,8 @@ let
       "cmd/inua"
       "cmd/inua-shell"
       "cmd/inua-apps"
+      "cmd/inua-files"
+      "cmd/inua-viewer"
       "cmd/inua-games"
       "cmd/inua-pinentry"
       "cmd/inua-assistant"
@@ -49,7 +54,7 @@ let
     # The GTK bindings load libraries at runtime, so the wrapped binaries need
     # the GTK stack on LD_LIBRARY_PATH.
     postFixup = ''
-      for program in inua inua-shell inua-apps inua-games inua-assistant inua-keyring inua-pinentry; do
+      for program in inua inua-shell inua-apps inua-files inua-viewer inua-games inua-assistant inua-keyring inua-pinentry; do
         wrapProgram "$out/bin/$program" \
           --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath gtkDeps}" \
           --prefix PKG_CONFIG_PATH : "${lib.makeSearchPathOutput "dev" "lib/pkgconfig" gtkDeps}"
@@ -68,7 +73,7 @@ let
         --replace-fail '/usr/local/bin/inua-session' '/run/current-system/sw/bin/inua-session'
       substituteInPlace "$out/bin/inua-session" \
         --replace-fail 'export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"' \
-          'export PATH="@INUA_PACKAGE@/bin:${pkgs.hyprland}/bin:$PATH"; export INUA_SESSION=1'
+          'export PATH="@INUA_PACKAGE@/bin:${hyprland}/bin:$PATH"; export INUA_SESSION=1'
       substituteInPlace "$out/bin/inua-session" \
         --replace-fail '@INUA_PACKAGE@' "$out"
     '';

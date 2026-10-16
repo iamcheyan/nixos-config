@@ -18,6 +18,9 @@
   # Every host using the graphical workstation profile gets the locally
   # maintained Labwc compositor package from the locked flake input.
   programs.labwcPreview.enable = lib.mkDefault true;
+  # Keep Home Manager packages on the system's configured Nixpkgs instance,
+  # including its explicit unfree package policy.
+  home-manager.useGlobalPkgs = true;
 
   home-manager.extraSpecialArgs = {
     inherit inputs;

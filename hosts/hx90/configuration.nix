@@ -73,6 +73,7 @@ in
     git
     google-chrome
     microsoft-edge
+    vscode
     nodejs_24
     (pkgs.callPackage ../../modules/packages/ai-usagebar.nix { })
     (pkgs.callPackage ../../modules/packages/cindy.nix { })
@@ -80,6 +81,7 @@ in
     tigervnc
     xz
   ];
+
 
   # Install Furigana Maker from the Chrome Web Store for every Chrome profile.
   environment.etc."opt/chrome/policies/managed/furigana-maker.json".text = builtins.toJSON {
@@ -115,26 +117,19 @@ in
   systemd.tmpfiles.rules = [ "d /home/tetsuya/mir2ei-webdata 0750 tetsuya users -" ];
 
   home-manager.users.tetsuya = { ... }: {
-    systemd.user.services.hermes-peer = {
-      Unit = {
-        Description = "Hermes remote API peer";
-        After = [ "network-online.target" ];
+    xdg.desktopEntries.code = {
+      name = "Visual Studio Code";
+      genericName = "Text Editor";
+      comment = "Code Editing. Redefined.";
+      exec = "${pkgs.vscode}/bin/code --ozone-platform=wayland %F";
+      icon = "vscode";
+      terminal = false;
+      categories = [ "Utility" "TextEditor" "Development" "IDE" ];
+      mimeType = [ "text/plain" ];
+      settings = {
+        StartupWMClass = "Code";
+        StartupNotify = "true";
       };
-      Service = {
-        Type = "simple";
-        WorkingDirectory = "%h";
-        Environment = [
-          "HERMES_HOME=%h/.local/share/hermes-peer"
-          "API_SERVER_ENABLED=true"
-          "API_SERVER_HOST=192.168.3.188"
-          "API_SERVER_PORT=8377"
-        ];
-        EnvironmentFile = "%h/.config/hermes-peer/api.env";
-        ExecStart = "%h/.local/share/hermes-agent/venv/bin/hermes gateway";
-        Restart = "on-failure";
-        RestartSec = 5;
-      };
-      Install.WantedBy = [ "default.target" ];
     };
   };
 

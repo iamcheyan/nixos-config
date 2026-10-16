@@ -53,7 +53,7 @@ hl.config({
     kb_model = "",
     kb_options = kb_options,
     kb_rules = "",
-    follow_mouse = 1,
+    follow_mouse = 0,
     sensitivity = 0,
 
     repeat_rate = 40,
