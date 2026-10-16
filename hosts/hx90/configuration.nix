@@ -12,7 +12,17 @@ in
     ../../inux.nix
     ./apps.nix
     ../../modules/devenv.nix
+    ../../modules/inua-windows-vm.nix
   ] ++ lib.optional (localHost != null && builtins.pathExists localHost) localHost;
+
+  # Windows VM support for the Inua session (HX90 test host): Docker for the
+  # Dockur container, FreeRDP to connect, and the QEMU utilities the doctor
+  # uses. tetsuya gets Docker socket access, which is root-equivalent; remove
+  # this before distributing the machine's configuration.
+  services.inuaWindowsVm = {
+    enable = true;
+    dockerUsers = [ "tetsuya" ];
+  };
 
   networking.hostName = "hx90";
 

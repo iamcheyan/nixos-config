@@ -90,6 +90,8 @@
       };
     };
 
+    nixosModules.inua-windows-vm = import ./modules/inua-windows-vm.nix;
+
     # Apple Silicon macOS host. This is intentionally a separate output:
     # nix-darwin modules are not NixOS modules, and macOS has no hardware
     # configuration file comparable to a NixOS installation.
