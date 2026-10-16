@@ -24,6 +24,11 @@
 - 本地 Omarchy 兼容资源的系统集成属于本仓库；用户偏好仍属于 chezmoi。
 - 不提交明文密码、Token、API Key、SSH 私钥或其他凭据。
 - 保留用户已有的未提交改动，不擅自覆盖或移动。
+- 不结束用户正在使用的桌面壳进程（`inua-shell`、`labwc`、Anchor Shell 等）。
+  用户的终端和从壳启动的程序在它下面，结束它等于丢掉他们的工作；需要新构建
+  时用壳自身的原地重启，或让用户重新登录。`systemctl stop|restart` 与
+  `kill`/`pkill` 同样禁止。不要把壳放进 `systemd-run` 单元：单元默认
+  `KillMode=control-group`，停止时会连带杀死用户的程序。
 
 ## 验证与应用
 
