@@ -36,7 +36,11 @@
   # Keep a small set of bootable rollback generations on the 1 GiB ESP.
   boot.loader.systemd-boot.configurationLimit = 10;
   boot.loader.efi.canTouchEfiVariables = true;
-  boot.kernelPackages = pkgs.linuxPackages_latest;
+  # 7.2.x deadlocked in amdgpu/ttm on this Cezanne iGPU (see logs/2026-10-17-hx90-amdgpu-ttm-hang.md);
+  # stay on the 6.12 LTS series until the fix reaches the newer kernels.
+  boot.kernelPackages = pkgs.linuxPackages_6_12;
+  # Keep SysRq usable, so a hung kernel can be rebooted from the keyboard.
+  boot.kernel.sysctl."kernel.sysrq" = 1;
   time.timeZone = "Asia/Tokyo";
 
   home-manager.users.tetsuya = {
