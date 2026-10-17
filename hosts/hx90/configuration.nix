@@ -59,9 +59,10 @@ in
     "/var/lib/flatpak/exports/share"
   ];
 
-  # Labwc is HX90's normal desktop session. This also selects Labwc for SDDM
-  # autologin, so restarting the display manager does not launch Omarchy first.
-  services.displayManager.defaultSession = lib.mkForce "labwc";
+  # Inua is HX90's normal desktop session: SDDM preselects it, so logging in
+  # from the greeter starts the shell rather than Labwc. Other hosts keep
+  # modules/desktop.nix's default.
+  services.displayManager.defaultSession = lib.mkForce "inua";
   programs.labwcPreview.enable = true;
 
   # Keep the Hermes remote API peer available when the user is logged out.
