@@ -1,6 +1,9 @@
 # nix build result symlink (nixos-rebuild / nix build artifact)
 /result
 
+# Local desktop startup diagnostics.
+/logs/
+
 # Keep the local extension directory itself and its placeholder tracked.
 # Everything else under local/ is machine-specific and ignored.
 /local/*

@@ -88,9 +88,18 @@ in
     nodejs_24
     (pkgs.callPackage ../../modules/packages/ai-usagebar.nix { })
     (pkgs.callPackage ../../modules/packages/cindy.nix { })
+    bitwarden-desktop
+    bitwarden-cli
     ripgrep
     tigervnc
     xz
+    # QEMU backend for inua-vm: core emulator, UEFI firmware, SPICE viewer
+    # and the OS-info database that lists downloadable install media.
+    qemu_kvm
+    OVMF
+    virt-viewer
+    osinfo-db
+    osinfo-db-tools
   ];
 
 

@@ -14,9 +14,35 @@ let
       builtins.toPath inuaDevDir;
     filter = path: type:
       let name = builtins.baseNameOf (toString path);
-      in name != ".git" && name != "bin";
+      in name != ".git" && name != "bin" && name != "vendor";
   };
   gtkDeps = lib.closePropagation [ pkgs.gtk4 pkgs.gtk4-layer-shell ];
+  # puregotk expects one directory and may load several sonames per namespace
+  # (GLib needs both glib and gobject). Keep all of those files available.
+  puregotkLibraries = pkgs.linkFarm "inua-puregotk-libraries" (map
+    (entry: { name = entry.name; path = "${lib.getLib entry.package}/lib/${entry.name}"; })
+    [
+      { name = "libgtk-4.so.1"; package = pkgs.gtk4; }
+      { name = "libglib-2.0.so.0"; package = pkgs.glib; }
+      { name = "libgobject-2.0.so.0"; package = pkgs.glib; }
+      { name = "libgio-2.0.so.0"; package = pkgs.glib; }
+      { name = "libgmodule-2.0.so.0"; package = pkgs.glib; }
+      { name = "libcairo-gobject.so.2"; package = pkgs.cairo; }
+      { name = "libpango-1.0.so.0"; package = pkgs.pango; }
+      { name = "libgraphene-1.0.so.0"; package = pkgs.graphene; }
+      { name = "libgdk_pixbuf-2.0.so.0"; package = pkgs.gdk-pixbuf; }
+    ]);
+  shellStartup = pkgs.writeShellScriptBin "inua-shell-startup" ''
+    umask 077
+    logDir="$HOME/nixos-config/logs"
+    mkdir -p "$logDir"
+    logFile="''${INUA_STARTUP_LOG:-$(${pkgs.coreutils}/bin/mktemp "$logDir/inua-shell-$(date +%Y%m%d-%H%M%S)-XXXXXX.log")}"
+    exec >>"$logFile" 2>&1
+    printf '\n[%s] shell-launch pid=%s uptime=%s\n' "$(date --iso-8601=ns)" "$$" "$(cut -d ' ' -f 1 /proc/uptime)"
+    # Go's init trace covers the work before main, including the preload re-exec.
+    export GODEBUG="''${GODEBUG:+$GODEBUG,}inittrace=1"
+    exec ${inua}/bin/inua-shell "$@"
+  '';
   # Use the separately locked Hyprland input. The Nixpkgs package remains on
   # 0.55.4 and lacks the upstream wl_output lifetime fix for monitor reconnects.
   hyprland = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.default;
@@ -28,12 +54,18 @@ let
 
     src = inuaSource;
 
-    # No vendor/ directory upstream; buildGoModule derives it from go.mod.
-    vendorHash = "sha256-aIW4FAdef+6ZkmmeYHXYLnjqFQBLOngpy8Py5PZ1gyE=";
+    # Ignore the checkout's generated vendor tree: it may lag behind go.mod.
+    # buildGoModule derives a consistent, hash-checked tree from go.mod/go.sum.
+    vendorHash = "sha256-lG1TxwYgNX1p1XfLxzgxcDRKnKfsbOU7aBhUtzVdIBQ=";
 
     # Pure Go (CGO_ENABLED=0): GTK4 through puregotk, layer surfaces through
     # gtk4-layer-shell. The .ui files are committed, so no blueprint-compiler.
     nativeBuildInputs = [ pkgs.makeWrapper ];
+
+    # Instrument only the build snapshot; leave the development checkout alone.
+    postPatch = ''
+      ${pkgs.python3}/bin/python ${./modules/inua-startup-instrument.py}
+    '';
 
     # Upstream injects the version through goreleaser; do the same so the
     # binaries do not report "dev".
@@ -56,6 +88,7 @@ let
     postFixup = ''
       for program in inua inua-shell inua-apps inua-files inua-viewer inua-games inua-assistant inua-keyring inua-pinentry; do
         wrapProgram "$out/bin/$program" \
+          --set PUREGOTK_LIB_FOLDER "${puregotkLibraries}" \
           --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath gtkDeps}" \
           --prefix PKG_CONFIG_PATH : "${lib.makeSearchPathOutput "dev" "lib/pkgconfig" gtkDeps}"
       done
@@ -76,6 +109,15 @@ let
           'export PATH="@INUA_PACKAGE@/bin:${hyprland}/bin:$PATH"; export INUA_SESSION=1'
       substituteInPlace "$out/bin/inua-session" \
         --replace-fail '@INUA_PACKAGE@' "$out"
+      # Capture the session before Hyprland starts. The shell launcher reopens
+      # this file because compositor-spawned children may have /dev/null stdio.
+      substituteInPlace "$out/bin/inua-session" --replace-fail 'set -eu' 'set -eu
+      umask 077
+      mkdir -p "$HOME/nixos-config/logs"
+      INUA_STARTUP_LOG=$(${pkgs.coreutils}/bin/mktemp "$HOME/nixos-config/logs/inua-login-$(date +%Y%m%d-%H%M%S)-XXXXXX.log")
+      export INUA_STARTUP_LOG
+      exec >>"$INUA_STARTUP_LOG" 2>&1
+      printf "[%s] session-start pid=%s uptime=%s\\n" "$(date --iso-8601=ns)" "$$" "$(cut -d " " -f 1 /proc/uptime)"'
     '';
 
     doCheck = false;
@@ -90,7 +132,7 @@ let
   };
 in
 {
-  environment.systemPackages = [ inua pkgs.gtk4 pkgs.gtk4-layer-shell ];
+  environment.systemPackages = [ inua shellStartup pkgs.gtk4 pkgs.gtk4-layer-shell ];
   services.displayManager.sessionPackages = [ inua ];
 
   # Inua runs on the existing Hyprland configuration. Upstream's session
