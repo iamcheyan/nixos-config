@@ -11,3 +11,6 @@
 __pycache__/
 *.py[cod]
 
+# Handbook builder dependencies and output
+/node_modules/
+/site/dist/

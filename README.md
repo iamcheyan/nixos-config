@@ -1,5 +1,8 @@
 # Tetsuya 的多设备 Nix / NixOS / macOS Flake 配置
 
+[打开中文配置学习手册](https://nixos.iamcheyan.com/) · [学习配置架构](https://nixos.iamcheyan.com/architecture.html) · [更新与故障排查](https://nixos.iamcheyan.com/troubleshooting.html)
+
+
 用一份 flake 管理多台 NixOS 机器和一台 macOS：公共配置抽成 `modules/`，每台
 机器只保留自己的硬件或平台差异项。NixOS 使用 `nixosConfigurations`，macOS
 使用独立的 `darwinConfigurations`；两者共享锁文件，但不直接共享 Linux 专用模块。
