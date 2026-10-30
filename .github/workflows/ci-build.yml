@@ -57,6 +57,15 @@ jobs:
           repository: iamcheyan/inua
           path: inua
 
+      # Realise flake inputs (fetch git sources) before the eval-only check;
+      # `--no-build` alone leaves git inputs unrealised and some modules read
+      # files (e.g. VERSION) from those sources during evaluation.
+      - name: Realise flake inputs
+        env:
+          NIX_CONFIG: |
+            access-tokens = github.com=${{ secrets.NIX_CI_GITHUB_TOKEN }}
+        run: nix flake archive --impure > /dev/null
+
       # Verify the whole flake evaluates (all hosts, option types, module
       # merge). This is the reliable CI gate: a full closure build would have to
       # reproduce Inua's exact local dev checkout (INUA_DEV_DIR), which is
