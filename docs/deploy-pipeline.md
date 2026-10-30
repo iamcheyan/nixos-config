@@ -11,15 +11,20 @@
    注：完整闭包不在 CI 编译，因为 Inua 由 `INUA_DEV_DIR` 指向可变本地开发树，
    `vendorHash` 跟着未推送的工作树走，无法从 git 复现；闭包在 HX90 应用时编译。
 
-2. **控制器（Hermes webhook → OMP agent）**
+2. **控制器（Hermes webhook 路由脚本，确定性、零 LLM 成本）**
    CI 成功后向 `HERMES_WEBHOOK_URL` 发送带 HMAC 签名的 POST（payload 含
-   `repo/ref/sha/host`）。Hermes 收到后派一个 agent SSH 到 HX90，运行
-   `scripts/nixos-apply.sh --controller --ref <ref>`：
+   `repo/ref/sha/host`）。Hermes 的 `nixos-deploy` 订阅用路由脚本
+   `~/.hermes/scripts/nixos-deploy-hook.sh` 处理：把
+   `scripts/nixos-apply.sh` scp 到 HX90，再用 `systemd-run` 起一个瞬时单元
+   （以 tetsuya 身份）执行 `--controller --ref <ref>`，随即返回
+   `scheduled`。部署在 HX90 上独立继续，不占用 HTTP 请求：
    - 把未提交改动 `git stash`（保护在做的 feature 分支 WIP）；
    - `git fetch` + `checkout --detach origin/<ref>`（用 CI 验证过的闭包，
      不再浮动输入）；
    - `sudo nixos-rebuild switch`；
    - 写入哨兵文件 `~/.local/state/nixos-deploy/last-controller-apply`。
+   注意：这是确定性脚本路由，不是 agent 推理；失败时 `schedule-failed`
+   会直接投递到 Telegram。
 
 3. **机器兜底（`modules/deploy.nix` 的 daily timer）**
    仅当控制器哨兵超过 26 小时未更新时，运行
