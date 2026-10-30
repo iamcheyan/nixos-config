@@ -2,12 +2,14 @@
 
 ## 三个角色
 
-1. **CI 构建**（`ci-build.yml`）
+1. **CI 校验**（`ci-build.yml`）
    推送到 `main` 或 `bot/auto-update` 且改动涉及 `flake.nix` / `flake.lock` /
-   `hosts/**` / `modules/**` / `*.nix` 时，在 GitHub runner 上
-   `nixos-rebuild build --impure --flake .#hx90`（含 Inua，靠 `INUA_DEV_DIR`
-   指向 checkout 出的 iamcheyan/inua）。构建成功才进入下一步。
-   纯文档改动不会触发构建，因此不会误部署。
+   `hosts/**` / `modules/**` / `*.nix` 时，在 GitHub runner 上执行
+   `nix flake check --no-build --impure`（含所有主机的模块求值与 option 类型检查）。
+   私有输入（shizuka、labwc-plus）用 `NIX_CI_GITHUB_TOKEN` 鉴权。
+   校验通过才进入下一步。纯文档改动不会触发。
+   注：完整闭包不在 CI 编译，因为 Inua 由 `INUA_DEV_DIR` 指向可变本地开发树，
+   `vendorHash` 跟着未推送的工作树走，无法从 git 复现；闭包在 HX90 应用时编译。
 
 2. **控制器（Hermes webhook → OMP agent）**
    CI 成功后向 `HERMES_WEBHOOK_URL` 发送带 HMAC 签名的 POST（payload 含

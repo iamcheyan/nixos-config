@@ -57,12 +57,17 @@ jobs:
           repository: iamcheyan/inua
           path: inua
 
-      - name: Build hx90 system
+      # Verify the whole flake evaluates (all hosts, option types, module
+      # merge). This is the reliable CI gate: a full closure build would have to
+      # reproduce Inua's exact local dev checkout (INUA_DEV_DIR), which is
+      # non-hermetic — its vendorHash tracks an unpushed working tree. The real
+      # closure is compiled on HX90 at apply time (it has that tree + store).
+      - name: Verify hx90 configuration
         env:
           INUA_DEV_DIR: ${{ github.workspace }}/inua
           NIX_CONFIG: |
             access-tokens = github.com=${{ secrets.NIX_CI_GITHUB_TOKEN }}
-        run: nix build --impure --print-out-paths '.#nixosConfigurations.hx90.config.system.build.toplevel'
+        run: nix flake check --no-build --impure
 
       - name: Notify controller (Hermes webhook)
         if: success()
