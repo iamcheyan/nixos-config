@@ -12,6 +12,7 @@ in
     ../../inux.nix
     ./apps.nix
     ../../modules/devenv.nix
+    ../../modules/deploy.nix
   ] ++ lib.optional (localHost != null && builtins.pathExists localHost) localHost;
 
   networking.hostName = "hx90";
