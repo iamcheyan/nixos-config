@@ -41,3 +41,11 @@ cd ~/nixos-config
 nix flake update
 sudo nixos-rebuild switch --flake .#hx90
 ```
+
+## 部署流水线
+
+CI 校验、控制器调度与机器兜底的设计、上线准备、取舍和实测记录见
+[`docs/deploy-pipeline.md`](docs/deploy-pipeline.md)。修改
+`.github/workflows/`、`scripts/nixos-apply.sh` 或 `modules/deploy.nix`
+前先读该文档；它说明了为什么 CI 只做求值校验、自动更新只浮动分支 tip，
+以及自动部署为什么必须 stash 而不能 `reset`。
