@@ -8,6 +8,10 @@
 # Safety: never `git reset --hard`; uncommitted work is stashed and restored.
 set -Eeuo pipefail
 
+# Be self-sufficient under a minimal systemd environment (transient unit or the
+# deploy-fallback service): NixOS puts git/sudo/nixos-rebuild in these paths.
+export PATH="/run/current-system/sw/bin:/run/wrappers/bin:$HOME/.nix-profile/bin:${PATH:-/usr/bin:/bin}"
+
 FLAKE_DIR="${NIXOS_CONFIG:-$HOME/nixos-config}"
 HOST="$(hostname -s)"
 MODE=""
