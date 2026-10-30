@@ -48,7 +48,7 @@ jobs:
       - name: Build hx90 system
         env:
           INUA_DEV_DIR: ${{ github.workspace }}/inua
-        run: nix build --impure --print-out-paths --flake .#nixosConfigurations.hx90.config.system.build.toplevel
+        run: nix build --impure --print-out-paths '.#nixosConfigurations.hx90.config.system.build.toplevel'
 
       - name: Notify controller (Hermes webhook)
         if: success()
