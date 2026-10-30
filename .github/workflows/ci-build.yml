@@ -37,6 +37,18 @@ jobs:
             substituters = https://hyprland.cachix.org https://nix-community.cachix.org https://cache.nixos.org
             trusted-public-keys = hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIITemDosxrE9/Kb+PfYvE= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 
+      # Authenticate private flake inputs (e.g. iamcheyan/shizuka). `github:`
+      # inputs use Nix access-tokens; `git+https` inputs use the git url rewrite.
+      - name: Authorize private flake inputs
+        env:
+          TOKEN: ${{ secrets.NIX_CI_GITHUB_TOKEN }}
+        run: |
+          if [ -n "${TOKEN:-}" ]; then
+            git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+          else
+            echo "::warning::NIX_CI_GITHUB_TOKEN unset — private flake inputs will fail to fetch"
+          fi
+
       # inux.nix builds Inua from INUA_DEV_DIR; give CI a checkout of the public
       # fork so the flake evaluates exactly as it does on the machine.
       - name: Checkout inua (INUA_DEV_DIR source)
@@ -48,6 +60,8 @@ jobs:
       - name: Build hx90 system
         env:
           INUA_DEV_DIR: ${{ github.workspace }}/inua
+          NIX_CONFIG: |
+            access-tokens = github.com=${{ secrets.NIX_CI_GITHUB_TOKEN }}
         run: nix build --impure --print-out-paths '.#nixosConfigurations.hx90.config.system.build.toplevel'
 
       - name: Notify controller (Hermes webhook)
