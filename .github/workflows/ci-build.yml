@@ -34,15 +34,16 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
+            substituters = https://hyprland.cachix.org https://nix-community.cachix.org https://cache.nixos.org
+            trusted-public-keys = hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIITemDosxrE9/Kb+PfYvE= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=
 
-      # inux.nix builds Inua from INUA_DEV_DIR; give CI a checkout of the fork so
-      # the flake evaluates exactly as it does on the machine.
+      # inux.nix builds Inua from INUA_DEV_DIR; give CI a checkout of the public
+      # fork so the flake evaluates exactly as it does on the machine.
       - name: Checkout inua (INUA_DEV_DIR source)
         uses: actions/checkout@v4
         with:
           repository: iamcheyan/inua
           path: inua
-          token: ${{ secrets.NIX_CI_GITHUB_TOKEN }}
 
       - name: Build hx90 system
         env:

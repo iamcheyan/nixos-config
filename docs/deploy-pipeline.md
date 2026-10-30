@@ -38,7 +38,8 @@
 
 - `HERMES_WEBHOOK_URL`：暴露到公网、指向 Hermes gateway webhook 的地址。
 - `HERMES_WEBHOOK_SECRET`：与 Hermes webhook 订阅共享的 HMAC 密钥。
-- `NIX_CI_GITHUB_TOKEN`：能读取 `iamcheyan/inua` 的 token（inua 为私有库时必需）。
+
+（Inua 为公开仓库，CI 用默认 token 即可拉取，无需额外 token。）
 
 ## 启用步骤
 
