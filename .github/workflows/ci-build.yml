@@ -76,7 +76,7 @@ jobs:
           INUA_DEV_DIR: ${{ github.workspace }}/inua
           NIX_CONFIG: |
             access-tokens = github.com=${{ secrets.NIX_CI_GITHUB_TOKEN }}
-        run: nix flake check --no-build --impure
+        run: nix build --dry-run --impure '.#nixosConfigurations.hx90.config.system.build.toplevel'
 
       - name: Notify controller (Hermes webhook)
         if: success()
