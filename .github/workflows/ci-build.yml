@@ -1,0 +1,73 @@
+name: CI build nixos-config
+
+# Builds the hx90 system whenever a system-relevant file changes on main or on
+# the bot/auto-update branch. On success, notifies the Hermes controller webhook
+# so it can schedule the apply on HX90. Docs/README changes do not trigger a
+# build (path filter), so they never cause a deploy.
+
+on:
+  push:
+    branches: [main, bot/auto-update]
+    paths:
+      - 'flake.nix'
+      - 'flake.lock'
+      - 'hosts/**'
+      - 'modules/**'
+      - 'inux.nix'
+      - 'mir2ei.nix'
+      - '*.nix'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout nixos-config
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      # inux.nix builds Inua from INUA_DEV_DIR; give CI a checkout of the fork so
+      # the flake evaluates exactly as it does on the machine.
+      - name: Checkout inua (INUA_DEV_DIR source)
+        uses: actions/checkout@v4
+        with:
+          repository: iamcheyan/inua
+          path: inua
+          token: ${{ secrets.NIX_CI_GITHUB_TOKEN }}
+
+      - name: Build hx90 system
+        env:
+          INUA_DEV_DIR: ${{ github.workspace }}/inua
+        run: nixos-rebuild build --impure --flake .#hx90
+
+      - name: Notify controller (Hermes webhook)
+        if: success()
+        env:
+          URL: ${{ secrets.HERMES_WEBHOOK_URL }}
+          SECRET: ${{ secrets.HERMES_WEBHOOK_SECRET }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "HERMES_WEBHOOK_URL unset — skipping controller notify (pipeline still built)."
+            exit 0
+          fi
+          payload=$(jq -n \
+            --arg repo "$GITHUB_REPOSITORY" \
+            --arg ref  "$GITHUB_REF_NAME" \
+            --arg sha  "$GITHUB_SHA" \
+            --arg host hx90 \
+            '{repo:$repo, ref:$ref, sha:$sha, host:$host, event:"nixos-build-success"}')
+          sig=$(printf '%s' "$payload" | openssl dgst -sha256 -hmac "$SECRET" -binary | xxd -p -c 256)
+          curl -fsS -X POST "$URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Hub-Signature-256: sha256=$sig" \
+            -d "$payload"
+          echo "notified controller for ref=$GITHUB_REF_NAME sha=$GITHUB_SHA"

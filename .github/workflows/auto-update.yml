@@ -1,0 +1,44 @@
+name: Auto-update flake inputs
+
+# Floats every tracked input to its branch tip (nixos-26.05 security backports
+# included) and commits the new flake.lock to bot/auto-update. That push triggers
+# ci-build.yml on the bot/auto-update branch, which builds and — on success —
+# notifies the controller to apply. This keeps the machine current automatically
+# without ever bumping the major NixOS release.
+
+on:
+  schedule:
+    - cron: '0 18 * * *'   # 03:00 JST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout bot/auto-update
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: bot/auto-update
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Float flake inputs (branch tips only)
+        run: |
+          git config user.name  "nixos-config bot"
+          git config user.email "bot@iamcheyan.com"
+          nix flake update
+          if ! git diff --quiet flake.lock; then
+            git commit -m "bot: float flake inputs ($(date -I))" flake.lock
+            git push origin bot/auto-update
+            echo "pushed updated flake.lock -> triggers ci-build"
+          else
+            echo "flake.lock unchanged; nothing to do"
+          fi
