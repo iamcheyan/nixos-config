@@ -104,12 +104,12 @@ HX90 的 `networking.hostName` 与 flake 输出名统一为 `hx90`，`nixos-upda
 
 ### 重建 HX90 系统
 
-HX90 的 Inua 软件包从开发工作区 `/home/tetsuya/development/inua-wayfire` 构建，
+HX90 的 Inua 软件包从开发工作区 `/home/tetsuya/development/inua` 构建，
 因此重建时需要传入 `INUA_DEV_DIR` 并启用 impure flake 求值：
 
 ```sh
 cd ~/nixos-config
-sudo INUA_DEV_DIR=/home/tetsuya/development/inua-wayfire nixos-rebuild switch --flake .#hx90 --impure
+sudo INUA_DEV_DIR=/home/tetsuya/development/inua nixos-rebuild switch --flake .#hx90 --impure
 ```
 
 HX90 的 `tetsuya` 已配置为 `docker` 组成员。首次启用后，注销并重新登录一次，

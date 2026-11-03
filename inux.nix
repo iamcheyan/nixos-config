@@ -63,7 +63,7 @@ let
   };
   # Build the machine's Inua package from the development checkout so system
   # upgrades pick up its current source, including uncommitted development work.
-  # This host's development checkout is /home/tetsuya/development/inua-wayfire.
+  # This host's development checkout is /home/tetsuya/development/inua.
   # Set INUA_DEV_DIR to that path and pass --impure when evaluating the flake.
   version = "dev";
   inuaDevDir = builtins.getEnv "INUA_DEV_DIR";
@@ -167,6 +167,16 @@ let
       install -Dm755 scripts/inua-session "$out/bin/inua-session"
       install -Dm644 config/apps/*.desktop -t "$out/share/applications"
       install -Dm644 config/apps/*.svg -t "$out/share/icons/hicolor/scalable/apps"
+      install -Dm644 config/apps/small/*.svg -t "$out/share/icons/hicolor/16x16/apps"
+      for theme in inua-objects inua-objects-soft inua-objects-flat; do
+        install -d "$out/share/icons/$theme"
+        cp -a "config/icons/$theme/." "$out/share/icons/$theme/"
+      done
+      install -m644 config/apps/*.svg -t "$out/share/icons/inua-objects/scalable/apps"
+      install -m644 config/apps/small/*.svg -t "$out/share/icons/inua-objects/16/apps"
+      for theme in inua-objects inua-objects-soft inua-objects-flat; do
+        ${pkgs.gtk4}/bin/gtk4-update-icon-cache -q -t "$out/share/icons/$theme"
+      done
       install -Dm644 config/session/inua.desktop "$out/share/wayland-sessions/inua.desktop"
 
       substituteInPlace "$out/share/wayland-sessions/inua.desktop" \
@@ -200,7 +210,7 @@ let
   };
 in
 {
-  environment.systemPackages = [ inua shellStartup pkgs.gtk4 pkgs.gtk4-layer-shell ];
+  environment.systemPackages = [ inua shellStartup pkgs.gtk4 pkgs.gtk4-layer-shell pkgs.pop-icon-theme ];
   services.displayManager.sessionPackages = [ inua ];
 
   # Inua runs on the existing Hyprland configuration. Upstream's session
