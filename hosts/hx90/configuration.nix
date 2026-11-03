@@ -76,6 +76,19 @@ in
 
   networking.hostName = "hx90";
 
+  # Run 30-day Nix GC once in the background on every boot.
+  nix.gc.automatic = false;
+
+  systemd.services.nix-gc-on-boot = {
+    description = "Nix garbage collection at boot";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${config.nix.package}/bin/nix-collect-garbage --delete-older-than 30d";
+    };
+  };
+
   # Tailscale mesh VPN; authentication is performed after activation.
   services.tailscale = {
     enable = true;
@@ -156,6 +169,8 @@ in
     bitwarden-desktop
     bitwarden-cli
     ripgrep
+    # Compiles ui/*.blp into the committed ui/*.ui (inua's `make generate`).
+    blueprint-compiler
     tigervnc
     xz
     # QEMU backend for inua-vm: core emulator, UEFI firmware, SPICE viewer

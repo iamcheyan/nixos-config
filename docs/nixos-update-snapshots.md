@@ -94,6 +94,13 @@ sudo nixos-rebuild switch --rollback
 - 数据库和容器卷；
 - 不属于 NixOS/Home Manager 的运行时状态。
 
+### Nix store GC
+
+HX90 每次开机后都会在后台运行一次 `nix-collect-garbage --delete-older-than 30d`
+一次性服务，不使用日历 timer。机器关机期间不会执行，等到下次开机再清理。超过
+30 天的 generations 及不再被引用的 store 路径会被删除；当前系统 generation
+仍被系统引用，不会被回收。
+
 ### `/` 的 Btrfs/Snapper 快照
 
 负责保存根文件系统某一时刻的状态，包括非 Nix 生成的系统文件和运行时数据。
