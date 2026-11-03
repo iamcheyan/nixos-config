@@ -188,7 +188,7 @@ let
       install -Dm644 config/session/wayfire.ini "$out/share/inua/wayfire.ini"
       install -Dm644 config/session/inua-wayfire.desktop "$out/share/wayland-sessions/inua-wayfire.desktop"
       substituteInPlace "$out/share/wayland-sessions/inua-wayfire.desktop" \
-        --replace-fail 'Exec=inua-wayfire-session' '/run/current-system/sw/bin/inua-wayfire-session'
+        --replace-fail 'Exec=inua-wayfire-session' 'Exec=/run/current-system/sw/bin/inua-wayfire-session'
 
       substituteInPlace "$out/share/wayland-sessions/inua.desktop" \
         --replace-fail '/usr/local/bin/inua-session' '/run/current-system/sw/bin/inua-session'
