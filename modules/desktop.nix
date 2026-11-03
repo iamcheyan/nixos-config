@@ -313,14 +313,6 @@ in
   # Firefox's NixOS module installs the browser with its declared native
   # messaging hosts and managed extension settings.
   programs.firefox.enable = true;
-  # Firefox's GTK global-menu bridge dlopens libdbusmenu-glib.so.4 and
-  # libdbusmenu-gtk3.so.4 at runtime; pkcs11Modules adds them to the
-  # wrapper's LD_LIBRARY_PATH.
-  programs.firefox.package = pkgs.firefox.override {
-    pkcs11Modules = [
-      pkgs.libdbusmenu-gtk3
-    ];
-  };
   programs.firefox.nativeMessagingHosts.packages = [ pkgs.firefoxpwa ];
   programs.firefox.policies.ExtensionSettings."firefoxpwa@filips.si" = {
     installation_mode = "normal_installed";
