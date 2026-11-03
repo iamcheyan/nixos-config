@@ -24,6 +24,7 @@ jobs:
         with:
           token: ${{ secrets.NIX_CI_GITHUB_TOKEN }}
           ref: bot/auto-update
+          fetch-depth: 0
 
       - name: Install Nix
         uses: cachix/install-nix-action@v27
@@ -48,11 +49,12 @@ jobs:
         run: |
           git config user.name  "nixos-config bot"
           git config user.email "bot@iamcheyan.com"
+          git fetch origin main
+          git merge --no-edit FETCH_HEAD
           nix flake update
-          if ! git diff --quiet flake.lock; then
-            git commit -m "bot: float flake inputs ($(date -I))" flake.lock
-            git push origin bot/auto-update
-            echo "pushed updated flake.lock -> triggers ci-build"
-          else
-            echo "flake.lock unchanged; nothing to do"
+          if ! git diff --quiet -- flake.lock; then
+            git add flake.lock
+            git commit -m "bot: float flake inputs ($(date -I))"
           fi
+          git push origin HEAD:bot/auto-update
+          echo "synced main and pushed the candidate; the push triggers ci-build"
