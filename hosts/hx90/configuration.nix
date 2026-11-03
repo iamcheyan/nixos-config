@@ -123,6 +123,7 @@ in
   # from the greeter starts the shell rather than Labwc. Other hosts keep
   # modules/desktop.nix's default.
   services.displayManager.defaultSession = lib.mkForce "inua";
+  services.displayManager.sessionPackages = [ pkgs.wayfire ];
   programs.labwcPreview.enable = true;
 
   # Virtual machines on the VMSTORE SSD, managed from virt-manager. libvirtd
