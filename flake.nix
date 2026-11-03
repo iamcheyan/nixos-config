@@ -6,6 +6,10 @@
     # deliberately after the new machine is stable.
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
 
+    # WinBoat's maintained Nix package is newer than the stable 26.05 package.
+    # Keep this input isolated so it does not change the system package set.
+    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+
     hyprland = {
       # Preserve the installed Lua-capable compositor pin independently.
       url = "github:hyprwm/Hyprland";
