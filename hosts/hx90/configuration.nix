@@ -13,7 +13,66 @@ in
     ./apps.nix
     ../../modules/devenv.nix
     ../../modules/deploy.nix
+    ../../modules/inua-windows-vm.nix
   ] ++ lib.optional (localHost != null && builtins.pathExists localHost) localHost;
+
+  fileSystems."/storage" = {
+    device = "/dev/disk/by-uuid/fafd663a-4c19-42ba-bea3-a7ead53d7dfd";
+    fsType = "ext4";
+    options = [ "nofail" ];
+  };
+
+  # The 512 GB Kodak SSD is a general VM store: plain ext4 labeled VMSTORE,
+  # holding per-VM disk images. Nothing on this host passes a block device
+  # through to a guest, so the whole disk stays usable by many VMs.
+  #
+  # gvfs/udisks hide a system volume that is mounted outside /media,
+  # /run/media and /mnt, and hide anything mounted under /mnt too unless
+  # x-gvfs-show is set. Both rules are overridden here so the desktop and
+  # Inua's files app list the drive like any other.
+  fileSystems."/mnt/VMSTORE" = {
+    device = "/dev/disk/by-label/VMSTORE";
+    fsType = "ext4";
+    options = [ "nofail" "x-systemd.device-timeout=10" "x-gvfs-show" ];
+  };
+
+  # Keep the VM store mounted. /mnt/VMSTORE is in fstab, so systemd mounts it
+  # at boot; this denies the udisks paths that would take it away again
+  # (unmount, eject, power-off) for every non-root subject, keyed on the
+  # drive's serial rather than a /dev node that can move. Root keeps access so
+  # recovery and maintenance still work.
+  security.polkit.extraConfig = ''
+    polkit.addRule(function(action, subject) {
+      if (subject.user == "root") {
+        return;
+      }
+      var blocked = [
+        "org.freedesktop.udisks2.filesystem-unmount-others",
+        "org.freedesktop.udisks2.filesystem-fstab",
+        "org.freedesktop.udisks2.eject-media",
+        "org.freedesktop.udisks2.eject-media-system",
+        "org.freedesktop.udisks2.eject-media-other-seat",
+        "org.freedesktop.udisks2.power-off-drive",
+        "org.freedesktop.udisks2.power-off-drive-system",
+        "org.freedesktop.udisks2.power-off-drive-other-seat"
+      ];
+      if (blocked.indexOf(action.id) == -1) {
+        return;
+      }
+      if (action.lookup("drive.serial") == "E503GH38400867") {
+        return polkit.Result.NO;
+      }
+    });
+  '';
+
+  # Windows VM support for the Inua session (HX90 test host): Docker for the
+  # Dockur container, FreeRDP to connect, and the QEMU utilities the doctor
+  # uses. tetsuya gets Docker socket access, which is root-equivalent; remove
+  # this before distributing the machine's configuration.
+  services.inuaWindowsVm = {
+    enable = true;
+    dockerUsers = [ "tetsuya" ];
+  };
 
   networking.hostName = "hx90";
 
@@ -66,6 +125,20 @@ in
   services.displayManager.defaultSession = lib.mkForce "inua";
   programs.labwcPreview.enable = true;
 
+  # Virtual machines on the VMSTORE SSD, managed from virt-manager. libvirtd
+  # is a system unit, so a guest keeps running whatever the desktop session
+  # does. Disk images belong on /mnt/VMSTORE, not the btrfs root pool.
+  virtualisation.libvirtd = {
+    enable = true;
+    onBoot = "ignore";
+    onShutdown = "shutdown";
+    qemu.runAsRoot = true;
+    # Windows 11 requires a TPM 2.0; guests get an emulated one from swtpm.
+    qemu.swtpm.enable = true;
+  };
+  programs.virt-manager.enable = true;
+  users.users.tetsuya.extraGroups = [ "libvirtd" ];
+
   # Keep the Hermes remote API peer available when the user is logged out.
   users.users.tetsuya.linger = true;
 
@@ -79,9 +152,18 @@ in
     nodejs_24
     (pkgs.callPackage ../../modules/packages/ai-usagebar.nix { })
     (pkgs.callPackage ../../modules/packages/cindy.nix { })
+    bitwarden-desktop
+    bitwarden-cli
     ripgrep
     tigervnc
     xz
+    # QEMU backend for inua-vm: core emulator, UEFI firmware, SPICE viewer
+    # and the OS-info database that lists downloadable install media.
+    qemu_kvm
+    OVMF
+    virt-viewer
+    osinfo-db
+    osinfo-db-tools
   ];
 
 

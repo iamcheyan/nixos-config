@@ -26,7 +26,11 @@ hl.config({
     fullscreen_opacity = 1.0,
     dim_inactive = false,
     shadow = { enabled = false },
-    blur = { enabled = false },
+    -- Blur is on for the shell's glass: the bar, the dock, the launcher and
+    -- the widget page are half-transparent by inua's style.transparency and
+    -- read as frosted glass only over a blur. Windows stay opaque above
+    -- (the opacity rule), so nothing else of the desktop is blurred.
+    blur = { enabled = true, size = 8, passes = 2 },
   },
   animations = {
     enabled = false,
@@ -39,6 +43,54 @@ hl.workspace_rule({
   workspace = "w[tv1]s[false]",
   gaps_out = 0,
   gaps_in = 0,
+})
+
+-- The shell's translucent surfaces need their own layer rule for blur.
+-- This matches the upstream Hyprland sample, including the dock drawer.
+hl.layer_rule({
+  name = "inua-blur",
+  match = { namespace = "^inua-(bar|launcher|control|calendar|passwords|center|banners|dock|drawer|osd|widgets)$" },
+  blur = true,
+  ignore_alpha = 0.6,
+})
+
+hl.layer_rule({
+  name = "inua-no-anim",
+  match = { namespace = "^inua-(launcher|control|calendar|center|banners|dock|drawer|osd|widgets)$" },
+  no_anim = true,
+})
+
+-- The shell's surfaces are translucent; blur what is behind them. These are
+-- the layer-shell namespaces it uses (inua-center is the notification
+-- center, inua-banners its banners, inua-calendar the calendar panel under
+-- the clock, inua-dock the app dock, inua-drawer the dock's drawer, inua-osd
+-- the volume and brightness indicator, inua-widgets the widget page).
+--
+-- A layer surface takes its blur from its own rule, never from
+-- decoration.blur.enabled: without this the shell's glass (inua's
+-- style.transparency) sits over sharp text instead of frosted glass.
+hl.layer_rule({
+  name = "inua-blur",
+  match = { namespace = "^inua-(bar|launcher|control|calendar|passwords|center|banners|dock|drawer|osd|widgets)$" },
+  blur = true,
+  -- Above the shadows and the control backdrop (under 0.5), below the
+  -- surfaces themselves (0.84 and up), so shadows are not blurred.
+  ignore_alpha = 0.6,
+})
+
+-- The wallpaper should not fade in and out like a window.
+hl.layer_rule({
+  name = "inua-background",
+  match = { namespace = "^inua-background$" },
+  no_anim = true,
+})
+
+-- The control center, calendar panel, notification center, banners, dock,
+-- its drawer, level indicator, launcher and widget page animate themselves.
+hl.layer_rule({
+  name = "inua-no-anim",
+  match = { namespace = "^inua-(launcher|control|calendar|center|banners|dock|drawer|osd|widgets)$" },
+  no_anim = true,
 })
 
 -- https://wiki.hypr.land/Configuring/Basics/Variables/#decoration

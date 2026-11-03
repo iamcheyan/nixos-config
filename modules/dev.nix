@@ -1,5 +1,12 @@
 { config, pkgs, ... }:
 
+let
+  bun = if config.networking.hostName == "hx90" then
+    (builtins.getFlake "github:NixOS/nixpkgs/nixos-unstable").legacyPackages.${pkgs.stdenv.hostPlatform.system}.bun
+  else
+    pkgs.bun;
+in
+
 {
   # Cross-platform compiler, interpreter, and build-tool layer shared by NixOS and macOS.
   # Keep this separate from cli.nix so a minimal shell-only host can omit it.
@@ -15,7 +22,7 @@
     pkg-config
     tree-sitter
 
-    # Languages & Runtimes
+    go
     python3
     nodejs
     fnm

@@ -16,75 +16,6 @@ index f75591500..10c165ea6 100644
      if (xwl_screen->root_clip_mode == ROOT_CLIP_FULL)
          SetRootClip(xwl_screen->screen, ROOT_CLIP_NONE);
  
-@@ -615,14 +622,15 @@ maybe_update_fullscreen_state(struct xwl_output *xwl_output)
-     }
- }
- 
--static void
--apply_output_change(struct xwl_output *xwl_output)
-+void
-+xwl_output_apply_changes(struct xwl_output *xwl_output)
- {
-     struct xwl_screen *xwl_screen = xwl_output->xwl_screen;
-     struct xwl_output *it;
-     int mode_width, mode_height, count;
-     int width = 0, height = 0, has_this_output = 0;
-     RRModePtr *randr_modes;
-+    int32_t scale = xwl_screen->global_surface_scale;
- 
-     /* Clear out the "done" received flags */
-     xwl_output->wl_output_done = FALSE;
-@@ -641,10 +649,10 @@ apply_output_change(struct xwl_output *xwl_output)
-     }
-     if (xwl_output->randr_output) {
-         /* Build a fresh modes array using the current refresh rate */
--        randr_modes = output_get_rr_modes(xwl_output, mode_width, mode_height, &count);
-+        randr_modes = output_get_rr_modes(xwl_output, mode_width * scale, mode_height * scale, &count);
-         RROutputSetModes(xwl_output->randr_output, randr_modes, count, 1);
-         RRCrtcNotify(xwl_output->randr_crtc, randr_modes[0],
--                     xwl_output->x, xwl_output->y,
-+                     xwl_output->x * scale, xwl_output->y * scale,
-                      xwl_output->rotation, NULL, 1, &xwl_output->randr_output);
-         /* RROutputSetModes takes ownership of the passed in modes, so we only
-          * have to free the pointer array.
-@@ -738,7 +746,7 @@ output_handle_done(void *data, struct wl_output *wl_output)
-      */
-     if (xwl_output->xdg_output_done || !xwl_output->xdg_output ||
-         zxdg_output_v1_get_version(xwl_output->xdg_output) >= 3)
--        apply_output_change(xwl_output);
-+        xwl_output_apply_changes(xwl_output);
- }
- 
- static void
-@@ -806,7 +814,7 @@ xdg_output_handle_done(void *data, struct zxdg_output_v1 *xdg_output)
- 
-     if (xwl_output->wl_output_done &&
-         zxdg_output_v1_get_version(xdg_output) < 3)
--        apply_output_change(xwl_output);
-+        xwl_output_apply_changes(xwl_output);
- }
- 
- static void
-@@ -942,6 +950,8 @@ xwl_output_create(struct xwl_screen *xwl_screen, uint32_t id,
-     RROutputSetConnection(xwl_output->randr_output,
-                           connected ? RR_Connected : RR_Disconnected);
- 
-+    xwl_output->scale = 1;
-+
-     /* We want the output to be in the list as soon as created so we can
-      * use it when binding to the xdg-output protocol...
-      */
-diff --git a/hw/xwayland/xwayland-output.h b/hw/xwayland/xwayland-output.h
-index 0d36f459a..123d01380 100644
---- a/hw/xwayland/xwayland-output.h
-+++ b/hw/xwayland/xwayland-output.h
-@@ -121,4 +121,6 @@ void xwl_output_set_window_randr_emu_props(struct xwl_screen *xwl_screen,
- 
- void xwl_screen_init_xdg_output(struct xwl_screen *xwl_screen);
- 
-+void xwl_output_apply_changes(struct xwl_output *xwl_output);
-+
- #endif /* XWAYLAND_OUTPUT_H */
 diff --git a/hw/xwayland/xwayland-present.c b/hw/xwayland/xwayland-present.c
 index 60427cca0..0e12215e3 100644
 --- a/hw/xwayland/xwayland-present.c
@@ -170,37 +101,6 @@ index 4b575667a..ff536883a 100644
  static void
  xwl_property_callback(CallbackListPtr *pcbl, void *closure,
                        void *calldata)
-@@ -166,19 +207,24 @@ xwl_property_callback(CallbackListPtr *pcbl, void *closure,
-     ScreenPtr screen = closure;
-     PropertyStateRec *rec = calldata;
-     struct xwl_screen *xwl_screen;
--    struct xwl_window *xwl_window;
- 
-     if (rec->win->drawable.pScreen != screen)
-         return;
- 
--    xwl_window = xwl_window_get(rec->win);
--    if (!xwl_window)
--        return;
--
-     xwl_screen = xwl_screen_get(screen);
- 
--    if (rec->prop->propertyName == xwl_screen->allow_commits_prop)
-+    if (rec->prop->propertyName == xwl_screen->allow_commits_prop) {
-+        struct xwl_window *xwl_window;
-+
-+        xwl_window = xwl_window_get(rec->win);
-+        if (!xwl_window)
-+            return;
-+
-         xwl_window_update_property(xwl_window, rec);
-+    }
-+    else if (rec->prop->propertyName == xwl_screen->global_output_scale_prop) {
-+        xwl_screen_update_property(xwl_screen, rec);
-+    }
- }
- 
- #define readOnlyPropertyAccessMask (DixReadAccess |\
 @@ -718,8 +764,14 @@ void xwl_surface_damage(struct xwl_screen *xwl_screen,
  {
      if (wl_surface_get_version(surface) >= WL_SURFACE_DAMAGE_BUFFER_SINCE_VERSION)
@@ -229,11 +129,7 @@ index 4b575667a..ff536883a 100644
 +
 +    xwl_screen->global_surface_scale = scale;
 +
-+    /* change randr resolutions and positions */
-+    xorg_list_for_each_entry(it, &xwl_screen->output_list, link) {
-+        xwl_output_apply_changes(it);
-+    }
-+
+    /* change RandR output scale on the next output update */
 +    if (!xwl_screen->rootless && xwl_screen->screen->root) {
 +        /* Clear all the buffers, so that they'll be remade with the new sizes
 +         * (this doesn't occur automatically because as far as Xorg is
@@ -252,7 +148,7 @@ index 4b575667a..ff536883a 100644
      struct xwl_screen *xwl_screen;
      Pixel red_mask, blue_mask, green_mask;
      int ret, bpc, green_bpc, i;
-@@ -891,6 +967,7 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
+@@ -891,5 +891,6 @@ xwl_screen_init(ScreenPtr pScreen, int argc, char **argv)
  #ifdef XWL_HAS_GLAMOR
      xwl_screen->glamor = XWL_GLAMOR_DEFAULT;
  #endif

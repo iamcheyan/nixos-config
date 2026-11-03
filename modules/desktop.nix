@@ -265,6 +265,7 @@ in
     shizukaSddmTheme
 
     # Desktop terminals and GUI applications
+    wayfire
     kitty
     alacritty
     ghostty
@@ -320,6 +321,17 @@ in
   programs.firefox.policies.ExtensionSettings."{f610e21f-3434-46e8-8db2-a811f4dbfd5f}" = {
     installation_mode = "force_installed";
     install_url = "https://addons.mozilla.org/firefox/downloads/latest/furigana-maker/latest.xpi";
+  };
+  # Firefox's own menu publishing, through the AppMenu registrar on
+  # Wayland: the way the bar's global menu reads it, and the only one that
+  # does not press the browser's menu open (which ends Firefox). The bar
+  # shows it when [bar] menu = true, or for Firefox alone when it is in
+  # menu_on.
+  programs.firefox.policies.Preferences = {
+    "widget.gtk.global-menu.enabled".Value = true;
+    "widget.gtk.global-menu.enabled".Status = "default";
+    "widget.gtk.global-menu.wayland.enabled".Value = true;
+    "widget.gtk.global-menu.wayland.enabled".Status = "default";
   };
 
   systemd.services.amdgpu-dpm = {

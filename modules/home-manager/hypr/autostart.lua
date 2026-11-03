@@ -14,7 +14,7 @@ o.exec_on_start("systemctl --user restart --no-block voxtype.service")
 -- The Inua login entry reuses this Hyprland configuration and starts its
 -- shell only for that session.
 if os.getenv("INUA_SESSION") == "1" then
-  o.exec_on_start("inua-shell")
+  o.exec_on_start("inua-shell-startup")
 end
 
 -- Ensure default black cursor theme (Adwaita) is applied on startup

@@ -5,9 +5,8 @@ let
   # clients at the declared global scale, and wlroots avoids blurring that
   # buffer on Labwc outputs. Keep this private to Labwc so Hyprland continues
   # using its own XWayland behavior.
-  xwaylandHiDpi = pkgs.xwayland.overrideAttrs (old: {
-    patches = (old.patches or [ ]) ++ [ ./patches/labwc-hidpi/xwayland-24.1.13-hidpi.patch ];
-  });
+  # Temporarily disable the XWayland HiDPI patch while adapting it to 24.1.14.
+  xwaylandHiDpi = pkgs.xwayland;
 
   wlroots0202 = (pkgs.wlroots_0_20.override {
     xwayland = xwaylandHiDpi;
