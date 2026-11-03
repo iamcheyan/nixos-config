@@ -97,23 +97,26 @@ HX90 的 `networking.hostName` 与 flake 输出名统一为 `hx90`，`nixos-upda
   以保证 SSH 任务不会因空闲而中断。
 - **snapper**：`/` 和 `/home` 各一套自动快照（小时/天/周/月保留策略），
   用于本地回滚。注释里写明：这不是加密 NAS 备份的替代品。
-- **Docker + Windows VM 工具链**：docker、docker-compose、freerdp（RDP）、
-  cifs-utils（SMB）、restic、btrfs-progs。
+- **Docker + WinBoat**：Docker、Docker Compose、FreeRDP、cifs-utils、restic 和
+  btrfs-progs；WinBoat 安装与 Guest API 排障见
+  [`docs/winboat-nixos.md`](docs/winboat-nixos.md)。
 
 ## 日常操作
 
 ### 重建 HX90 系统
 
-HX90 的 Inua 软件包从开发工作区 `/home/tetsuya/development/inua` 构建，
+HX90 的 Inua 软件包从开发工作区 `/home/tetsuya/development/inua-wayfire` 构建，
 因此重建时需要传入 `INUA_DEV_DIR` 并启用 impure flake 求值：
 
 ```sh
 cd ~/nixos-config
-sudo INUA_DEV_DIR=/home/tetsuya/development/inua nixos-rebuild switch --flake .#hx90 --impure
+sudo INUA_DEV_DIR=/home/tetsuya/development/inua-wayfire nixos-rebuild switch --flake .#hx90 --impure
 ```
 
-HX90 的 `tetsuya` 已配置为 `docker` 组成员。首次启用后，注销并重新登录一次，
-让图形会话获得新的组权限；WinBoat 的 Docker 组检查会在新会话中通过。
+HX90 的 Docker daemon 由 `services.inuaWindowsVm` 启用，`tetsuya` 通过
+`dockerUsers` 加入 `docker` 组。WinBoat 使用独立锁定的 nixpkgs-unstable 0.9.2 包；
+AppImage 组检查误报和 Guest API Offline 的处理记录见
+[`docs/winboat-nixos.md`](docs/winboat-nixos.md)。
 
 ### 重装后的 SSH 接管
 
