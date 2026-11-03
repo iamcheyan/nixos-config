@@ -102,6 +102,19 @@ HX90 的 `networking.hostName` 与 flake 输出名统一为 `hx90`，`nixos-upda
 
 ## 日常操作
 
+### 重建 HX90 系统
+
+HX90 的 Inua 软件包从开发工作区 `/home/tetsuya/development/inua-wayfire` 构建，
+因此重建时需要传入 `INUA_DEV_DIR` 并启用 impure flake 求值：
+
+```sh
+cd ~/nixos-config
+sudo INUA_DEV_DIR=/home/tetsuya/development/inua-wayfire nixos-rebuild switch --flake .#hx90 --impure
+```
+
+HX90 的 `tetsuya` 已配置为 `docker` 组成员。首次启用后，注销并重新登录一次，
+让图形会话获得新的组权限；WinBoat 的 Docker 组检查会在新会话中通过。
+
 ### 重装后的 SSH 接管
 
 新系统启动后，如果 Agent 要通过 SSH 接管，可以先把本仓库复制到新系统，并确认
@@ -120,15 +133,22 @@ SSH 使用用户密码登录，禁止 root 直接登录；接管完成后建议�
 # 应用配置（在本机上，<name> 换成当前机器的 flake 名）
 sudo nixos-rebuild switch --flake ~/nixos-config#hx90      # HX90
 sudo nixos-rebuild switch --flake ~/nixos-config#aarch64   # ARM64 虚拟机
+```
 
-# 更新 nixpkgs 锁定（谨慎：当前刻意钉在 nixos-26.05 迁移基线）
+### 每日 flake 更新
+
+每天 GitHub Actions 会检查并更新全部 flake inputs（包括 nixpkgs，因此可能影响整套 NixOS 软件包），有变化时自动提交 `flake.lock` 候选。工作流不会构建或部署系统；更新仍需在本机检查、构建并手动应用。
+
+工作流在 `main` 分支按 UTC 02:17 运行，也可从 Actions 页面手动触发。锁文件没有变化时不会提交。
+
+本地手动更新仍可运行：
+
+```bash
 nix flake update
 sudo nixos-rebuild switch --flake ~/nixos-config#<name>
+```
 
-# 只检查并更新 Shizuka SDDM 主题
-nix flake update shizuka --flake ~/nixos-config
-sudo nixos-rebuild switch --flake ~/nixos-config#<name>
-
+```bash
 # 测试构建（不切换）
 nixos-rebuild build --flake ~/nixos-config#<name>
 
@@ -141,6 +161,8 @@ root/home 快照，构建候选后切换。不会更新 chezmoi 或 dotfiles。
 操作与恢复见 [`docs/nixos-update-snapshots.md`](docs/nixos-update-snapshots.md)。
 Nixarchy 外部依赖已移除，接管清单见 [`docs/nixarchy-removal.md`](docs/nixarchy-removal.md)。
 全局 AI 环境与 skills 接线见 [`docs/agent-environment.md`](docs/agent-environment.md)。
+虚拟机宿主约定（VMSTORE 磁盘、libvirt/virt-manager、已有虚拟机）见
+[`docs/vm-host.md`](docs/vm-host.md)。
 
 Shizuka 登录主题的源码、`flake.lock` 锁定版本、NixOS generation 和 SDDM 实际加载
 路径之间的关系，见该文档中的「Shizuka 的版本到底由哪里管理」章节。注销登录不会

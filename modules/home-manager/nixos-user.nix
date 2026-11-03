@@ -9,6 +9,32 @@ let
     value = { source = skillRoot + "/${name}"; force = true; };
   }) [ ".agents/skills" ".codex/skills" ".claude/skills" ".pi/agent/skills" ]) skillNames);
 
+  # Opens the win98 guest over RDP when the guest's Remote Desktop is enabled,
+  # which gives absolute pointer mapping and a resolution that follows the
+  # monitor instead of the VNC framebuffer's 1024x768.
+  win98Console = pkgs.writeShellApplication {
+    name = "win98-console";
+    runtimeInputs = [ pkgs.libvirt pkgs.freerdp pkgs.virt-viewer pkgs.coreutils pkgs.gnugrep ];
+    text = ''
+      state="$(virsh -c qemu:///system domstate win98 2>/dev/null || true)"
+      if [[ "$state" != "running" ]]; then
+        virsh -c qemu:///system start win98
+      fi
+
+      for _ in {1..120}; do
+        address="$(virsh -c qemu:///system domifaddr win98 --source lease 2>/dev/null \
+          | awk '/ipv4/ { sub(/\/.*/, "", $4); print $4; exit }')"
+        if [[ -n "$address" ]] && timeout 1 bash -c "exec 3<>/dev/tcp/$address/3389" 2>/dev/null; then
+          exec xfreerdp /v:"$address" /u:Administrator /p:"$(<"$HOME/.config/windows-rdp/credentials")" \
+            /cert:ignore /f /monitors:0 +dynamic-resolution
+        fi
+        sleep 1
+      done
+
+      echo "win98 did not become reachable over RDP; falling back to the VNC console." >&2
+      exec virt-viewer --connect qemu:///system --wait win98
+    '';
+  };
 in
 
 # User configuration that is specific to the locally managed NixOS desktop.
@@ -39,6 +65,7 @@ in
     };
     Install.WantedBy = [ "default.target" ];
   };
+
   systemd.user.services.cindy = lib.mkIf (hostName == "hx90") {
     Unit = {
       Description = "Cindy desktop application";
@@ -89,6 +116,15 @@ in
         vue.volar
       ];
     };
+  };
+  xdg.desktopEntries.win98 = lib.mkIf (hostName == "hx90") {
+    name = "Windows 98";
+    comment = "Open the win98 virtual machine over RDP (VNC console as fallback)";
+    exec = "${win98Console}/bin/win98-console";
+    icon = "computer";
+    terminal = false;
+    categories = [ "System" "Emulator" ];
+    settings.StartupNotify = "true";
   };
   xdg.desktopEntries.codex-desktop = {
     name = "ChatGPT Community";

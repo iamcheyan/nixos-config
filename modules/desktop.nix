@@ -265,6 +265,7 @@ in
     shizukaSddmTheme
 
     # Desktop terminals and GUI applications
+    wayfire
     kitty
     alacritty
     ghostty

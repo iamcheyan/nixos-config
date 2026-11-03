@@ -63,8 +63,8 @@ let
   };
   # Build the machine's Inua package from the development checkout so system
   # upgrades pick up its current source, including uncommitted development work.
-  # Set INUA_DEV_DIR="$HOME/development/inua" when evaluating the flake with
-  # --impure; this keeps the checkout path independent of the login name.
+  # This host's development checkout is /home/tetsuya/development/inua-wayfire.
+  # Set INUA_DEV_DIR to that path and pass --impure when evaluating the flake.
   version = "dev";
   inuaDevDir = builtins.getEnv "INUA_DEV_DIR";
   inuaSource = lib.cleanSourceWith {
@@ -73,8 +73,10 @@ let
     else
       builtins.toPath inuaDevDir;
     filter = path: type:
-      let name = builtins.baseNameOf (toString path);
-      in name != ".git" && name != "bin" && name != "vendor";
+      let
+        name = builtins.baseNameOf (toString path);
+        isVendorPath = lib.hasInfix "/vendor/" "${toString path}/" || name == "vendor";
+      in name != ".git" && name != "bin" && (!isVendorPath || lib.hasPrefix "${inuaDevDir}/internal/games/gameweb/vendor" (toString path));
   };
   gtkDeps = lib.closePropagation [ pkgs.gtk4 pkgs.gtk4-layer-shell ];
   # puregotk expects one directory and may load several sonames per namespace
@@ -89,6 +91,7 @@ let
       { name = "libgmodule-2.0.so.0"; package = pkgs.glib; }
       { name = "libcairo-gobject.so.2"; package = pkgs.cairo; }
       { name = "libpango-1.0.so.0"; package = pkgs.pango; }
+      { name = "libpangocairo-1.0.so.0"; package = pkgs.pango; }
       { name = "libgraphene-1.0.so.0"; package = pkgs.graphene; }
       { name = "libgdk_pixbuf-2.0.so.0"; package = pkgs.gdk-pixbuf; }
     ]);
@@ -114,7 +117,7 @@ let
 
     # Ignore the checkout's generated vendor tree: it may lag behind go.mod.
     # buildGoModule derives a consistent, hash-checked tree from go.mod/go.sum.
-    vendorHash = "sha256-t3nzRUwpMcyneuqx4SDT1cFbFsPw2y2Xh+118MUNIV4=";
+    vendorHash = "sha256-Sn6fkH00oPqFDPPlQvAF/zoeBxn0vcMwg7MkVPDjII8=";
 
     # Pure Go (CGO_ENABLED=0): GTK4 through puregotk, layer surfaces through
     # gtk4-layer-shell. The .ui files are committed, so no blueprint-compiler.

@@ -30,7 +30,7 @@
   # ownership of them.  This keeps activation recoverable on this workstation.
   # Keep older backups intact; each numbered suffix is a prior activation
   # snapshot and must not be overwritten.
-  home-manager.backupFileExtension = "hm-backup-nixos-v6";
+  home-manager.backupFileExtension = "hm-backup-nixos-v7";
 
   boot.loader.systemd-boot.enable = true;
   # Keep a small set of bootable rollback generations on the 1 GiB ESP.

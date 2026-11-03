@@ -11,6 +11,11 @@
 -- Close the focused window.
 o.bind("SUPER + Q", "Close active window", hl.dsp.window.close())
 
+-- Toggle Hyprland's non-client fullscreen state (tiled maximize).
+hl.bind("SUPER + F", hl.dsp.window.fullscreen({ action = "toggle", client = 0 }), {
+  description = "Toggle tiled maximize"
+})
+
 -- Toggle dictation with F9. This is the user-level dictation binding.
 hl.unbind("F9")
 hl.bind("F9", hl.dsp.exec_cmd("voxtype record toggle"), {

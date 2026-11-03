@@ -36,7 +36,25 @@ let
       ln -s ${wechatLauncher} $out/bin/wechat
     '';
   };
+  # nixpkgs' WinBoat 0.9.0 uses EOL Electron 40. Package the official 0.9.2
+  # AppImage instead; that release includes security fixes and Electron 44.
+  winboat = pkgs.appimageTools.wrapType2 {
+    pname = "winboat";
+    version = "0.9.2";
+    src = pkgs.fetchurl {
+      name = "winboat-0.9.2-x86_64.AppImage";
+      url = "https://github.com/winboat-org/winboat/releases/download/v0.9.2/winboat-0.9.2-x86_64.AppImage";
+      hash = "sha256-YzaEO5EeNEv2GC666i1C6JYO8RggoMyEI5qEi6ChQOQ=";
+    };
+  };
+  winboatDesktop = pkgs.makeDesktopItem {
+    name = "winboat";
+    desktopName = "WinBoat";
+    comment = "Run Windows apps on Linux";
+    exec = "winboat";
+    categories = [ "Utility" ];
+  };
 in
 {
-  environment.systemPackages = [ qqCurrent wechatCurrent ];
+  environment.systemPackages = [ qqCurrent wechatCurrent winboat winboatDesktop ];
 }
