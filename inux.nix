@@ -61,10 +61,9 @@ let
       runHook postInstall
     '';
   };
-  # Build the machine's Inua package from the development checkout so system
-  # upgrades pick up its current source, including uncommitted development work.
-  # This host's development checkout is /home/tetsuya/development/inua.
-  # Set INUA_DEV_DIR to that path and pass --impure when evaluating the flake.
+# Build the machine's Inua package from the selected development checkout so
+# system upgrades pick up that source, including uncommitted development work.
+# Set INUA_DEV_DIR to the desired checkout and pass --impure when evaluating.
   version = "dev";
   inuaDevDir = builtins.getEnv "INUA_DEV_DIR";
   inuaSource = lib.cleanSourceWith {
@@ -144,25 +143,32 @@ let
       "cmd/inua-disk-usage"
       "cmd/inua-mail"
       "cmd/inua-games"
+      "cmd/inua-game-lobby"
       "cmd/inua-pinentry"
+      "cmd/inua-askpass"
+      "cmd/inua-share-picker"
       "cmd/inua-assistant"
       "cmd/inua-keyring"
       "cmd/inua-term"
+      "cmd/inua-termd"
     ];
 
     # The GTK bindings load libraries at runtime, so the wrapped binaries need
     # the GTK stack on LD_LIBRARY_PATH.
     postFixup = ''
-      for program in inua inua-shell inua-apps inua-files inua-viewer inua-vm inua-remote inua-connect inua-disk-usage inua-mail inua-games inua-assistant inua-keyring inua-pinentry inua-term; do
+      for program in inua inua-shell inua-apps inua-files inua-viewer inua-vm inua-remote inua-connect inua-disk-usage inua-mail inua-games inua-game-lobby inua-pinentry inua-askpass inua-share-picker inua-assistant inua-keyring inua-term inua-termd; do
         wrapProgram "$out/bin/$program" \
           --set PUREGOTK_LIB_FOLDER "${puregotkLibraries}" \
           --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath gtkDeps}" \
           --prefix PKG_CONFIG_PATH : "${lib.makeSearchPathOutput "dev" "lib/pkgconfig" gtkDeps}"
       done
+      wrapProgram "$out/bin/inua-wayfire-session" \
+        --prefix PATH : "$out/bin:${pkgs.wayfire}/bin:${pkgs.coreutils}/bin" \
+        --set INUA_WAYFIRE_CONFIG "$out/share/inua/wayfire.ini"
     '';
 
     # buildGoModule installs the subPackages binaries into $out/bin itself.
-    # Add the session script, desktop entries and the INUA_SESSION marker.
+    # Add the session scripts, desktop entries and the INUA_SESSION marker.
     postInstall = ''
       install -Dm755 scripts/inua-session "$out/bin/inua-session"
       install -Dm644 config/apps/*.desktop -t "$out/share/applications"
@@ -178,6 +184,11 @@ let
         ${pkgs.gtk4}/bin/gtk4-update-icon-cache -q -t "$out/share/icons/$theme"
       done
       install -Dm644 config/session/inua.desktop "$out/share/wayland-sessions/inua.desktop"
+      install -Dm755 scripts/inua-wayfire-session "$out/bin/inua-wayfire-session"
+      install -Dm644 config/session/wayfire.ini "$out/share/inua/wayfire.ini"
+      install -Dm644 config/session/inua-wayfire.desktop "$out/share/wayland-sessions/inua-wayfire.desktop"
+      substituteInPlace "$out/share/wayland-sessions/inua-wayfire.desktop" \
+        --replace-fail 'Exec=inua-wayfire-session' '/run/current-system/sw/bin/inua-wayfire-session'
 
       substituteInPlace "$out/share/wayland-sessions/inua.desktop" \
         --replace-fail '/usr/local/bin/inua-session' '/run/current-system/sw/bin/inua-session'
