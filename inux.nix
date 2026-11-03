@@ -78,6 +78,7 @@ let
       in name != ".git" && name != "bin" && (!isVendorPath || lib.hasPrefix "${inuaDevDir}/internal/games/gameweb/vendor" (toString path));
   };
   gtkDeps = lib.closePropagation [ pkgs.gtk4 pkgs.gtk4-layer-shell ];
+  gstDeps = with pkgs.gst_all_1; [ gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav ];
   # puregotk expects one directory and may load several sonames per namespace
   # (GLib needs both glib and gobject). Keep all of those files available.
   puregotkLibraries = pkgs.linkFarm "inua-puregotk-libraries" (map
@@ -159,7 +160,8 @@ let
       for program in inua inua-shell inua-apps inua-files inua-viewer inua-vm inua-remote inua-connect inua-disk-usage inua-mail inua-games inua-game-lobby inua-pinentry inua-askpass inua-share-picker inua-assistant inua-keyring inua-term inua-termd; do
         wrapProgram "$out/bin/$program" \
           --set PUREGOTK_LIB_FOLDER "${puregotkLibraries}" \
-          --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath gtkDeps}" \
+          --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath (gtkDeps ++ gstDeps)}" \
+          --prefix GST_PLUGIN_SYSTEM_PATH_1_0 : "${lib.makeSearchPath "lib/gstreamer-1.0" (map lib.getLib gstDeps)}" \
           --prefix PKG_CONFIG_PATH : "${lib.makeSearchPathOutput "dev" "lib/pkgconfig" gtkDeps}"
       done
       wrapProgram "$out/bin/inua-wayfire-session" \
