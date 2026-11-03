@@ -39,6 +39,20 @@ in
     };
     Install.WantedBy = [ "default.target" ];
   };
+  systemd.user.services.cindy = lib.mkIf (hostName == "hx90") {
+    Unit = {
+      Description = "Cindy desktop application";
+      After = [ "graphical-session.target" ];
+      PartOf = [ "graphical-session.target" ];
+      ConditionEnvironment = "WAYLAND_DISPLAY";
+    };
+    Service = {
+      Type = "simple";
+      ExecStart = "${pkgs.callPackage ../packages/cindy.nix { }}/bin/cindy";
+      Restart = "on-failure";
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+  };
 
   programs.vscode = {
     enable = true;

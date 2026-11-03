@@ -13,7 +13,17 @@ in
     ./apps.nix
     ../../modules/devenv.nix
     ../../modules/deploy.nix
+    ../../modules/inua-windows-vm.nix
   ] ++ lib.optional (localHost != null && builtins.pathExists localHost) localHost;
+
+  # Windows VM support for the Inua session (HX90 test host): Docker for the
+  # Dockur container, FreeRDP to connect, and the QEMU utilities the doctor
+  # uses. tetsuya gets Docker socket access, which is root-equivalent; remove
+  # this before distributing the machine's configuration.
+  services.inuaWindowsVm = {
+    enable = true;
+    dockerUsers = [ "tetsuya" ];
+  };
 
   networking.hostName = "hx90";
 
@@ -79,9 +89,18 @@ in
     nodejs_24
     (pkgs.callPackage ../../modules/packages/ai-usagebar.nix { })
     (pkgs.callPackage ../../modules/packages/cindy.nix { })
+    bitwarden-desktop
+    bitwarden-cli
     ripgrep
     tigervnc
     xz
+    # QEMU backend for inua-vm: core emulator, UEFI firmware, SPICE viewer
+    # and the OS-info database that lists downloadable install media.
+    qemu_kvm
+    OVMF
+    virt-viewer
+    osinfo-db
+    osinfo-db-tools
   ];
 
 

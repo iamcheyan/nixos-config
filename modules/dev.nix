@@ -15,7 +15,7 @@
     pkg-config
     tree-sitter
 
-    # Languages & Runtimes
+    go
     python3
     nodejs
     fnm
