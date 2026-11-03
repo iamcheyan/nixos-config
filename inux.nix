@@ -164,9 +164,11 @@ let
           --prefix GST_PLUGIN_SYSTEM_PATH_1_0 : "${lib.makeSearchPath "lib/gstreamer-1.0" (map lib.getLib gstDeps)}" \
           --prefix PKG_CONFIG_PATH : "${lib.makeSearchPathOutput "dev" "lib/pkgconfig" gtkDeps}"
       done
-      wrapProgram "$out/bin/inua-wayfire-session" \
-        --prefix PATH : "$out/bin:${pkgs.wayfire}/bin:${pkgs.coreutils}/bin" \
-        --set INUA_WAYFIRE_CONFIG "$out/share/inua/wayfire.ini"
+      if [ -x "$out/bin/inua-wayfire-session" ]; then
+        wrapProgram "$out/bin/inua-wayfire-session" \
+          --prefix PATH : "$out/bin:${pkgs.wayfire}/bin:${pkgs.coreutils}/bin" \
+          --set INUA_WAYFIRE_CONFIG "$out/share/inua/wayfire.ini"
+      fi
     '';
 
     # buildGoModule installs the subPackages binaries into $out/bin itself.
@@ -186,11 +188,13 @@ let
         ${pkgs.gtk4}/bin/gtk4-update-icon-cache -q -t "$out/share/icons/$theme"
       done
       install -Dm644 config/session/inua.desktop "$out/share/wayland-sessions/inua.desktop"
-      install -Dm755 scripts/inua-wayfire-session "$out/bin/inua-wayfire-session"
-      install -Dm644 config/session/wayfire.ini "$out/share/inua/wayfire.ini"
-      install -Dm644 config/session/inua-wayfire.desktop "$out/share/wayland-sessions/inua-wayfire.desktop"
-      substituteInPlace "$out/share/wayland-sessions/inua-wayfire.desktop" \
-        --replace-fail 'Exec=inua-wayfire-session' 'Exec=/run/current-system/sw/bin/inua-wayfire-session'
+      if [ -x scripts/inua-wayfire-session ] && [ -r config/session/wayfire.ini ] && [ -r config/session/inua-wayfire.desktop ]; then
+        install -Dm755 scripts/inua-wayfire-session "$out/bin/inua-wayfire-session"
+        install -Dm644 config/session/wayfire.ini "$out/share/inua/wayfire.ini"
+        install -Dm644 config/session/inua-wayfire.desktop "$out/share/wayland-sessions/inua-wayfire.desktop"
+        substituteInPlace "$out/share/wayland-sessions/inua-wayfire.desktop" \
+          --replace-fail 'Exec=inua-wayfire-session' 'Exec=/run/current-system/sw/bin/inua-wayfire-session'
+      fi
 
       substituteInPlace "$out/share/wayland-sessions/inua.desktop" \
         --replace-fail '/usr/local/bin/inua-session' '/run/current-system/sw/bin/inua-session'
