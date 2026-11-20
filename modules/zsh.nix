@@ -3,7 +3,7 @@
 {
   # Enable global Zsh settings and completions
   programs.zsh.enable = true;
-  programs.zsh.envExtra = ''
+  programs.zsh.interactiveShellInit = ''
     # Reconnect shells to the persistent XFCE web desktop when no display
     # has already been selected by the caller.
     if [[ -z ''${DISPLAY:-} && -z ''${WAYLAND_DISPLAY:-} \

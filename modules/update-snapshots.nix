@@ -6,6 +6,7 @@ let
     runtimeInputs = [
       pkgs.coreutils
       pkgs.curl
+      pkgs.flatpak
       pkgs.findutils
       pkgs.gawk
       pkgs.gnugrep
@@ -13,6 +14,7 @@ let
       pkgs.jq
       pkgs.nix
       pkgs.nixos-rebuild
+      pkgs.python3
       pkgs.snapper
       pkgs.systemd
       (pkgs.callPackage ./packages/desktop-compat.nix { })

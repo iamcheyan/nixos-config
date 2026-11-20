@@ -173,6 +173,7 @@ in
     blueprint-compiler
     tigervnc
     xz
+    (pkgs.callPackage ../../modules/packages/orca.nix { })
     # QEMU backend for inua-vm: core emulator, UEFI firmware, SPICE viewer
     # and the OS-info database that lists downloadable install media.
     qemu_kvm
