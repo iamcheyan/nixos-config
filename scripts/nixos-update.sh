@@ -9,13 +9,18 @@ Usage:
   nixos-update list
   nixos-update show <transaction-id>
 
-The default action snapshots / and /home, updates Omarchy plugins and the Nix
-flake, builds and switches the current NixOS host, then records the result.
+The default action snapshots / and /home, updates Omarchy plugins, the Nix
+flake, Orca and Cindy pins, ensures declared Flatpak apps are installed, updates
+Flatpak apps, builds and switches the current NixOS
+host, then records the result.
 EOF
 }
 
 flake_dir="${NIXOS_CONFIG:-$HOME/nixos-config}"
 host="$(hostname -s)"
+if [[ -z "${INUA_DEV_DIR:-}" && "$host" == "hx90" && -d "$HOME/development/inua-wayfire" ]]; then
+  export INUA_DEV_DIR="$HOME/development/inua-wayfire"
+fi
 history_dir="/var/lib/nixos-update/history"
 sudo_cmd="/run/wrappers/bin/sudo"
 [[ -x "$sudo_cmd" ]] || sudo_cmd="$(command -v sudo || true)"
@@ -112,13 +117,24 @@ make_candidate_flake() {
   candidate_flake_dir="$(mktemp -d /tmp/nixos-update-flake.XXXXXX)"
   cp -a "$flake_dir"/. "$candidate_flake_dir/"
   rm -rf "$candidate_flake_dir/.git"
+  # Nix's git flake fetcher requires the flake root itself to be a Git
+  # repository. Give the isolated candidate a clean baseline commit so Nix
+  # does not accidentally treat /tmp (or the live checkout) as its root.
+  git -C "$candidate_flake_dir" init -q
+  git -C "$candidate_flake_dir" add --all
+  git -C "$candidate_flake_dir" -c user.name=nixos-update \
+    -c user.email=nixos-update@localhost commit -qm "Candidate flake baseline"
   echo "Updating candidate flake inputs..."
   nix flake update --flake "$candidate_flake_dir"
+  echo "Checking and pinning current stable Orca and Cindy releases..."
+  bash "$candidate_flake_dir/scripts/update-app-pins.sh" "$candidate_flake_dir"
 }
 
 promote_candidate_flake() {
   cp -f "$candidate_flake_dir/flake.nix" "$flake_dir/flake.nix"
   cp -f "$candidate_flake_dir/flake.lock" "$flake_dir/flake.lock"
+  cp -f "$candidate_flake_dir/modules/packages/orca.nix" "$flake_dir/modules/packages/orca.nix"
+  cp -f "$candidate_flake_dir/modules/packages/cindy.nix" "$flake_dir/modules/packages/cindy.nix"
 }
 
 if [[ "${1:-}" == "check" ]]; then
@@ -129,6 +145,8 @@ if [[ "${1:-}" == "check" ]]; then
   trap '[[ -z "$candidate_flake_dir" ]] || rm -rf "$candidate_flake_dir"' EXIT
   make_candidate_flake
   diff -u "$flake_dir/flake.lock" "$candidate_flake_dir/flake.lock" || [[ $? == 1 ]]
+  diff -u "$flake_dir/modules/packages/orca.nix" "$candidate_flake_dir/modules/packages/orca.nix" || [[ $? == 1 ]]
+  diff -u "$flake_dir/modules/packages/cindy.nix" "$candidate_flake_dir/modules/packages/cindy.nix" || [[ $? == 1 ]]
   exit 0
 fi
 
@@ -171,7 +189,12 @@ fi
 [[ -n "$sudo_cmd" ]] || { echo "sudo is not available" >&2; exit 1; }
 command -v snapper >/dev/null || { echo "snapper is not available" >&2; exit 1; }
 command -v omarchy >/dev/null || { echo "omarchy is not available" >&2; exit 1; }
+command -v flatpak >/dev/null || { echo "flatpak is not available" >&2; exit 1; }
 command -v nixos-rebuild >/dev/null || { echo "nixos-rebuild is not available" >&2; exit 1; }
+[[ -n "${INUA_DEV_DIR:-}" && -d "$INUA_DEV_DIR" ]] || {
+  echo "INUA_DEV_DIR must point to the Inua checkout (for HX90, usually ~/development/inua-wayfire)." >&2
+  exit 1
+}
 
 if [[ "$allow_dirty" != true ]] && [[ -n "$(git -C "$flake_dir" status --porcelain)" ]]; then
   if [[ -t 0 ]]; then
@@ -246,7 +269,7 @@ make_candidate_flake
 append_record 'status=candidate-flake-updated'
 write_record
 echo "Building candidate NixOS configuration for $host..."
-nixos-rebuild build --impure --flake "$candidate_flake_dir#$host"
+INUA_DEV_DIR="$INUA_DEV_DIR" nixos-rebuild build --impure --flake "$candidate_flake_dir#$host"
 append_record 'status=build-succeeded'
 write_record
 
@@ -255,18 +278,30 @@ omarchy plugin update --yes
 append_record 'status=plugins-updated'
 write_record
 
-echo "Promoting validated flake candidate..."
+echo "Switching NixOS configuration..."
+"$sudo_cmd" INUA_DEV_DIR="$INUA_DEV_DIR" nixos-rebuild switch --impure --flake "$candidate_flake_dir#$host"
+switch_succeeded=true
+echo "Saving the validated flake and application pins..."
 promote_candidate_flake
 append_record 'status=flake-promoted'
 write_record
-
-echo "Switching NixOS configuration..."
-"$sudo_cmd" nixos-rebuild switch --impure --flake "$candidate_flake_dir#$host"
-switch_succeeded=true
 append_record "generation_after=$(current_generation)"
 append_record "kernel_after=$(uname -r)"
 append_record "flake_revision_after_switch=$(git -C "$flake_dir" rev-parse HEAD)"
 append_record 'status=switch-succeeded'
+write_record
+
+echo "Ensuring declared Flatpak applications and updating apps and runtimes..."
+flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+while IFS= read -r app || [[ -n "$app" ]]; do
+  [[ -n "$app" ]] || continue
+  [[ "$app" == \#* ]] && continue
+  if ! flatpak info --user "$app" >/dev/null 2>&1; then
+    flatpak install --user --noninteractive flathub "$app"
+  fi
+done < "$flake_dir/scripts/flatpak-apps.list"
+flatpak update --user --noninteractive
+append_record 'status=flatpak-updated'
 write_record
 
 echo "Update complete: $transaction"

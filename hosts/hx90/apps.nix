@@ -1,17 +1,8 @@
 { inputs, pkgs, ... }:
 let
-  # The locked nixpkgs QQ source URL was removed upstream (404). Pin the
-  # currently published official x86_64 Debian package until nixpkgs updates.
-  qqCurrent = pkgs.qq.overrideAttrs (old: {
-    version = "3.2.32-2026-08-12";
-    src = pkgs.fetchurl {
-      name = "QQ_3.2.32_260812_amd64_01.deb";
-      url = "https://qqdl.gtimg.cn/qqfile/QQNT/9.9.33/release/3f89efc5/QQ_3.2.32_260812_amd64_01.deb";
-      hash = "sha256-0IXdiTlyJQYeufGUMI9ogSmBjtRFd36XpKChbhPXsOg=";
-    };
-  });
-  # Tencent retired the fixed Linux AppImage URL archived by nixpkgs. Use the
-  # unmodified official AppImage mirrored with a published SHA-256 checksum.
+  # Tencent retired nixpkgs' fixed Linux AppImage URL. Keep WeChat on its
+  # existing Nix package until the Flathub package's external-data checksum
+  # works reliably again.
   wechatAppImage = pkgs.callPackage (pkgs.path + "/pkgs/by-name/we/wechat/linux.nix") {
     pname = "wechat";
     version = "4.1.1.8";
@@ -41,5 +32,6 @@ let
   winboat = inputs.nixpkgs-unstable.legacyPackages.${pkgs.stdenv.hostPlatform.system}.winboat;
 in
 {
-  environment.systemPackages = [ qqCurrent wechatCurrent winboat ];
+  # QQ is installed from Flathub; WeChat and WinBoat remain Nix packages.
+  environment.systemPackages = [ wechatCurrent winboat ];
 }

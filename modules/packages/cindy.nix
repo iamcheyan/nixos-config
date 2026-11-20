@@ -1,10 +1,10 @@
 { lib, stdenvNoCC, fetchurl, dpkg, buildFHSEnv, writeShellScript, ... }:
 
 let
-  version = "0.1.109";
+  version = "0.1.143";
   deb = fetchurl {
-    url = "https://hotfix.cindy.app/cindy/app/linux-x64/cindy-${version}-amd64.deb";
-    sha256 = "55a2cffc2217cbcd60683aa678e06605d7950feb26232d0ee6ddd54e63af8fad";
+    url = "https://hotfix.cindy.app/cindy/app/linux-x64/cindy-0.1.143-amd64.deb";
+    sha256 = "cf0e3e2f2a24e094b4c544aebf2439a8b49b1f170121989fa6441e66cc0b4034";
   };
   app = stdenvNoCC.mkDerivation {
     pname = "cindy-unpacked";
@@ -66,7 +66,10 @@ let
       # entry point (desktop, command line, and URI handler) uses Wayland.
       export ELECTRON_OZONE_PLATFORM_HINT=wayland
       export OZONE_PLATFORM=wayland
-      exec ${app}/usr/lib/cindy/Cindy --ozone-platform=wayland "$@"
+      # The inua desktop is not recognized by Chromium's keyring detection.
+      # Select the unlocked Secret Service backend so saved logins stay usable.
+      export XDG_CURRENT_DESKTOP=GNOME
+      exec ${app}/usr/lib/cindy/Cindy --ozone-platform=wayland --password-store=gnome-libsecret "$@"
     '';
   };
   launcher = writeShellScript "cindy-wayland-launcher" ''
